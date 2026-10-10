@@ -190,3 +190,11 @@ UI/web all-target clippy passes with the previously documented `collapsible_matc
 excluded. The release build and local deployment verifier pass. Browser inspection confirmed
 the three small menu marks, removed toolbar launcher and all three operation titles in the
 signed-out flow; the console had no errors. No cloud upload was needed for this UI change.
+
+Cloud-section validation (2026-10-10): 8 web-host tests and 498 UI tests passed (3 opt-in
+tests ignored), including keyboard navigation past the heading and a hidden first action.
+Native clippy passed with the existing collapsible_match lint excluded; cloud-host Wasm
+clippy, all 27 layering checks and 21 Wasm crate checks passed. Release build, local frontend
+sync and full served-asset verification passed. Browser verification confirmed the single
+section/mark, disabled save actions without a document, enabled actions with a blank document,
+and the signed-out Open dialog. No browser console errors or cloud file writes.
