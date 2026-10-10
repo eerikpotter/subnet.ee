@@ -59,11 +59,11 @@ def main():
                 if expected not in policy: raise RuntimeError(f"Bootstrap blocked by CSP: {route}")
             if "no-cache" not in headers.get("cache-control", ""): raise RuntimeError(f"Stale HTML cache policy: {route}")
         print(f"PASS {route} ({len(data):,} bytes)")
-    for route in ["/apps/photocraft/missing.wasm", "/apps/unknown/", "/missing.js"]:
+    for route in ["/apps/photocraft/missing.wasm", "/apps/unknown/", "/missing.js", "/browser-session-test.html", "/browser-session-test.js"]:
         if get(route)[0] != 404: raise RuntimeError(f"Missing file must return 404: {route}")
     status, headers, body = get("/.well-known/ii-app-metadata")
     if status != 200 or json.loads(body)['name'] != "subnet.ee" or headers.get('access-control-allow-origin') != '*':
         raise RuntimeError("II app metadata unavailable")
-    print(f"PASS all four applications, trust configuration and missing-asset handling\nLocal: http://frontend.local.localhost:{port}/")
+    print(f"PASS portal, all four applications, trust configuration and removed-fixture/missing-asset handling\nLocal: http://frontend.local.localhost:{port}/")
 
 if __name__ == "__main__": main()

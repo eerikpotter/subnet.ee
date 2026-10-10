@@ -170,3 +170,8 @@ persisted delegation JSON recovered to a signed-out state without a browser erro
 file list was visually checked at desktop and 390px width. Real Internet Identity/passkey
 issuance and cross-device use remain interactive validation steps; the browser driver did
 not expose the provider popup. No mainnet deployment was made.
+
+The final local deployment passed `scripts/verify.py` for the portal and all four editors,
+including exact served bytes, runtime configuration, response headers and 404 responses for
+both removed browser fixtures. The regular frontend origin was reopened in its signed-out
+**Minu failid** view after cleanup.
