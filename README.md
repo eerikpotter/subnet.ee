@@ -296,6 +296,19 @@ UI (native/Wasm), service and SoundCraft engine Clippy checks pass. WordCraft en
 Clippy exposes a pre-existing `overly_complex_bool_expr` in `cmd/para.rs:277`; it passes
 with only that existing lint excluded. Full workspace CI is not claimed.
 
+WordCraft's media-preserving JSON codec is used only by its cloud adapter; ordinary
+local JSON open/save remains upstream-owned. SoundCraft's portable bundle is likewise
+a separate cloud format, without replacing upstream local session saves.
+
+Browser checks on the isolated local QA origin saved and reopened a DeckCraft sample,
+a WordCraft document, a blank PdfCraft document and SoundCraft's synthesized demo
+(63.1 MB including its audio). Each appeared in the shared catalog with the matching
+editor link, while in-app pickers only listed compatible formats. WordCraft's second
+save kept the same file ID and produced revision 2; cancelling replacement of unsaved
+text kept the edits, and successful save cleared the shared navigation warning.
+These use disposable test identities and real calls to the local replica, not real
+Internet Identity/passkey issuance or mainnet.
+
 ## Reviewed PhotoCraft update
 
 PhotoCraft's merge `b2fd7337` incorporates upstream `7722172585a0` (0.6.0).
