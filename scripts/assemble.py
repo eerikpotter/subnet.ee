@@ -1,5 +1,5 @@
 #!/usr/bin/env python3
-"""Assemble four complete Trunk outputs into one atomic static-site directory."""
+"""Assemble registered Trunk outputs into one atomic static-site directory."""
 import argparse
 import base64
 import hashlib
@@ -37,13 +37,15 @@ def art(app):
         return f'<div class="pdf-sheet back">{lines}</div><div class="pdf-sheet">{lines}</div><span class="pdf-stamp">PDF</span>'
     if app == "wordcraft":
         return '<div class="word-page"><div class="word-title">Algus on<br>üks mõte.</div><div class="word-line"></div><div class="word-line short"></div><div class="word-selection"></div><div class="word-line"></div><div class="word-line short"></div></div>'
+    if app == "deckcraft":
+        return '<div class="deck-slide back"></div><div class="deck-slide"><div class="deck-title">Ideest<br>esitluseni.</div><div class="deck-chart"><span></span><span></span><span></span></div><div class="deck-dots">● ○ ○</div></div>'
     # Deterministic original waveform illustration; no external media or scripts.
     heights = [4, 8, 13, 7, 18, 22, 14, 9, 17, 23, 12, 5, 9, 16, 21, 12, 18, 6, 4, 13, 20, 9, 15, 5]
     waves = "".join(f'<span class="wave" style="height:{h}px"></span>' for h in heights)
     return '<div class="sound-tracks">' + f'<div class="track">{waves}</div>' * 3 + '</div>'
 
 def cards(apps):
-    colors = {"photocraft":"photo", "pdfcraft":"pdf", "wordcraft":"word", "soundcraft":"sound"}
+    colors = {"photocraft":"photo", "pdfcraft":"pdf", "wordcraft":"word", "deckcraft":"deck", "soundcraft":"sound"}
     result = []
     for app in apps:
         e = {key: html.escape(str(value), quote=True) for key, value in app.items()}
@@ -70,16 +72,22 @@ def assemble(root=ROOT):
     stage = Path(tempfile.mkdtemp(prefix="subnet-site-", dir=root / ".local"))
     try:
         shutil.copytree(root / "portal", stage, dirs_exist_ok=True)
+        shell = (stage / "craft-shell.html").read_text()
+        (stage / "craft-shell.html").unlink()
         cloud = stage / "cloud"
         cloud.mkdir()
         for path in [bindings[0], wasm[0]]:
             shutil.copy2(path, cloud / path.name)
         facade = (stage / "cloud.js").read_text().replace("__CLOUD_BINDINGS__", "/cloud/" + bindings[0].name).replace("__CLOUD_WASM__", "/cloud/" + wasm[0].name)
         (stage / "cloud.js").write_text(facade)
-        index = (stage / "index.html").read_text().replace("<!-- APP_CARDS -->", cards(apps))
+        index = ((stage / "index.html").read_text()
+                 .replace("<!-- APP_CARDS -->", cards(apps))
+                 .replace("__APP_COUNT_PADDED__", f"{len(apps):02d}")
+                 .replace("__APP_COUNT__", str(len(apps))))
         (stage / "index.html").write_text(index)
         hashes = []
-        manifest = {"apps": [], "portalAssets": {"cloud/" + p.name: hashlib.sha256(p.read_bytes()).hexdigest() for p in [bindings[0], wasm[0]]}}
+        manifest = {"apps": [], "portalAssets": {"cloud/" + p.name: hashlib.sha256(p.read_bytes()).hexdigest() for p in [bindings[0], wasm[0]]},
+                    "shellAssets": {name: hashlib.sha256((stage / name).read_bytes()).hexdigest() for name in ["craft-shell.css", "craft-shell.js"]}}
         for app in apps:
             repo = root / "apps" / app['id']
             destination = stage / "apps" / app['id']
@@ -92,6 +100,10 @@ def assemble(root=ROOT):
             parser = InlineScripts()
             parser.feed((destination / "index.html").read_text())
             hashes.extend("'sha256-" + base64.b64encode(hashlib.sha256(s.encode()).digest()).decode() + "'" for s in parser.scripts)
+            # Preserve relative asset URLs and give every editor its own viewport.
+            # Only the public entry point is replaced by the common portal shell.
+            (destination / "index.html").rename(destination / "editor.html")
+            (destination / "index.html").write_text(shell.replace("__APP_NAME__", html.escape(app['name'], quote=True)))
             licenses = destination / "licenses"
             licenses.mkdir(exist_ok=True)
             for name in ["LICENSE-MIT", "LICENSE-APACHE", "NOTICE", "ATTRIBUTION.md", "ATTRIBUTION.toml"]:
@@ -103,7 +115,7 @@ def assemble(root=ROOT):
                             target = licenses / path.relative_to(repo)
                             target.parent.mkdir(parents=True, exist_ok=True)
                             shutil.copy2(path, target)
-            manifest['apps'].append({**app, "path": f"/apps/{app['id']}/", "sourceCommit": subprocess.check_output(["git", "rev-parse", "HEAD"], cwd=repo, text=True).strip(),
+            manifest['apps'].append({**app, "path": f"/apps/{app['id']}/", "editorPath": f"/apps/{app['id']}/editor.html", "sourceCommit": subprocess.check_output(["git", "rev-parse", "HEAD"], cwd=repo, text=True).strip(),
                 "sourceDirty": bool(subprocess.check_output(["git", "status", "--porcelain"], cwd=repo, text=True).strip()),
                 "assets": {f.name: hashlib.sha256(f.read_bytes()).hexdigest() for f in sorted(destination.glob("*")) if f.suffix in (".wasm", ".js")}})
         policy = "; ".join(["default-src 'self'", "script-src 'self' 'wasm-unsafe-eval' " + " ".join(sorted(set(hashes))),
@@ -124,7 +136,7 @@ def assemble(root=ROOT):
             if backup.exists(): backup.rename(destination)
             raise
         if backup.exists(): shutil.rmtree(backup)
-        print(f"Assembled four apps in {destination}")
+        print(f"Assembled {len(apps)} apps in {destination}")
     finally:
         if stage.exists(): shutil.rmtree(stage)
 

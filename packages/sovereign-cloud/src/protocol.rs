@@ -86,6 +86,21 @@ impl FileKind {
     pub fn photocraft() -> Self {
         Self { format_id: "photocraft.pcraft".into(), format_version: 1, created_by_app: "photocraft".into() }
     }
+    pub fn for_app(app: &str) -> Option<Self> {
+        let format = match app {
+            "photocraft" => "photocraft.pcraft",
+            "pdfcraft" => "pdfcraft.pdf",
+            "wordcraft" => "wordcraft.wcraft",
+            "deckcraft" => "deckcraft.deckcraft",
+            "soundcraft" => "soundcraft.scraft-bundle",
+            _ => return None,
+        };
+        Some(Self { format_id: format.into(), format_version: 1, created_by_app: app.into() })
+    }
+    /// Format metadata is a compatibility hint, never an authorization credential.
+    pub fn validate(&self) -> CloudResult<()> {
+        if Self::for_app(&self.created_by_app).as_ref() == Some(self) { Ok(()) } else { Err("Unsupported file format or version".into()) }
+    }
 }
 
 #[derive(Clone, Debug, CandidType, Deserialize, Serialize)]

@@ -4,7 +4,7 @@
   <meta charset="utf-8">
   <meta name="viewport" content="width=device-width, initial-scale=1">
   <meta name="color-scheme" content="light">
-  <meta name="description" content="subnet.ee loomeruum: pildid, dokumendid, PDF ja heli ühes kohas.">
+  <meta name="description" content="subnet.ee loomeruum: pildid, dokumendid, PDF, slaidid ja heli ühes kohas.">
   <title>subnet.ee — Sinu loomeruum</title>
   <script type="module" src="/cloud.js"></script>
   <link rel="stylesheet" href="/style.css">
@@ -15,7 +15,7 @@
     <aside class="sidebar">
       <a class="brand" href="/" aria-label="subnet.ee avaleht"><span class="brand-mark" aria-hidden="true">s<span></span></span>subnet<span class="brand-suffix">.ee</span></a>
       <div class="space-label">ISIKLIK LOOMERUUM</div>
-      <nav aria-label="Peamenüü"><a id="apps-nav" class="nav-active" href="#rakendused" aria-current="page"><span aria-hidden="true">▦</span> Rakendused <span class="nav-count">04</span></a><a id="files-nav" href="#failid"><span aria-hidden="true">▱</span> Minu failid</a></nav>
+      <nav aria-label="Peamenüü"><a id="apps-nav" class="nav-active" href="#rakendused" aria-current="page"><span aria-hidden="true">▦</span> Rakendused <span class="nav-count">__APP_COUNT_PADDED__</span></a><a id="files-nav" href="#failid"><span aria-hidden="true">▱</span> Minu failid</a></nav>
       <div class="sidebar-bottom"><span class="status-dot"></span> Kohalik töökeskkond<p>Sinu ideed. Sinu tööriistad.</p></div>
     </aside>
     <main>
@@ -28,23 +28,23 @@
         <p>Fotost esimese mustandini. Dokumendist helirajani.<br>Vali tööriist ja tee oma idee teoks.</p>
       </section>
       <section id="rakendused" class="applications" aria-labelledby="apps-title">
-        <div class="section-heading"><h2 id="apps-title">Sinu rakendused</h2><span>4 tööriista · üks loomeruum</span></div>
+        <div class="section-heading"><h2 id="apps-title">Sinu rakendused</h2><span>__APP_COUNT__ tööriista · üks loomeruum</span></div>
         <div class="app-grid"><!-- APP_CARDS --></div>
       </section>
       <section class="cloud-note" aria-labelledby="cloud-title">
         <div class="cloud-symbol" aria-hidden="true"><svg viewBox="0 0 32 32"><path d="M9 24h15a6 6 0 0 0 1-12 9 9 0 0 0-17-1 6.5 6.5 0 0 0 1 13Z"/><path d="M16 22v-9m-4 4 4-4 4 4"/></svg></div>
-        <div><h2 id="cloud-title">Sinu tööle oma koht.</h2><p>PhotoCraftis saad oma pildid pilve salvestada ja hiljem jätkata.<br>Teistes rakendustes ava ja salvesta faile oma seadmes.</p></div>
-        <span class="cloud-label">Sovereign Cloud <span>PhotoCraftis olemas</span></span>
+        <div><h2 id="cloud-title">Sinu tööle oma koht.</h2><p>Salvesta oma tööd pilve ja jätka hiljem samast kohast.<br>Üks konto ja sinu failid kõigis Crafti rakendustes.</p></div>
+        <span class="cloud-label">Sovereign Cloud <span>Kõigis rakendustes</span></span>
       </section>
       </div>
       <section id="failid" class="files-view" aria-labelledby="files-title" hidden>
         <div class="eyebrow"><span></span> SINU ANDMERUUM</div>
-        <div class="files-heading"><div><h1 id="files-title">Minu <em>failid</em></h1><p>Salvesta PhotoCraftis ja jätka siit, kus pooleli jäid.</p></div><a class="button button-primary" href="/apps/photocraft/">Loo PhotoCraftis <span aria-hidden="true">→</span></a></div>
+        <div class="files-heading"><div><h1 id="files-title">Minu <em>failid</em></h1><p>Kõik sinu pilve salvestatud tööd ühes kohas.</p></div><a class="button button-primary" href="#rakendused">Vali rakendus <span aria-hidden="true">→</span></a></div>
         <div class="files-toolbar"><span id="storage-usage">Sinu failid on seotud sinu kontoga.</span><button id="refresh-files" class="button" disabled>Värskenda</button></div>
         <div id="file-status" class="file-status" role="status">Logi sisse, et näha oma salvestatud faile.</div>
         <div id="file-list" class="file-list" aria-label="Salvestatud failid" aria-live="polite"></div>
         <button id="more-files" class="button" hidden>Näita rohkem</button>
-        <p class="files-footnote">Pilvesalvestus on praegu ühendatud PhotoCraftiga. Teised Craftid töötavad kohalike failidega.</p>
+        <p class="files-footnote">Salvestamiseks vali rakenduse File-menüüst Sovereign Cloud → Save.</p>
       </section>
       <footer><span>Avatud tööriistad. Iseseisev looming.</span><span>Craft-rakendused · ArtCrafti avatud lähtekoodil</span></footer>
     </main>

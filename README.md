@@ -1,15 +1,16 @@
 # subnet.ee — local Craft workspace
 
-One portal and four independent Rust/Wasm editors, served by one certified frontend
-canister. Only PhotoCraft currently uses Sovereign Cloud. Its account and file service is a separate
+One portal and five independent Rust/Wasm editors, served by one certified frontend
+canister. All five editors use the same Sovereign Cloud UI and SDK. The account and file service is a separate
 canister; editing and media processing run in the browser.
 
 ## Layout
 
 * `portal/`: Estonian launcher, shared sign-in and My files; no editor preloading.
-* `apps/{photocraft,pdfcraft,wordcraft,soundcraft}`: pinned Git submodules to your forks.
+* `apps/{photocraft,pdfcraft,wordcraft,deckcraft,soundcraft}`: pinned Git submodules to your forks.
 * `packages/sovereign-cloud/`: internal Rust SDK; canonical source and independent tests.
-* `packages/sovereign-cloud-web/`: small Wasm facade for the portal, using the same Rust session and Files SDK as PhotoCraft.
+* `packages/sovereign-cloud-ui/`: shared File-menu section, sign-in, naming, versions and save/open controller.
+* `packages/sovereign-cloud-web/`: small Wasm facade for the portal, using the same Rust session and Files SDK as every Craft editor.
 * `services/sovereign-cloud/`: canonical backend source, accounts and paginated file catalog; V1 API preserved.
 * `registry/apps.json`: app metadata, current cloud capability and portal content.
 * `scripts/`: reproducible setup, build, SDK vendoring, assembly and local verification.
@@ -49,6 +50,11 @@ canister IDs remain there. No mainnet deployment or remote push is part of this 
 
 ## Git and updates
 
+Use `python3 scripts/update-crafts.py` to download upstream commits and produce reports
+without changing or building the apps. `prepare` merges pinned commits in a separate
+review copy; `promote --commit <sha>` accepts a reviewed result. See
+[scripts/UPDATING.md](scripts/UPDATING.md) for the workflow, rollback and security boundaries.
+
 Each submodule has `origin = eerikpotter/<app>` and `upstream = storytold/<app>`.
 The root commit pins the tested app commit. It does not track a moving upstream branch.
 Create/select a branch in a submodule before editing: initialized submodules normally
@@ -57,26 +63,26 @@ then commit the changed submodule pointer in this root. Push app commits before
 pushing root pointers when sharing; local-only commits are not available on GitHub.
 
 The shared-account milestone is on `codex/shared-account-files` in the root and PhotoCraft.
-The first extraction remains on `codex/subnet-cloud-base`. The other three retain
-their fetched fork commits. Each app keeps its own Cargo workspace and lockfile.
+The other four app integrations are on `codex/sovereign-cloud` in their forks.
+The root remote is `https://github.com/eerikpotter/subnet.ee.git`.
+The first extraction remains on `codex/subnet-cloud-base`. Each app keeps its own Cargo workspace and lockfile.
 The root is not a giant Cargo workspace. Build caches can be shared with
 `CARGO_TARGET_DIR`; `SUBNET_RUST_TOOLCHAIN` overrides the compiler when deliberately testing.
 
 ## Internal SDK
 
 Edit `packages/sovereign-cloud`, then run `python3 scripts/sync-sdk.py`. The checked-in
-PhotoCraft snapshot keeps that fork independently buildable. The build fails if its
-snapshot differs. See [the SDK README](packages/sovereign-cloud/README.md).
+snapshots keep every fork independently buildable. The build fails if any snapshot differs. See [the SDK README](packages/sovereign-cloud/README.md).
 
 The SDK owns identity adaptation, configured endpoint resolution, transport, upload
-checkpoints, progress and verified downloads. PhotoCraft retains `.pcraft` encoding,
-its file menus, naming panel, document revisions and save state. The service preserves
+checkpoints, progress and verified downloads. The shared UI owns the menu actions and dialogs;
+small editor adapters retain native encoding, document revisions and save state. The service preserves
 its existing Candid methods, serde shapes, stable-memory IDs and quotas. Its canonical implementation
 lives under `services/sovereign-cloud`; `python3 scripts/sync-service.py` updates a checked
 snapshot in the standalone PhotoCraft backend. The root owns service changes and deployment;
 the PhotoCraft fork remains independently buildable. Do not edit the snapshots directly.
 
-Use the same hostname consistently during local testing. The four app paths share one
+Use the same hostname consistently during local testing. All app paths share one
 browser origin. No production `derivationOrigin` is silently enabled. Moving existing
 accounts to subnet.ee needs an explicit identity/data migration. `app_id` is not a credential.
 
@@ -86,6 +92,7 @@ accounts to subnet.ee needs an explicit identity/data migration. `app_id` is not
 python3 scripts/sync-sdk.py --check
 python3 scripts/sync-service.py --check
 cargo +1.95.0 test --manifest-path packages/sovereign-cloud/Cargo.toml --locked
+cargo +1.95.0 test --manifest-path packages/sovereign-cloud-ui/Cargo.toml --locked
 cargo +1.95.0 clippy --manifest-path packages/sovereign-cloud/Cargo.toml --all-targets --locked -- -D warnings
 cargo +1.95.0 test --manifest-path services/sovereign-cloud/Cargo.toml --lib --locked
 cargo +1.95.0 test --manifest-path apps/photocraft/icp/Cargo.toml -p photocraft-cloud --lib --locked
@@ -114,11 +121,9 @@ and mobile editor ergonomics are outside this setup's smoke check.
 
 ## Next boundaries
 
-This base brings all apps into one launch environment without adding cloud features to
-the other editors. Full file-manager UI, shared spaces, per-app grants, user-owned
-canisters, encrypted storage, alternate blob stores and Cloud Engine migration are later
-work. The V1 backend can hold opaque bytes, but does not yet classify other app formats;
-do not connect another app without adding file-type metadata and compatibility checks.
+All five editors now share cloud storage and compatible format metadata. Shared spaces,
+per-app grants, user-owned canisters, encrypted storage, alternate blob stores and
+Cloud Engine migration remain later work.
 
 Build output includes each project's license and attribution notices. Portal artwork is
 original HTML/CSS. Root and SDK changes use MIT OR Apache-2.0; upstream notices remain.
@@ -142,8 +147,8 @@ and their file index use new stable-memory IDs 6 and 7. V1 schemas/IDs 0–5 rem
 A legacy owner's catalog is indexed once when their account is first resolved (the
 old store is bounded to 1000 files). New files update that same index. The account and
 personal-space IDs are stable within the logical `cloud` service. Existing file bytes
-are not copied. All V1 files are currently described as PhotoCraft format version 1;
-a generic typed create API and multi-blob revisions remain a subsequent milestone.
+are not copied. V1 files remain PhotoCraft format version 1; the typed create API described below
+adds the other editors. Multi-blob revisions remain future work.
 
 The portal and PhotoCraft share the pinned Rust AuthClient storage adapter. A loaded
 session carries a fingerprint of its persisted credentials. Each SDK network call
@@ -182,6 +187,39 @@ including exact served bytes, runtime configuration, response headers and 404 re
 both removed browser fixtures. The regular frontend origin was reopened in its signed-out
 **Minu failid** view after cleanup.
 
+## Shared Craft navigation
+
+Every `/apps/<id>/` entry point uses the same 40px subnet.ee bar: **← subnet.ee**,
+the application's name, and **Minu failid**. `portal/craft-shell.html`, `.css` and
+`.js` own the navigation. Assembly renders the name from `registry/apps.json` and
+moves each original Trunk entry point to `editor.html` beside its unchanged assets.
+A same-origin iframe gives the editor the remaining viewport without covering its
+menus. Launch query parameters and fragments are forwarded, including cloud-file
+references and renderer options. No other editor is preloaded.
+
+The browser host in each Rust app publishes `data-craft-dirty="true"` or `"false"`
+on its document element after both logic and UI updates. PhotoCraft, PdfCraft and DeckCraft
+aggregate all open documents; WordCraft reports its session; SoundCraft includes
+both dirty state and active recording. This tiny host contract exposes no document
+or account data and adds no dependency on the portal to standalone builds.
+
+The common shell reads that state synchronously before navigation. Clean documents
+leave immediately; unsaved work opens an Estonian confirmation with **Jätka tööd**
+and **Lahku salvestamata**. Cancel/Escape keeps the editor loaded. The shell also
+requests the browser's native warning on reload, Back, or tab closure when dirty;
+browser restrictions still apply to native unload prompts. Missing/unknown state
+uses a conservative save reminder. Explicitly opening a portal link in another tab
+does not interrupt the document. The dialog does not claim to save files itself.
+
+To integrate another Craft, register its metadata/build and publish the same dirty
+attribute from its web host. The navigation, layout and guard are shared unchanged.
+After host changes rebuild the affected apps; shell-only edits need reassembly.
+
+Navigation checks: `node --test scripts/craft-shell.test.mjs` covers both destinations,
+cancel/confirm, fresh save/edit state, unknown state, modifier clicks, history restore,
+and launch references. `python3 scripts/verify.py` checks served shell assets, editor
+entry points, original Wasm/JS assets, CSP and runtime configuration.
+
 File-menu refinement validation (2026-10-10): all 8 web-host tests pass, including actual
 menu activation, placement and document guards. The shared UI suite passed 497 tests in
 the sandbox; its one GPU-dependent test passed separately with GPU access (3 opt-in tests
@@ -191,6 +229,15 @@ excluded. The release build and local deployment verifier pass. Browser inspecti
 the three small menu marks, removed toolbar launcher and all three operation titles in the
 signed-out flow; the console had no errors. No cloud upload was needed for this UI change.
 
+Navigation validation (2026-10-10): all four release Wasm builds and scoped web-host
+Clippy checks pass, along with 7 shared-shell tests, 8 PhotoCraft web-host tests and
+the 27-crate PhotoCraft layer check. Browser QA exercised a painted PhotoCraft image,
+a typed WordCraft document, a new PdfCraft PDF and a modified SoundCraft demo. Each
+reported dirty state and showed the shared leave confirmation; Cancel preserved the
+editor. PhotoCraft local Save cleared the guard and allowed immediate navigation to
+My files. Escape, explicit discard, clean navigation, and the 390px shell/dialog
+layout were also checked. No mainnet deployment was made.
+
 Cloud-section validation (2026-10-10): 8 web-host tests and 498 UI tests passed (3 opt-in
 tests ignored), including keyboard navigation past the heading and a hidden first action.
 Native clippy passed with the existing collapsible_match lint excluded; cloud-host Wasm
@@ -198,3 +245,78 @@ clippy, all 27 layering checks and 21 Wasm crate checks passed. Release build, l
 sync and full served-asset verification passed. Browser verification confirmed the single
 section/mark, disabled save actions without a document, enabled actions with a blank document,
 and the signed-out Open dialog. No browser console errors or cloud file writes.
+
+The final managed-local deployment passed `scripts/verify.py` for the shared shell,
+all four wrapped entry points, their original editor pages, and exact Wasm/JS bytes.
+The final PhotoCraft page also rendered on the certified local origin with a clean
+dirty-state report. Concurrent asset syncs required rechecking the final served
+bundle; the completed server contents match `dist/`.
+
+## DeckCraft
+
+DeckCraft is registered at `/apps/deckcraft/`, with the same shared navigation and
+leave guard. Its browser host reports unsaved changes across all open presentations.
+The standalone editor's file picker/download flow supports `.deckcraft`, PPTX and
+PDF export; Sovereign Cloud stores the editable `.deckcraft` format. The upstream sample
+opens by default, and `?blank` starts a new presentation.
+
+`python3 scripts/build.py deckcraft --assemble` builds just DeckCraft and reuses the
+other editor outputs. The build selection and portal counts come from
+`registry/apps.json`, so adding an editor does not require updating fixed counts.
+
+DeckCraft's ordinary browser download/save path is unchanged from upstream. A local
+save-state fix was removed to keep this fork focused on integration. Cloud completion
+marks only its captured, unchanged presentation clean. Formatting, asset audit and
+the 27-crate layer check pass. Upstream's full baseline CI stops at the existing
+`collapsible_match` lint in `deckcraft-matroska`; that unrelated codec is unchanged.
+
+## Shared cloud in all Craft editors
+
+All five web hosts build with `icp-cloud` and vendor the same SDK and UI sources.
+Use File → Sovereign Cloud → Save, Save As… or Open…. WordCraft exposes the section
+as a File backstage page. My files routes each format/version to its compatible editor.
+PhotoCraft stores `.pcraft`, PdfCraft `.pdf`, WordCraft `.wcraft.json`, DeckCraft
+`.deckcraft`, and SoundCraft a portable `.scraft.zip` containing session metadata and
+lossless planar float sources. Linked videos are rejected by SoundCraft's portable writer instead
+of silently dropping media. The service's existing 64 MiB file limit still applies.
+
+Metadata for new formats occupies stable memory 8; memory IDs 0–7 and existing file
+bytes are unchanged. Missing kind metadata defaults to the legacy PhotoCraft format.
+The old create/list API remains PhotoCraft-compatible; new typed create/list methods
+serve the other editors. Ownership is still enforced by the caller, independently of
+format metadata. Upload completion marks only the captured, unchanged revision clean.
+Single-document editors confirm before replacing unsaved work with a cloud file.
+
+Validation for the shared cloud implementation: SDK transfer/configuration tests,
+shared UI tests, service unit tests and isolated PocketIC persistence/upgrade tests
+pass. Native format tests preserve a WordCraft document with an inserted picture
+and passthrough XML; SoundCraft tests preserve the editable demo and exact float
+headroom. New/Open document identities are distinct from edits. Strict SDK, shared
+UI (native/Wasm), service and SoundCraft engine Clippy checks pass. WordCraft engine
+Clippy exposes a pre-existing `overly_complex_bool_expr` in `cmd/para.rs:277`; it passes
+with only that existing lint excluded. Full workspace CI is not claimed.
+
+## Reviewed PhotoCraft update
+
+PhotoCraft's merge `b2fd7337` incorporates upstream `7722172585a0` (0.6.0).
+The follow-up includes upstream `2b79c7c25dca` (nine additional test lines) and
+the fork's existing `main` merge, preserving both histories.
+The update contained 887 upstream commits and 11 conflicted files. Conflicts included
+manifests/lockfile, attribution, README, startup and menu plumbing, rather than 11 new
+cloud features. Dependency versions from the incoming lockfile were preserved; cloud-only
+dependencies were added. The generic menu hook now adds only 10 lines to upstream's
+`menus.rs`; its native service initializer and layer checker match upstream exactly.
+The service commands and submenu heading renderer live in a separate module. Cloud UI
+and transport remain shared, with generated snapshots for independently buildable forks.
+
+The merge passed 13 web-host tests, the host-command guard test, Wasm checks with
+`icp-cloud,heif`, and the 29-crate layer check. Scoped Wasm Clippy passes with upstream's
+existing `collapsible_match` and `nonminimal_bool` lints excluded. Strict Clippy reports
+seven instances of those lints in unchanged upstream code; this is not a full green
+upstream CI run. The updater's five offline integration tests pass, including a conflict
+that leaves the working app untouched and exact-commit promotion with a backup ref.
+
+The other upstream updates have only been fetched for inspection; they were not merged.
+Future reviews should normally select one app at a time. Fetching does not build or deploy
+anything. Neither a small diff nor passing tests establishes that upstream code is safe;
+see [the update guide](scripts/UPDATING.md) before running an unfamiliar build.

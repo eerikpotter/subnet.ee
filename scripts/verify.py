@@ -30,22 +30,35 @@ def main():
         if headers.get("content-encoding") == "gzip": body = gzip.decompress(body)
         return status, headers, body
     manifest = json.loads((ROOT / "dist/apps.json").read_text())
+    registered = json.loads((ROOT / "registry/apps.json").read_text())
+    if [app['id'] for app in manifest['apps']] != [app['id'] for app in registered]:
+        raise RuntimeError("Deployed bundle must include every registered app in order")
+    portal = (ROOT / "dist/index.html").read_text()
+    if '__APP_COUNT' in portal or f"{len(registered)} tööriista" not in portal:
+        raise RuntimeError("Portal application count does not match the registry")
     checks = [("/", ROOT / "dist/index.html"), ("/style.css", ROOT / "dist/style.css"), ("/apps.json", ROOT / "dist/apps.json")]
     checks.append(("/cloud.js", ROOT / "dist/cloud.js"))
     checks.extend(("/" + name, ROOT / "dist" / name) for name in manifest["portalAssets"])
+    checks.extend(("/" + name, ROOT / "dist" / name) for name in manifest["shellAssets"])
     if any((ROOT / "dist" / name).exists() for name in ["browser-session-test.html", "browser-session-test.js"]):
         raise RuntimeError("Remove temporary browser fixtures before final verification")
     for app in manifest['apps']:
+        if f'href="{app["path"]}"' not in portal:
+            raise RuntimeError(f"Missing portal link: {app['id']}")
         folder = ROOT / "dist/apps" / app['id']
         checks.append((app['path'], folder / "index.html"))
+        checks.append((app['editorPath'], folder / "editor.html"))
+        shell = (folder / "index.html").read_text()
+        if '__APP_NAME__' in shell or 'id="craft-editor"' not in shell or 'data-leave' not in shell:
+            raise RuntimeError(f"Missing shared navigation: {app['id']}")
         checks.extend((app['path'] + name, folder / name) for name in app['assets'])
     for route, file in checks:
         status, headers, data = get(route)
         if status != 200 or data != file.read_bytes(): raise RuntimeError(f"Wrong payload/status: {route} ({status})")
         if not headers.get("ic-certificate"): raise RuntimeError(f"Missing certification header: {route}")
         if file.suffix == ".wasm" and headers.get("content-type") != "application/wasm": raise RuntimeError(f"Wrong Wasm MIME: {route}")
-        if file.suffix in (".js", ".wasm") and file.name != "cloud.js" and "immutable" not in headers.get("cache-control", ""): raise RuntimeError(f"Missing versioned cache rule: {route}")
-        if file.name == "index.html":
+        if file.suffix in (".js", ".wasm") and file.parent != ROOT / "dist" and "immutable" not in headers.get("cache-control", ""): raise RuntimeError(f"Missing versioned cache rule: {route}")
+        if file.name in ("index.html", "editor.html"):
             env_cookie = headers.get("set-cookie", "").split(";", 1)[0]
             if not env_cookie.startswith("ic_env="): raise RuntimeError(f"Missing runtime cookie: {route}")
             env = dict(item.split("=", 1) for item in unquote(env_cookie.removeprefix("ic_env=")).split("&"))
@@ -64,6 +77,6 @@ def main():
     status, headers, body = get("/.well-known/ii-app-metadata")
     if status != 200 or json.loads(body)['name'] != "subnet.ee" or headers.get('access-control-allow-origin') != '*':
         raise RuntimeError("II app metadata unavailable")
-    print(f"PASS portal, all four applications, trust configuration and removed-fixture/missing-asset handling\nLocal: http://frontend.local.localhost:{port}/")
+    print(f"PASS portal, all {len(manifest['apps'])} applications, trust configuration and removed-fixture/missing-asset handling\nLocal: http://frontend.local.localhost:{port}/")
 
 if __name__ == "__main__": main()

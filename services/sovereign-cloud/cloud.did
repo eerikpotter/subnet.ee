@@ -51,8 +51,8 @@ type Result_3 = variant { Ok; Err : text };
 type Result_4 = variant { Ok : blob; Err : text };
 type Result_5 = variant { Ok : FileDetails; Err : text };
 type Result_6 = variant { Ok : AccountContext; Err : text };
-type Result_7 = variant { Ok : FilePage; Err : text };
-type Result_8 = variant { Ok : vec Project; Err : text };
+type Result_7 = variant { Ok : vec Project; Err : text };
+type Result_8 = variant { Ok : FilePage; Err : text };
 type Revision = record {
   id : nat64;
   sha256 : blob;
@@ -70,6 +70,7 @@ type Upload = record {
 service : () -> {
   begin_upload : (BeginUpload) -> (Result);
   commit_upload : (nat64) -> (Result_1);
+  create_file : (text, FileKind) -> (Result_2);
   create_project : (text) -> (Result_2);
   delete_project : (nat64) -> (Result_3);
   delete_revision_or_upload : (nat64) -> (Result_3);
@@ -77,7 +78,8 @@ service : () -> {
   get_file : (nat64, nat64) -> (Result_5);
   get_or_create_account : () -> (Result_6);
   get_revision : (nat64, nat64) -> (Result_1);
-  list_files : (nat64, opt nat64, nat32) -> (Result_7);
-  list_projects : () -> (Result_8);
+  list_app_files : (FileKind) -> (Result_7);
+  list_files : (nat64, opt nat64, nat32) -> (Result_8);
+  list_projects : () -> (Result_7);
   put_chunk : (nat64, nat64, blob) -> (Result_3);
 }

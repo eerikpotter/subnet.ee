@@ -1,0 +1,32 @@
+:root { color-scheme: dark; font-family: system-ui, sans-serif; background: #202122; color: #e4e4e4; }
+* { box-sizing: border-box; }
+html, body { margin: 0; width: 100%; height: 100%; overflow: hidden; }
+body { display: flex; flex-direction: column; height: 100dvh; }
+.craft-bar { flex: 0 0 auto; background: #191b1c; border-bottom: 1px solid #363839; padding-top: env(safe-area-inset-top); }
+.craft-bar nav { display: flex; align-items: center; gap: 16px; height: 40px; padding: 0 max(16px, env(safe-area-inset-right)) 0 max(16px, env(safe-area-inset-left)); }
+.craft-bar a { display: inline-flex; align-items: center; gap: 8px; height: 32px; padding: 0 8px; border-radius: 5px; color: #d3d7d5; font-size: 12px; text-decoration: none; white-space: nowrap; }
+.craft-bar a:hover { background: #2d3230; color: #fff; }
+.home-link { font-weight: 650; }
+.home-link span { color: #a5c5b0; font-size: 17px; }
+.divider { width: 1px; height: 14px; background: #414644; }
+.craft-bar h1 { margin: 0; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; font-size: 12px; font-weight: 500; color: #aeb5b1; }
+.files-link { margin-left: auto; }
+a:focus-visible, button:focus-visible { outline: 2px solid #b8dbc4; outline-offset: 2px; }
+.editor-area { flex: 1 1 auto; min-height: 0; position: relative; }
+#craft-editor { display: block; border: 0; width: 100%; height: 100%; }
+noscript { position: absolute; inset: 0; padding: 24px; background: #202122; }
+noscript a { color: #b8dbc4; }
+dialog { width: min(420px, calc(100vw - 32px)); padding: 28px; border: 1px solid #454a47; border-radius: 12px; background: #252927; color: #f1f3f2; box-shadow: 0 24px 80px #0008; }
+dialog::backdrop { background: #0009; }
+.dialog-eyebrow { margin: 0 0 10px; color: #b0c4b8; font-size: 12px; }
+dialog h2 { margin: 0 0 12px; font-size: 21px; font-weight: 600; }
+#leave-description { margin: 0; color: #bfc6c2; font-size: 14px; line-height: 1.6; }
+.dialog-actions { display: flex; flex-wrap: wrap; justify-content: flex-end; gap: 10px; margin-top: 24px; }
+button { min-height: 40px; padding: 8px 13px; border: 1px solid #606d65; border-radius: 6px; background: #d2e6d9; color: #203027; font: 500 13px system-ui, sans-serif; cursor: pointer; }
+button:hover { filter: brightness(1.1); }
+.leave-button { background: transparent; color: #d5dcd7; border-color: #48524c; }
+@media (max-width: 480px) {
+  .craft-bar nav { gap: 9px; padding-left: max(6px, env(safe-area-inset-left)); padding-right: max(6px, env(safe-area-inset-right)); }
+  .craft-bar a { padding: 0 5px; }
+  dialog { padding: 22px; }
+}

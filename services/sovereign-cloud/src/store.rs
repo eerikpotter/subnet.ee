@@ -18,6 +18,7 @@ pub struct Store<M: Memory> {
     usage: StableBTreeMap<Principal, u64, Vm<M>>,
     accounts: StableBTreeMap<Principal, Vec<u8>, Vm<M>>,
     account_files: StableBTreeMap<(u64, u64), u8, Vm<M>>,
+    file_kinds: StableBTreeMap<u64, Vec<u8>, Vm<M>>,
 }
 
 fn encode<T: Serialize>(v: &T) -> CloudResult<Vec<u8>> {
@@ -42,6 +43,7 @@ impl<M: Memory> Store<M> {
             usage: StableBTreeMap::init(m.get(MemoryId::new(5))),
             accounts: StableBTreeMap::init(m.get(MemoryId::new(6))),
             account_files: StableBTreeMap::init(m.get(MemoryId::new(7))),
+            file_kinds: StableBTreeMap::init(m.get(MemoryId::new(8))),
         }
     }
     fn next_id(&self) -> CloudResult<(u64, u64)> {
@@ -93,14 +95,7 @@ impl<M: Memory> Store<M> {
                 more = true;
                 break;
             }
-            files.push(FileSummary {
-                id,
-                space_id: space,
-                name: project.name,
-                kind: FileKind::photocraft(),
-                latest,
-                version_count: project.revisions.len() as u64,
-            });
+            files.push(FileSummary { id, space_id: space, name: project.name, kind: self.kind(id)?, latest, version_count: project.revisions.len() as u64 });
         }
         let next_cursor = if more { files.last().map(|f| f.id) } else { None };
         Ok(FilePage { files, next_cursor })
@@ -111,7 +106,22 @@ impl<M: Memory> Store<M> {
         if project.revisions.is_empty() {
             return Err("File has no saved revision".into());
         }
-        Ok(FileDetails { project, space_id: space, kind: FileKind::photocraft() })
+        Ok(FileDetails { project, space_id: space, kind: self.kind(id)? })
+    }
+    fn kind(&self, id: u64) -> CloudResult<FileKind> {
+        // Older deployments only stored PhotoCraft files; preserve their exact IDs and bytes.
+        self.file_kinds.get(&id).map(|bytes| decode(&bytes)).unwrap_or_else(|| Ok(FileKind::photocraft()))
+    }
+    pub fn list_kind(&self, caller: Principal, kind: &FileKind) -> CloudResult<Vec<Project>> {
+        kind.validate()?;
+        self.list(caller)?
+            .into_iter()
+            .filter_map(|p| match self.kind(p.id) {
+                Ok(stored) if &stored == kind => Some(Ok(p)),
+                Ok(_) => None,
+                Err(error) => Some(Err(error)),
+            })
+            .collect()
     }
     fn project(&self, caller: Principal, id: u64) -> CloudResult<Project> {
         authenticated(caller)?;
@@ -141,7 +151,12 @@ impl<M: Memory> Store<M> {
             .collect()
     }
     pub fn create(&mut self, caller: Principal, name: String, now: u64) -> CloudResult<Project> {
+        self.create_typed(caller, name, FileKind::photocraft(), now)
+    }
+    pub fn create_typed(&mut self, caller: Principal, name: String, kind: FileKind, now: u64) -> CloudResult<Project> {
         authenticated(caller)?;
+        kind.validate()?;
+        let kind = encode(&kind)?;
         let account = self.account(caller, now)?.account;
         let name = name.trim().to_string();
         if name.is_empty() || name.len() > 160 {
@@ -154,6 +169,7 @@ impl<M: Memory> Store<M> {
         let p = Project { id, owner: caller, name, created_at: now, revisions: vec![], pending_upload: None };
         let bytes = encode(&p)?;
         self.projects.insert(id, bytes);
+        self.file_kinds.insert(id, kind);
         self.account_files.insert((account.id, id), 0);
         self.next.set(next);
         Ok(p)
@@ -282,6 +298,7 @@ impl<M: Memory> Store<M> {
         }
         let account = self.accounts.get(&caller).map(|bytes| decode::<Account>(&bytes)).transpose()?;
         self.projects.remove(&id);
+        self.file_kinds.remove(&id);
         if let Some(account) = account {
             self.account_files.remove(&(account.id, id));
         }
@@ -296,6 +313,42 @@ mod tests {
     use ic_stable_structures::VectorMemory;
     fn owner(n: u8) -> Principal {
         Principal::self_authenticating([n; 32])
+    }
+    #[test]
+    fn typed_files_preserve_legacy_data_and_filter_by_compatible_app() {
+        let memory = VectorMemory::default();
+        let mut store = Store::new(memory.clone());
+        let legacy = store.create(owner(1), "Legacy photo".into(), 1).unwrap();
+        store.file_kinds.remove(&legacy.id); // V1/V2 never stored a kind.
+        let mut ids = vec![];
+        for app in ["pdfcraft", "wordcraft", "deckcraft", "soundcraft"] {
+            let kind = FileKind::for_app(app).unwrap();
+            let file = store.create_typed(owner(1), app.into(), kind.clone(), 2).unwrap();
+            let upload = store.begin(owner(1), request(file.id, app.as_bytes(), None), 3).unwrap();
+            store.put(owner(1), upload.id, 0, app.as_bytes().to_vec()).unwrap();
+            store.commit(owner(1), upload.id, 4).unwrap();
+            ids.push((file.id, kind));
+        }
+        let space = store.account(owner(1), 5).unwrap().account.personal_space;
+        drop(store);
+        let mut store = Store::new(memory);
+        assert_eq!(store.list_kind(owner(1), &FileKind::photocraft()).unwrap()[0].id, legacy.id);
+        assert_eq!(store.list_kind(owner(1), &FileKind::photocraft()).unwrap().len(), 1);
+        assert_eq!(store.files(owner(1), space, None, 50).unwrap().files.len(), 4);
+        for (id, kind) in ids {
+            assert_eq!(store.file(owner(1), space, id).unwrap().kind, kind);
+            assert_eq!(store.list_kind(owner(1), &kind).unwrap()[0].id, id);
+            assert!(store.list_kind(owner(2), &kind).unwrap().is_empty());
+            assert!(store.list_kind(Principal::anonymous(), &kind).is_err());
+            assert!(store.file(owner(2), space, id).is_err());
+        }
+        let mut unsupported = FileKind::photocraft();
+        unsupported.format_version = 2;
+        assert!(store.create_typed(owner(1), "Bad version".into(), unsupported, 6).is_err());
+        let mut spoofed = FileKind::for_app("deckcraft").unwrap();
+        spoofed.created_by_app = "photocraft".into();
+        assert!(store.create_typed(owner(1), "Wrong format".into(), spoofed, 6).is_err());
+        assert_eq!(store.list(owner(1)).unwrap().len(), 5);
     }
     fn request(project: u64, data: &[u8], expected: Option<u64>) -> BeginUpload {
         BeginUpload {

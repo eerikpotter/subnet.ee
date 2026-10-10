@@ -10,3 +10,6 @@
 [submodule "apps/soundcraft"]
 	path = apps/soundcraft
 	url = https://github.com/eerikpotter/soundcraft.git
+[submodule "apps/deckcraft"]
+	path = apps/deckcraft
+	url = https://github.com/eerikpotter/deckcraft.git

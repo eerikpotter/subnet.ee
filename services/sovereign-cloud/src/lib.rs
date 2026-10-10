@@ -34,7 +34,15 @@ fn get_file(space: u64, file: u64) -> CloudResult<FileDetails> {
 // Chunk queries are checked against the manifest SHA-256 by the browser.
 #[ic_cdk::update]
 fn list_projects() -> CloudResult<Vec<Project>> {
-    STORE.with(|s| s.borrow().list(msg_caller()))
+    STORE.with(|s| s.borrow().list_kind(msg_caller(), &FileKind::photocraft()))
+}
+#[ic_cdk::update]
+fn list_app_files(kind: FileKind) -> CloudResult<Vec<Project>> {
+    STORE.with(|s| s.borrow().list_kind(msg_caller(), &kind))
+}
+#[ic_cdk::update]
+fn create_file(name: String, kind: FileKind) -> CloudResult<Project> {
+    STORE.with(|s| s.borrow_mut().create_typed(msg_caller(), name, kind, time()))
 }
 #[ic_cdk::update]
 fn create_project(name: String) -> CloudResult<Project> {

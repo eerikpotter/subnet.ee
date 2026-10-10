@@ -12,7 +12,8 @@
         "id": "photocraft.pcraft",
         "version": 1
       }
-    ]
+    ],
+    "cloudExtension": "pcraft"
   },
   {
     "id": "pdfcraft",
@@ -20,9 +21,15 @@
     "kind": "PDF",
     "description": "Loe, ühenda ja korrasta PDF-dokumente.",
     "formats": "PDF",
-    "cloud": false,
+    "cloud": true,
     "symbol": "Pd",
-    "openFormats": []
+    "openFormats": [
+      {
+        "id": "pdfcraft.pdf",
+        "version": 1
+      }
+    ],
+    "cloudExtension": "pdf"
   },
   {
     "id": "wordcraft",
@@ -30,9 +37,31 @@
     "kind": "Dokumendid",
     "description": "Kirjuta, kujunda ja viimistle oma tekste.",
     "formats": "DOCX · ODT · PDF",
-    "cloud": false,
+    "cloud": true,
     "symbol": "W",
-    "openFormats": []
+    "openFormats": [
+      {
+        "id": "wordcraft.wcraft",
+        "version": 1
+      }
+    ],
+    "cloudExtension": "wcraft.json"
+  },
+  {
+    "id": "deckcraft",
+    "name": "DeckCraft",
+    "kind": "Slaidid",
+    "description": "Koosta slaide, kujunda ja esitle oma ideid.",
+    "formats": "PPTX · PDF · DeckCraft",
+    "cloud": true,
+    "symbol": "D",
+    "openFormats": [
+      {
+        "id": "deckcraft.deckcraft",
+        "version": 1
+      }
+    ],
+    "cloudExtension": "deckcraft"
   },
   {
     "id": "soundcraft",
@@ -40,8 +69,14 @@
     "kind": "Heli",
     "description": "Salvesta, töötle ja miksi heli.",
     "formats": "WAV · FLAC · AIFF",
-    "cloud": false,
+    "cloud": true,
     "symbol": "S",
-    "openFormats": []
+    "openFormats": [
+      {
+        "id": "soundcraft.scraft-bundle",
+        "version": 1
+      }
+    ],
+    "cloudExtension": "scraft.zip"
   }
 ]

@@ -48,6 +48,24 @@ fn state() -> UploadState {
     }
 }
 #[test]
+fn typed_save_rejects_files_outside_the_apps_format_before_uploading() {
+    let client = FileClient::with_transport(Mock { steps: RefCell::new(VecDeque::from([("list_app_files", false, Mock::reply(Vec::<Project>::new()))])) });
+    let error = block_on(client.save_typed(&mut state(), b"deck", &FileKind::for_app("deckcraft").unwrap(), |_| {})).unwrap_err();
+    assert!(error.contains("different format"));
+}
+
+#[test]
+fn typed_retry_keeps_the_committed_snapshot_and_does_not_recreate_the_file() {
+    let mut attempt = state();
+    let client = FileClient::with_transport(Mock {
+        steps: RefCell::new(VecDeque::from([
+            ("list_app_files", false, Mock::reply(vec![attempt.file.clone().unwrap()])),
+            ("commit_upload", false, Mock::reply(revision(b"deck"))),
+        ])),
+    });
+    assert_eq!(block_on(client.save_typed(&mut attempt, b"deck", &FileKind::for_app("deckcraft").unwrap(), |_| {})).unwrap().id, 8);
+}
+#[test]
 fn a_lost_commit_response_can_be_retried_without_resending_chunks() {
     let bytes = b"document";
     let client = FileClient::with_transport(Mock {

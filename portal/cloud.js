@@ -51,16 +51,18 @@ function updateAccount() {
   $("storage-usage").textContent = signedIn ? `${size(account.usedBytes)} / ${size(account.quotaBytes)} kasutusel` : "Sinu failid on seotud sinu kontoga.";
 }
 function appendFile(file) {
+  const app = registry.find((app) => app.cloud && app.openFormats?.some((format) => format.id === file.formatId && format.version === file.formatVersion));
   const row = document.createElement("article");
   row.className = "file-row";
   const icon = document.createElement("span");
   icon.className = "file-icon";
-  icon.textContent = "Ph";
+  icon.textContent = app?.symbol || "F";
   icon.setAttribute("aria-hidden", "true");
   const detail = document.createElement("div");
   detail.className = "file-detail";
   const title = document.createElement("h2");
-  title.textContent = file.name.endsWith(".pcraft") ? file.name : `${file.name}.pcraft`;
+  const suffix = app?.cloudExtension ? `.${app.cloudExtension}` : "";
+  title.textContent = suffix && !file.name.toLowerCase().endsWith(suffix) ? `${file.name}${suffix}` : file.name;
   const meta = document.createElement("p");
   meta.textContent = `${new Date(file.updatedMs).toLocaleString("et-EE", { dateStyle: "medium", timeStyle: "short" })} · ${file.versions} ${file.versions === 1 ? "versioon" : "versiooni"}`;
   detail.append(title, meta);
@@ -68,7 +70,6 @@ function appendFile(file) {
   bytes.className = "file-size";
   bytes.textContent = size(file.bytes);
   row.append(icon, detail, bytes);
-  const app = registry.find((app) => app.cloud && app.openFormats?.some((format) => format.id === file.formatId && format.version === file.formatVersion));
   if (app && /^[a-z]+$/.test(app.id)) {
     const link = document.createElement("a");
     link.className = "button";
@@ -92,7 +93,7 @@ async function loadFiles(epoch, append = false) {
     cursor = page.nextCursor;
     $("more-files").hidden = !cursor;
     $("file-status").hidden = $("file-list").children.length > 0;
-    $("file-status").textContent = "Sinu esimene fail ootab loomist. Vali PhotoCraftis File → Sovereign Cloud → Save.";
+    $("file-status").textContent = "Sinu esimene fail ootab loomist. Vali rakenduses File → Sovereign Cloud → Save.";
   } catch (error) {
     if (epoch !== generation) return;
     $("file-status").hidden = false;

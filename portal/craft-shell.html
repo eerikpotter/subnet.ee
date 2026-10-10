@@ -1,0 +1,36 @@
+<!doctype html>
+<html lang="et">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <meta name="color-scheme" content="dark">
+  <title>__APP_NAME__ · subnet.ee</title>
+  <link rel="stylesheet" href="/craft-shell.css">
+  <script type="module" src="/craft-shell.js"></script>
+</head>
+<body>
+  <header class="craft-bar">
+    <nav aria-label="Loomeruumi navigatsioon">
+      <a class="home-link" href="/" data-leave aria-label="Tagasi subnet.ee avalehele"><span aria-hidden="true">←</span> subnet.ee</a>
+      <span class="divider" aria-hidden="true"></span>
+      <h1>__APP_NAME__</h1>
+      <a class="files-link" href="/#failid" data-leave>Minu failid</a>
+    </nav>
+  </header>
+  <main class="editor-area">
+    <iframe id="craft-editor" title="__APP_NAME__ tööala" allow="fullscreen; clipboard-read; clipboard-write" allowfullscreen></iframe>
+    <noscript><p>Rakenduse avamiseks luba JavaScript või <a href="./editor.html">ava __APP_NAME__ otse</a>.</p></noscript>
+  </main>
+  <dialog id="leave-dialog" aria-labelledby="leave-title" aria-describedby="leave-description">
+    <form method="dialog">
+      <p class="dialog-eyebrow">__APP_NAME__</p>
+      <h2 id="leave-title">Kas lahkud rakendusest?</h2>
+      <p id="leave-description">Sul on salvestamata muudatusi. Salvesta oma töö rakenduses või lahku muudatusi salvestamata.</p>
+      <div class="dialog-actions">
+        <button value="cancel" autofocus>Jätka tööd</button>
+        <button class="leave-button" value="leave">Lahku salvestamata</button>
+      </div>
+    </form>
+  </dialog>
+</body>
+</html>

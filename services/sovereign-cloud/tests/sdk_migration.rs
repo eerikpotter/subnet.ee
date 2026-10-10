@@ -76,3 +76,34 @@ fn legacy_save_survives_sdk_upgrade_and_lost_commit_response() {
     assert!(block_on(other.files(account.account.personal_space, None, 20)).is_err());
     assert!(block_on(other.file(account.account.personal_space, file)).is_err());
 }
+
+#[test]
+fn all_app_formats_round_trip_and_survive_upgrade_without_cross_app_listing() {
+    use sovereign_cloud::protocol::FileKind;
+    let wasm = std::fs::read(std::env::var("PHOTOCRAFT_CLOUD_WASM").expect("Set PHOTOCRAFT_CLOUD_WASM")).unwrap();
+    let pic = PocketIcBuilder::new().with_application_subnet().build();
+    let canister = pic.create_canister();
+    pic.add_cycles(canister, 20_000_000_000_000);
+    pic.install_canister(canister, wasm.clone(), encode_args(()).unwrap(), None);
+    let owner = Principal::self_authenticating([71; 32]);
+    let client = FileClient::with_transport(PocketTransport { pic: &pic, canister, caller: owner, lose_commit_reply: Cell::new(false) });
+    let mut saved = vec![];
+    for app in ["photocraft", "pdfcraft", "wordcraft", "deckcraft", "soundcraft"] {
+        let kind = FileKind::for_app(app).unwrap();
+        let mut state = UploadState { file: None, upload: None, expected_revision: None, name: app.into(), request_id: format!("typed-upgrade-{app}") };
+        let revision = block_on(client.save_typed(&mut state, app.as_bytes(), &kind, |_| {})).unwrap();
+        saved.push((kind, state.file.unwrap().id, revision.id, app.as_bytes().to_vec()));
+    }
+    pic.upgrade_canister(canister, wasm, encode_args(()).unwrap(), None).unwrap();
+    let account = block_on(client.account()).unwrap();
+    let files = block_on(client.files(account.account.personal_space, None, 20)).unwrap();
+    assert_eq!(files.files.len(), 5);
+    assert_eq!(block_on(client.projects()).unwrap().len(), 1); // Legacy PhotoCraft picker.
+    for (kind, id, revision, bytes) in saved {
+        let projects = block_on(client.projects_for(&kind)).unwrap();
+        assert_eq!(projects.len(), 1);
+        assert_eq!(projects[0].id, id);
+        assert_eq!(block_on(client.file(account.account.personal_space, id)).unwrap().kind, kind);
+        assert_eq!(block_on(client.download(id, revision, |_| {})).unwrap().1, bytes);
+    }
+}

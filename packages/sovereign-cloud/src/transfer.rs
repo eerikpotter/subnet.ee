@@ -47,6 +47,10 @@ impl<T: Transport> FileClient<T> {
     pub async fn projects(&self) -> CloudResult<Vec<Project>> {
         self.update("list_projects", args(())?).await
     }
+    pub async fn projects_for(&self, kind: &FileKind) -> CloudResult<Vec<Project>> {
+        kind.validate()?;
+        self.update("list_app_files", args((kind.clone(),))?).await
+    }
     pub async fn account(&self) -> CloudResult<AccountContext> {
         self.update("get_or_create_account", args(())?).await
     }
@@ -56,12 +60,27 @@ impl<T: Transport> FileClient<T> {
     pub async fn file(&self, space: u64, file: u64) -> CloudResult<FileDetails> {
         self.update("get_file", args((space, file))?).await
     }
-    pub async fn save(&self, state: &mut UploadState, bytes: &[u8], mut notify: impl FnMut(TransferEvent)) -> CloudResult<Revision> {
+    pub async fn save(&self, state: &mut UploadState, bytes: &[u8], notify: impl FnMut(TransferEvent)) -> CloudResult<Revision> {
+        self.save_inner(state, bytes, None, notify).await
+    }
+    pub async fn save_typed(&self, state: &mut UploadState, bytes: &[u8], kind: &FileKind, notify: impl FnMut(TransferEvent)) -> CloudResult<Revision> {
+        kind.validate()?;
+        if let Some(file) = &state.file
+            && !self.projects_for(kind).await?.iter().any(|p| p.id == file.id)
+        {
+            return Err("This cloud file has a different format or is unavailable".into());
+        }
+        self.save_inner(state, bytes, Some(kind), notify).await
+    }
+    async fn save_inner(&self, state: &mut UploadState, bytes: &[u8], kind: Option<&FileKind>, mut notify: impl FnMut(TransferEvent)) -> CloudResult<Revision> {
         if bytes.is_empty() || bytes.len() as u64 > MAX_DOCUMENT_BYTES {
             return Err("File size is outside the service limit".into());
         }
         if state.file.is_none() {
-            state.file = Some(self.update("create_project", args((state.name.clone(),))?).await?);
+            state.file = Some(match kind {
+                Some(kind) => self.update("create_file", args((state.name.clone(), kind.clone()))?).await?,
+                None => self.update("create_project", args((state.name.clone(),))?).await?,
+            });
             notify(TransferEvent::Checkpoint(state.clone()));
         }
         let file = state.file.as_ref().ok_or("Cloud file is unavailable")?;

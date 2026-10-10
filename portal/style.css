@@ -241,6 +241,62 @@ h1 em{
 .art-sound{
   background:#e9e8ee
 }
+.art-deck{
+  background:#f0e6df
+}
+.deck-slide{
+  position:absolute;
+  left:29%;
+  top:30px;
+  width:220px;
+  height:124px;
+  padding:20px;
+  background:#fffaf4;
+  border:1px solid #d9c5b6;
+  border-radius:5px;
+  transform:rotate(-5deg)
+}
+.deck-slide.back{
+  left:34%;
+  top:21px;
+  background:#dec3ad;
+  transform:rotate(5deg)
+}
+.deck-title{
+  font-family:Georgia,serif;
+  font-size:21px;
+  line-height:1.15;
+  color:#865f49
+}
+.deck-chart{
+  position:absolute;
+  right:22px;
+  top:33px;
+  height:57px;
+  display:flex;
+  align-items:flex-end;
+  gap:6px
+}
+.deck-chart span{
+  width:16px;
+  height:24px;
+  background:#dcb695;
+  border-radius:3px 3px 0 0
+}
+.deck-chart span:nth-child(2){
+  height:40px;
+  background:#bf8d68
+}
+.deck-chart span:nth-child(3){
+  height:57px;
+  background:#916e56
+}
+.deck-dots{
+  margin-top:14px;
+  color:#bf8d68;
+  font-size:8px;
+  letter-spacing:4px
+}
 .app-symbol{
   position:absolute;
   top:15px;

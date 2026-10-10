@@ -15,7 +15,7 @@ def run(*args, **kwargs):
 
 if __name__ == "__main__":
     parser = argparse.ArgumentParser(description=__doc__)
-    parser.add_argument("--build", action="store_true", help="Rebuild portal runtime and all four editors first")
+    parser.add_argument("--build", action="store_true", help="Rebuild portal runtime and all registered editors first")
     options = parser.parse_args()
     if options.build:
         run(sys.executable, "scripts/build.py", "all")
