@@ -31,6 +31,10 @@ def main():
         return status, headers, body
     manifest = json.loads((ROOT / "dist/apps.json").read_text())
     checks = [("/", ROOT / "dist/index.html"), ("/style.css", ROOT / "dist/style.css"), ("/apps.json", ROOT / "dist/apps.json")]
+    checks.append(("/cloud.js", ROOT / "dist/cloud.js"))
+    checks.extend(("/" + name, ROOT / "dist" / name) for name in manifest["portalAssets"])
+    if any((ROOT / "dist" / name).exists() for name in ["browser-session-test.html", "browser-session-test.js"]):
+        raise RuntimeError("Remove temporary browser fixtures before final verification")
     for app in manifest['apps']:
         folder = ROOT / "dist/apps" / app['id']
         checks.append((app['path'], folder / "index.html"))
@@ -40,7 +44,7 @@ def main():
         if status != 200 or data != file.read_bytes(): raise RuntimeError(f"Wrong payload/status: {route} ({status})")
         if not headers.get("ic-certificate"): raise RuntimeError(f"Missing certification header: {route}")
         if file.suffix == ".wasm" and headers.get("content-type") != "application/wasm": raise RuntimeError(f"Wrong Wasm MIME: {route}")
-        if file.suffix in (".js", ".wasm") and "immutable" not in headers.get("cache-control", ""): raise RuntimeError(f"Missing versioned cache rule: {route}")
+        if file.suffix in (".js", ".wasm") and file.name != "cloud.js" and "immutable" not in headers.get("cache-control", ""): raise RuntimeError(f"Missing versioned cache rule: {route}")
         if file.name == "index.html":
             env_cookie = headers.get("set-cookie", "").split(";", 1)[0]
             if not env_cookie.startswith("ic_env="): raise RuntimeError(f"Missing runtime cookie: {route}")

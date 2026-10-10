@@ -1,5 +1,5 @@
 canisters:
-  - apps/photocraft/icp/backend
+  - services/sovereign-cloud
   - name: frontend
     recipe:
       type: "@dfinity/static-site@v0.4.0"

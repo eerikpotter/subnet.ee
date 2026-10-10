@@ -10,7 +10,9 @@ is a required build gate. A future published crate/git release can replace vendo
 * `protocol`: the existing Candid/serde contract, unchanged for old data and clients.
 * `config`: explicit gateway, canister and trusted root key; optional derivation origin.
 * `transfer`: create, chunked save/retry, consensus manifests and verified download.
-* `browser` feature: Internet Identity session adapter and IC agent transport.
+* `browser` feature: shared, storage-aware Internet Identity session adapter and guarded IC transport.
+* `launch`: validated service/space/file links; IDs convey no authorization.
+* Account/catalog client methods preserve the V1 file transfer API.
 
 The SDK never knows egui, `.pcraft`, editor revisions, menus or document serialization.
 PhotoCraft retains those responsibilities and maps SDK progress into its current UI.
@@ -25,7 +27,7 @@ An app ID is metadata, not an authorization credential.
 `BrowserClient::at_endpoint` is the seam for future service/space resolution. V1 file
 IDs are only unique within a service: `FileRef.service` identifies that logical service,
 not a canister. Mapping it to an endpoint belongs to deployment/resolver configuration.
-Automatic provisioning, user-owned canisters, grants, encryption, alternate blob stores,
+Per-user canister provisioning, user-owned canisters, grants, encryption, alternate blob stores,
 cross-reload resumable uploads and multi-file projects are future work, not implemented.
 The current server retains its prototype quotas, including 64 MiB per document.
 
@@ -36,3 +38,8 @@ with an overwritten expected revision. Downloaded bytes are not released until S
 matches the consensus manifest. The implementation still buffers the full snapshot.
 
 The SDK is derived from `eerikpotter/photocraft`'s ICP integration, under MIT OR Apache-2.0.
+
+The HTML portal uses the sibling `sovereign-cloud-web` Wasm facade. Both clients use
+BrowserSession; stale/expired sessions cannot start subsequent requests. Host UIs must
+also discard responses from obsolete sessions and preserve unsaved documents. Existing
+Rust AuthClient storage keys are deliberately retained for compatibility.

@@ -5,6 +5,7 @@
 #[cfg(all(target_arch = "wasm32", feature = "browser"))]
 pub mod browser;
 pub mod config;
+pub mod launch;
 pub mod protocol;
 pub mod transfer;
 

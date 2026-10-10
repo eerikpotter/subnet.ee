@@ -1,0 +1,46 @@
+type BeginUpload = record {
+  request_id : text;
+  sha256 : blob;
+  bytes : nat64;
+  project_id : nat64;
+  expected_revision : opt nat64;
+};
+type Project = record {
+  id : nat64;
+  revisions : vec Revision;
+  owner : principal;
+  name : text;
+  created_at : nat64;
+  pending_upload : opt nat64;
+};
+type Result = variant { Ok : Upload; Err : text };
+type Result_1 = variant { Ok : Revision; Err : text };
+type Result_2 = variant { Ok : Project; Err : text };
+type Result_3 = variant { Ok; Err : text };
+type Result_4 = variant { Ok : blob; Err : text };
+type Result_5 = variant { Ok : vec Project; Err : text };
+type Revision = record {
+  id : nat64;
+  sha256 : blob;
+  created_at : nat64;
+  author : principal;
+  chunk_count : nat64;
+  bytes : nat64;
+};
+type Upload = record {
+  id : nat64;
+  request : BeginUpload;
+  created_at : nat64;
+  committed : opt Revision;
+};
+service : () -> {
+  begin_upload : (BeginUpload) -> (Result);
+  commit_upload : (nat64) -> (Result_1);
+  create_project : (text) -> (Result_2);
+  delete_project : (nat64) -> (Result_3);
+  delete_revision_or_upload : (nat64) -> (Result_3);
+  get_chunk : (nat64, nat64, nat64) -> (Result_4) query;
+  get_revision : (nat64, nat64) -> (Result_1);
+  list_projects : () -> (Result_5);
+  put_chunk : (nat64, nat64, blob) -> (Result_3);
+}

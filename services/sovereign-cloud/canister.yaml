@@ -1,0 +1,7 @@
+name: cloud
+recipe:
+  type: "@dfinity/rust@v3.3.0"
+  configuration:
+    package: sovereign-cloud-service
+    candid: cloud.did
+    locked: true

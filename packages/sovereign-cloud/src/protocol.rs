@@ -59,3 +59,54 @@ pub struct Upload {
     pub created_at: u64,
     pub committed: Option<Revision>,
 }
+
+/// Account IDs and space IDs are stable within a logical service, not a deployment address.
+#[derive(Clone, Debug, CandidType, Deserialize, Serialize, PartialEq, Eq)]
+pub struct Account {
+    pub id: u64,
+    pub owner: Principal,
+    pub personal_space: u64,
+    pub created_at: u64,
+}
+
+#[derive(Clone, Debug, CandidType, Deserialize, Serialize)]
+pub struct AccountContext {
+    pub account: Account,
+    pub used_bytes: u64,
+    pub quota_bytes: u64,
+}
+
+#[derive(Clone, Debug, CandidType, Deserialize, Serialize, PartialEq, Eq)]
+pub struct FileKind {
+    pub format_id: String,
+    pub format_version: u32,
+    pub created_by_app: String,
+}
+impl FileKind {
+    pub fn photocraft() -> Self {
+        Self { format_id: "photocraft.pcraft".into(), format_version: 1, created_by_app: "photocraft".into() }
+    }
+}
+
+#[derive(Clone, Debug, CandidType, Deserialize, Serialize)]
+pub struct FileSummary {
+    pub id: u64,
+    pub space_id: u64,
+    pub name: String,
+    pub kind: FileKind,
+    pub latest: Revision,
+    pub version_count: u64,
+}
+
+#[derive(Clone, Debug, CandidType, Deserialize, Serialize)]
+pub struct FilePage {
+    pub files: Vec<FileSummary>,
+    pub next_cursor: Option<u64>,
+}
+
+#[derive(Clone, Debug, CandidType, Deserialize, Serialize)]
+pub struct FileDetails {
+    pub project: Project,
+    pub space_id: u64,
+    pub kind: FileKind,
+}

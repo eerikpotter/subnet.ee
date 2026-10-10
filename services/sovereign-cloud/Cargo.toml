@@ -1,0 +1,29 @@
+[package]
+name = "sovereign-cloud-service"
+version = "0.2.0"
+edition = "2024"
+license = "MIT OR Apache-2.0"
+publish = false
+
+[workspace]
+
+[lib]
+crate-type = ["cdylib", "rlib"]
+
+[dependencies]
+sovereign-cloud = { path = "../../packages/sovereign-cloud" }
+ic-cdk = "0.20.3"
+ic-stable-structures = "0.7"
+candid = "0.10"
+serde = { version = "1", features = ["derive"] }
+serde_json = "1"
+sha2 = "0.10"
+
+[dev-dependencies]
+pocket-ic = "16"
+futures = "0.3"
+
+[profile.release]
+lto = true
+opt-level = "s"
+codegen-units = 1

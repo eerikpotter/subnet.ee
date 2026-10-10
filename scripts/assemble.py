@@ -56,6 +56,12 @@ def cards(apps):
 def assemble(root=ROOT):
     apps = json.loads((root / "registry/apps.json").read_text())
     subprocess.run(["python3", str(root / "scripts/sync-sdk.py"), "--check"], check=True)
+    subprocess.run(["python3", str(root / "scripts/sync-service.py"), "--check"], check=True)
+    runtime = root / ".local/portal-runtime"
+    bindings = list(runtime.glob("sovereign-cloud-web-*.js"))
+    wasm = list(runtime.glob("sovereign-cloud-web-*_bg.wasm"))
+    if len(bindings) != 1 or len(wasm) != 1:
+        raise RuntimeError("Missing portal runtime. Run python3 scripts/build.py portal")
     # Never replace a working bundle with a portal containing missing editor links.
     for app in apps:
         source = root / "apps" / app['id'] / "dist/web"
@@ -64,10 +70,16 @@ def assemble(root=ROOT):
     stage = Path(tempfile.mkdtemp(prefix="subnet-site-", dir=root / ".local"))
     try:
         shutil.copytree(root / "portal", stage, dirs_exist_ok=True)
+        cloud = stage / "cloud"
+        cloud.mkdir()
+        for path in [bindings[0], wasm[0]]:
+            shutil.copy2(path, cloud / path.name)
+        facade = (stage / "cloud.js").read_text().replace("__CLOUD_BINDINGS__", "/cloud/" + bindings[0].name).replace("__CLOUD_WASM__", "/cloud/" + wasm[0].name)
+        (stage / "cloud.js").write_text(facade)
         index = (stage / "index.html").read_text().replace("<!-- APP_CARDS -->", cards(apps))
         (stage / "index.html").write_text(index)
         hashes = []
-        manifest = {"apps": []}
+        manifest = {"apps": [], "portalAssets": {"cloud/" + p.name: hashlib.sha256(p.read_bytes()).hexdigest() for p in [bindings[0], wasm[0]]}}
         for app in apps:
             repo = root / "apps" / app['id']
             destination = stage / "apps" / app['id']
@@ -96,7 +108,7 @@ def assemble(root=ROOT):
                 "assets": {f.name: hashlib.sha256(f.read_bytes()).hexdigest() for f in sorted(destination.glob("*")) if f.suffix in (".wasm", ".js")}})
         policy = "; ".join(["default-src 'self'", "script-src 'self' 'wasm-unsafe-eval' " + " ".join(sorted(set(hashes))),
             "style-src 'self' 'unsafe-inline'", "img-src 'self' data: blob:", "font-src 'self' data:", "connect-src 'self'", "worker-src 'self' blob:", "media-src 'self' blob:", "object-src 'none'", "base-uri 'self'", "frame-ancestors 'self'"])
-        headers = f"/*\n  X-Content-Type-Options: nosniff\n  Referrer-Policy: no-referrer\n  Content-Security-Policy: {policy}\n  Cache-Control: no-cache\n\n/apps/*.wasm\n  Content-Type: application/wasm\n  Cache-Control: public, max-age=31536000, immutable\n\n/apps/*.js\n  Cache-Control: public, max-age=31536000, immutable\n\n/.well-known/ii-app-metadata\n  Content-Type: application/json\n  Access-Control-Allow-Origin: *\n"
+        headers = f"/*\n  X-Content-Type-Options: nosniff\n  Referrer-Policy: no-referrer\n  Content-Security-Policy: {policy}\n  Cache-Control: no-cache\n\n/apps/*.wasm\n  Content-Type: application/wasm\n  Cache-Control: public, max-age=31536000, immutable\n\n/apps/*.js\n  Cache-Control: public, max-age=31536000, immutable\n\n/cloud/*.wasm\n  Content-Type: application/wasm\n  Cache-Control: public, max-age=31536000, immutable\n\n/cloud/*.js\n  Cache-Control: public, max-age=31536000, immutable\n\n/.well-known/ii-app-metadata\n  Content-Type: application/json\n  Access-Control-Allow-Origin: *\n"
         (stage / "_headers").write_text(headers)
         well_known = stage / ".well-known"
         well_known.mkdir(exist_ok=True)

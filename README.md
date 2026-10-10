@@ -1,17 +1,19 @@
 # subnet.ee — local Craft workspace
 
 One portal and four independent Rust/Wasm editors, served by one certified frontend
-canister. Only PhotoCraft currently uses Sovereign Cloud. Its file service is a separate
+canister. Only PhotoCraft currently uses Sovereign Cloud. Its account and file service is a separate
 canister; editing and media processing run in the browser.
 
 ## Layout
 
-* `portal/`: lightweight Estonian launch page, HTML/CSS only; no app preloading.
+* `portal/`: Estonian launcher, shared sign-in and My files; no editor preloading.
 * `apps/{photocraft,pdfcraft,wordcraft,soundcraft}`: pinned Git submodules to your forks.
 * `packages/sovereign-cloud/`: internal Rust SDK; canonical source and independent tests.
+* `packages/sovereign-cloud-web/`: small Wasm facade for the portal, using the same Rust session and Files SDK as PhotoCraft.
+* `services/sovereign-cloud/`: canonical backend source, accounts and paginated file catalog; V1 API preserved.
 * `registry/apps.json`: app metadata, current cloud capability and portal content.
 * `scripts/`: reproducible setup, build, SDK vendoring, assembly and local verification.
-* `icp.yaml`: one frontend plus the existing PhotoCraft file backend.
+* `icp.yaml`: one frontend plus the shared account/file backend (same local canister ID).
 * `dist/`: generated deployment artifact; each app lives at `/apps/<id>/`.
 
 ## Start locally
@@ -36,7 +38,8 @@ python3 scripts/build.py photocraft
 python3 scripts/dev.py
 ```
 
-After editing only the portal, `python3 scripts/dev.py` reassembles and serves it.
+After editing the portal Rust facade, run `python3 scripts/build.py portal`.
+After editing only the HTML/CSS/JavaScript portal, `python3 scripts/dev.py` reassembles and serves it.
 `icp network stop` stops this project's local network. `icp network start local -d`
 restarts it. Keep `.icp/cache/` if you want the local data and network state to survive.
 
@@ -53,7 +56,8 @@ have detached HEAD. Review and test upstream merges inside the fork, commit ther
 then commit the changed submodule pointer in this root. Push app commits before
 pushing root pointers when sharing; local-only commits are not available on GitHub.
 
-The first PhotoCraft refactor is on `codex/subnet-cloud-base`. The other three retain
+The shared-account milestone is on `codex/shared-account-files` in the root and PhotoCraft.
+The first extraction remains on `codex/subnet-cloud-base`. The other three retain
 their fetched fork commits. Each app keeps its own Cargo workspace and lockfile.
 The root is not a giant Cargo workspace. Build caches can be shared with
 `CARGO_TARGET_DIR`; `SUBNET_RUST_TOOLCHAIN` overrides the compiler when deliberately testing.
@@ -67,9 +71,10 @@ snapshot differs. See [the SDK README](packages/sovereign-cloud/README.md).
 The SDK owns identity adaptation, configured endpoint resolution, transport, upload
 checkpoints, progress and verified downloads. PhotoCraft retains `.pcraft` encoding,
 its file menus, naming panel, document revisions and save state. The service preserves
-its existing Candid methods, serde shapes, stable-memory IDs and quotas. Its implementation
-remains under `apps/photocraft/icp/backend` for this first extraction; there is one authority
-for storage code. Its deployment is now composed by the root independently of the editor build.
+its existing Candid methods, serde shapes, stable-memory IDs and quotas. Its canonical implementation
+lives under `services/sovereign-cloud`; `python3 scripts/sync-service.py` updates a checked
+snapshot in the standalone PhotoCraft backend. The root owns service changes and deployment;
+the PhotoCraft fork remains independently buildable. Do not edit the snapshots directly.
 
 Use the same hostname consistently during local testing. The four app paths share one
 browser origin. No production `derivationOrigin` is silently enabled. Moving existing
@@ -79,8 +84,10 @@ accounts to subnet.ee needs an explicit identity/data migration. `app_id` is not
 
 ```sh
 python3 scripts/sync-sdk.py --check
+python3 scripts/sync-service.py --check
 cargo +1.95.0 test --manifest-path packages/sovereign-cloud/Cargo.toml --locked
 cargo +1.95.0 clippy --manifest-path packages/sovereign-cloud/Cargo.toml --all-targets --locked -- -D warnings
+cargo +1.95.0 test --manifest-path services/sovereign-cloud/Cargo.toml --lib --locked
 cargo +1.95.0 test --manifest-path apps/photocraft/icp/Cargo.toml -p photocraft-cloud --lib --locked
 python3 scripts/verify.py
 ```
@@ -100,18 +107,66 @@ runtime trust configuration and missing-file responses.
 
 All four editors were opened from the portal in the browser without console errors;
 PhotoCraft's Sovereign Cloud sign-in panel rendered. The portal was checked at desktop
-and 390px mobile width without horizontal overflow. A real Internet Identity sign-in
-and authenticated browser save/reopen have **not** been exercised in this new origin;
-the transfer and upgrade tests use isolated test identities. Editor-wide functionality
+and 390px mobile width without horizontal overflow. At that initial milestone, authenticated
+browser save/reopen had not yet been exercised in this new origin; see the shared-account
+validation below. Editor-wide functionality
 and mobile editor ergonomics are outside this setup's smoke check.
 
 ## Next boundaries
 
 This base brings all apps into one launch environment without adding cloud features to
-the other editors. Shared file UI, service-scoped spaces, per-app grants, user-owned
+the other editors. Full file-manager UI, shared spaces, per-app grants, user-owned
 canisters, encrypted storage, alternate blob stores and Cloud Engine migration are later
 work. The V1 backend can hold opaque bytes, but does not yet classify other app formats;
 do not connect another app without adding file-type metadata and compatibility checks.
 
 Build output includes each project's license and attribution notices. Portal artwork is
 original HTML/CSS. Root and SDK changes use MIT OR Apache-2.0; upstream notices remain.
+
+## Shared account and PhotoCraft flow (0.2)
+
+Sign in on the portal, open PhotoCraft and use **File → Save to Cloud**. The same
+account's committed files appear under **Minu failid**. Opening a row passes a logical
+service/space/file reference to PhotoCraft; the backend rechecks ownership and the SDK
+checks file integrity. Further saves keep the file ID and add revisions. The catalog
+only exposes committed files and reads via consensus-backed updates.
+
+`get_or_create_account`, `list_files` and `get_file` extend the existing API. Accounts
+and their file index use new stable-memory IDs 6 and 7. V1 schemas/IDs 0–5 remain intact.
+A legacy owner's catalog is indexed once when their account is first resolved (the
+old store is bounded to 1000 files). New files update that same index. The account and
+personal-space IDs are stable within the logical `cloud` service. Existing file bytes
+are not copied. All V1 files are currently described as PhotoCraft format version 1;
+a generic typed create API and multi-blob revisions remain a subsequent milestone.
+
+The portal and PhotoCraft share the pinned Rust AuthClient storage adapter. A loaded
+session carries a fingerprint of its persisted credentials. Each SDK network call
+rejects changed/expired sessions; UI responses are scoped to their originating session.
+Cross-tab changes restore identity without reloading the editor. Open documents retain
+their original account binding; saving one to another account requires **Save a Copy**.
+Already submitted calls may complete, and logout does not revoke previously issued
+IC delegations at the replica. This is one trusted first-party origin, not per-app isolation.
+
+The facade is built separately from the editors. `scripts/verify.py` verifies its served
+Wasm/JS too and rejects the temporary browser fixtures. `scripts/prepare-browser-test.py`
+creates opt-in loopback-only fixtures with disposable direct-signing identities for UI
+QA. Use an isolated canister hostname, never a real user's origin. They are excluded from
+normal assembly and must be removed by reassembling/syncing before final delivery. These
+fixtures exercise real signed canister calls, but do not test Internet Identity issuance.
+
+Shared-account validation (2026-10-10): SDK tests (9), service tests (6), PocketIC
+persistence/upgrade tests (4), standalone backend tests (6), and PhotoCraft host tests (8)
+pass. Clippy passes for the SDK, service, portal facade and Wasm PhotoCraft host. All 27
+PhotoCraft dependency-layer checks pass; release builds pass for the changed Wasm packages.
+The old-Wasm upgrade test preserves file IDs and content, indexes legacy files, appends
+a revision and denies another caller access.
+
+Browser QA used two disposable signing identities on an isolated local canister hostname.
+A painted PhotoCraft document appeared in the portal, reopened with the same content via
+its catalog link, and saved a second revision under the same file ID. Switching accounts
+cleared file lists without reloading or losing the document; saving that document to the
+other account required an explicit copy. Portal logout propagated to PhotoCraft. Corrupt
+persisted delegation JSON recovered to a signed-out state without a browser error. The
+file list was visually checked at desktop and 390px width. Real Internet Identity/passkey
+issuance and cross-device use remain interactive validation steps; the browser driver did
+not expose the provider popup. No mainnet deployment was made.
