@@ -1,0 +1,15 @@
+canisters:
+  - apps/photocraft/icp/backend
+  - name: frontend
+    recipe:
+      type: "@dfinity/static-site@v0.4.0"
+      configuration:
+        dir: dist
+        build:
+          - python3 scripts/assemble.py
+
+networks:
+  - name: local
+    mode: managed
+    gateway:
+      port: 0

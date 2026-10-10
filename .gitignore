@@ -1,0 +1,8 @@
+/dist/
+/target/
+**/target/
+/.local/
+/.tools/
+/.icp/cache/
+/.DS_Store
+**/__pycache__/

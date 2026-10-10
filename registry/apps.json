@@ -1,0 +1,6 @@
+[
+  {"id":"photocraft","name":"PhotoCraft","kind":"Pildid","description":"Töötle fotosid, maali ja loo kihtidega.","formats":"PSD · PNG · JPG · PCraft","cloud":true,"symbol":"Ph"},
+  {"id":"pdfcraft","name":"PdfCraft","kind":"PDF","description":"Loe, ühenda ja korrasta PDF-dokumente.","formats":"PDF","cloud":false,"symbol":"Pd"},
+  {"id":"wordcraft","name":"WordCraft","kind":"Dokumendid","description":"Kirjuta, kujunda ja viimistle oma tekste.","formats":"DOCX · ODT · PDF","cloud":false,"symbol":"W"},
+  {"id":"soundcraft","name":"SoundCraft","kind":"Heli","description":"Salvesta, töötle ja miksi heli.","formats":"WAV · FLAC · AIFF","cloud":false,"symbol":"S"}
+]

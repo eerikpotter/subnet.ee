@@ -1,0 +1,12 @@
+[submodule "apps/photocraft"]
+	path = apps/photocraft
+	url = https://github.com/eerikpotter/photocraft.git
+[submodule "apps/pdfcraft"]
+	path = apps/pdfcraft
+	url = https://github.com/eerikpotter/pdfcraft.git
+[submodule "apps/wordcraft"]
+	path = apps/wordcraft
+	url = https://github.com/eerikpotter/wordcraft.git
+[submodule "apps/soundcraft"]
+	path = apps/soundcraft
+	url = https://github.com/eerikpotter/soundcraft.git
