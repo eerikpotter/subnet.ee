@@ -125,17 +125,17 @@ original HTML/CSS. Root and SDK changes use MIT OR Apache-2.0; upstream notices 
 
 ## Shared account and PhotoCraft flow (0.2)
 
-Sign in on the portal, open PhotoCraft and use **File → Save to Cloud**. The same
+Sign in on the portal, open PhotoCraft and use **File → Sovereign Cloud → Save**. The same
 account's committed files appear under **Minu failid**. Opening a row passes a logical
 service/space/file reference to PhotoCraft; the backend rechecks ownership and the SDK
 checks file integrity. Further saves keep the file ID and add revisions. The catalog
 only exposes committed files and reads via consensus-backed updates.
 
-Each cloud action sits beside its local File-menu counterpart: Open / Open from Cloud,
-Save / Save to Cloud, and Save As / Save As to Cloud. The cloud entries have a small ICP
-mark. Save As to Cloud creates a new file and links subsequent saves to it. The editor's
-separate Sovereign Cloud toolbar button has been removed; Open from Cloud opens the file
-picker without leaving the document. The cloud dialog uses a compact header.
+The File menu has one **Sovereign Cloud** section after the local save block: **Save**,
+**Save As…**, and **Open…**. One ICP mark appears beside the section heading. Save As
+creates a new cloud file and links subsequent cloud saves to it. Open shows the file picker
+without leaving the document. There is no separate cloud toolbar button, and the cloud
+dialog uses a compact header.
 
 `get_or_create_account`, `list_files` and `get_file` extend the existing API. Accounts
 and their file index use new stable-memory IDs 6 and 7. V1 schemas/IDs 0–5 remain intact.
@@ -149,7 +149,7 @@ The portal and PhotoCraft share the pinned Rust AuthClient storage adapter. A lo
 session carries a fingerprint of its persisted credentials. Each SDK network call
 rejects changed/expired sessions; UI responses are scoped to their originating session.
 Cross-tab changes restore identity without reloading the editor. Open documents retain
-their original account binding; saving one to another account requires **Save As to Cloud**.
+their original account binding; saving one to another account requires **Sovereign Cloud → Save As**.
 Already submitted calls may complete, and logout does not revoke previously issued
 IC delegations at the replica. This is one trusted first-party origin, not per-app isolation.
 

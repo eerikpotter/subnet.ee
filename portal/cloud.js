@@ -92,7 +92,7 @@ async function loadFiles(epoch, append = false) {
     cursor = page.nextCursor;
     $("more-files").hidden = !cursor;
     $("file-status").hidden = $("file-list").children.length > 0;
-    $("file-status").textContent = "Sinu esimene fail ootab loomist. Vali PhotoCraftis File → Save to Cloud.";
+    $("file-status").textContent = "Sinu esimene fail ootab loomist. Vali PhotoCraftis File → Sovereign Cloud → Save.";
   } catch (error) {
     if (epoch !== generation) return;
     $("file-status").hidden = false;
