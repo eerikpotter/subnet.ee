@@ -9,7 +9,11 @@ let confirmed = false;
 
 function dirtyState() {
   try {
-    return editor.contentDocument?.documentElement.getAttribute("data-craft-dirty");
+    const state = editor.contentDocument?.documentElement.getAttribute("data-craft-dirty");
+    if (state === "true" || state === "false") return state;
+    // No editing is possible while the loading screen covers the inert frame.
+    if (["loading", "error"].includes(editor.dataset?.loadState)) return "false";
+    return state;
   } catch {
     return null;
   }

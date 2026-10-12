@@ -1,0 +1,47 @@
+/* Shared subnet.ee identity. Fonts and the original mark are served locally. */
+@font-face { font-family: Inter; font-style: normal; font-weight: 400; font-display: swap; src: url('/assets/fonts/Inter-Regular.ttf') format('truetype'); }
+@font-face { font-family: Inter; font-style: normal; font-weight: 500; font-display: swap; src: url('/assets/fonts/Inter-Medium.ttf') format('truetype'); }
+@font-face { font-family: Inter; font-style: normal; font-weight: 600; font-display: swap; src: url('/assets/fonts/Inter-SemiBold.ttf') format('truetype'); }
+@font-face { font-family: Sora; font-style: normal; font-weight: 600; font-display: swap; src: url('/assets/fonts/Sora-SemiBold.ttf') format('truetype'); }
+@font-face { font-family: Sora; font-style: normal; font-weight: 700; font-display: swap; src: url('/assets/fonts/Sora-Bold.ttf') format('truetype'); }
+:root {
+  --cloud-white: #FAFBFD;
+  --mist-gray: #E6EBF0;
+  --sky-blue: #CFE0F5;
+  --estonian-blue: #3B82F6;
+  --deep-ink: #0F2747;
+  --champagne: #E8D3A9;
+  --surface: #FFFFFF;
+  --surface-secondary: #F4F7FB;
+  --muted: #64748B;
+  --action: #1D4ED8;
+  --action-hover: #1E40AF;
+  --ink: var(--deep-ink);
+  --paper: var(--cloud-white);
+  --line: var(--mist-gray);
+  --selection: #3B82F60D;
+  --error-surface: #FFF4F2;
+  --error-text: #9B352B;
+  --space-1: 4px;
+  --space-2: 8px;
+  --space-3: 12px;
+  --space-4: 16px;
+  --space-6: 24px;
+  --space-8: 32px;
+  --space-12: 48px;
+  --radius-small: 10px;
+  --radius-card: 16px;
+  --radius-panel: 20px;
+  --font-ui: Inter, -apple-system, BlinkMacSystemFont, 'Segoe UI', sans-serif;
+  --font-heading: Sora, var(--font-ui);
+  color-scheme: light;
+  font-family: var(--font-ui);
+  color: var(--ink);
+  background: var(--paper);
+  font-synthesis: none;
+}
+.subnet-wordmark { color: var(--deep-ink); font-family: var(--font-ui); font-weight: 600; letter-spacing: -.055em; white-space: nowrap; }
+.subnet-wordmark > span { color: var(--estonian-blue); }
+.icon { width: 20px; height: 20px; flex: 0 0 auto; fill: none; stroke: currentColor; stroke-width: 1.6; stroke-linecap: round; stroke-linejoin: round; }
+a:focus-visible, button:focus-visible { outline: 2px solid var(--action); outline-offset: 4px; }
+[hidden] { display: none !important; }

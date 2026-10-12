@@ -7,6 +7,7 @@ import html
 from html.parser import HTMLParser
 import json
 from pathlib import Path
+import re
 import shutil
 import subprocess
 import tempfile
@@ -18,7 +19,11 @@ class InlineScripts(HTMLParser):
         super().__init__(convert_charrefs=False)
         self.current = None
         self.scripts = []
+        self.wasm_preloads = []
     def handle_starttag(self, tag, attrs):
+        attributes = dict(attrs)
+        if tag == "link" and attributes.get("rel") == "preload" and attributes.get("as") == "fetch" and attributes.get("href", "").endswith(".wasm"):
+            self.wasm_preloads.append(self.get_starttag_text())
         if tag == "script" and "src" not in dict(attrs):
             self.current = []
     def handle_data(self, data):
@@ -29,6 +34,40 @@ class InlineScripts(HTMLParser):
             self.scripts.append("".join(self.current))
             self.current = None
 
+def instrument_editor(folder):
+    """Adapt only Trunk's bootstrap; editor JS/Wasm and their URLs stay intact."""
+    page = folder / "editor.html"
+    source = page.read_text()
+    parser = InlineScripts()
+    parser.feed(source)
+    wasms = list(folder.glob("*.wasm"))
+    if len(wasms) != 1:
+        raise RuntimeError(f"Expected one Wasm package in {folder}")
+    wasm = wasms[0]
+    data = wasm.read_bytes()
+    integrity = "sha384-" + base64.b64encode(hashlib.sha384(data).digest()).decode()
+    generated = ('// subnet-wasm-progress:start\n'
+                 'import { loadCraftWasm } from "/craft-wasm.js";\n'
+                 'const wasm = await init({ module_or_path: await loadCraftWasm('
+                 f'new URL({json.dumps("./" + wasm.name)}, window.location.href), {len(data)}, {json.dumps(integrity)})'
+                 ' });\n// subnet-wasm-progress:end')
+    previous = re.compile(r'// subnet-wasm-progress:start\n.*?// subnet-wasm-progress:end', re.S)
+    original = re.compile(r"const wasm = await init\(\{\s*module_or_path:\s*(['\"])([^'\"]+\.wasm)\1\s*\}\);")
+    matches = 0
+    for script in parser.scripts:
+        pattern = previous if previous.search(script) else original
+        if pattern.search(script):
+            replacement, count = pattern.subn(lambda _: generated, script)
+            matches += count
+            source = source.replace(script, replacement, 1)
+    if matches != 1:
+        raise RuntimeError(f"Unrecognized Trunk bootstrap in {page}; expected one Wasm init")
+    # A preload with SRI buffers the response before the reader can observe it.
+    # The shared streaming loader enforces the same SHA-384 before execution.
+    for tag in parser.wasm_preloads:
+        source = source.replace(tag, "", 1)
+    page.write_text(source)
+
 def art(app):
     if app == "photocraft":
         return '<div class="art-work"><div class="photo-sky"><span class="photo-sun"></span><span class="photo-hill"></span><span class="photo-hill second"></span></div></div><div class="photo-tools">+<br>◌<br>⌁</div>'
@@ -36,16 +75,20 @@ def art(app):
         lines = '<div class="pdf-line title"></div>' + '<div class="pdf-line"></div>' * 5
         return f'<div class="pdf-sheet back">{lines}</div><div class="pdf-sheet">{lines}</div><span class="pdf-stamp">PDF</span>'
     if app == "wordcraft":
-        return '<div class="word-page"><div class="word-title">Algus on<br>üks mõte.</div><div class="word-line"></div><div class="word-line short"></div><div class="word-selection"></div><div class="word-line"></div><div class="word-line short"></div></div>'
+        return '<div class="word-page"><div class="word-title">Alguses<br>oli sõna</div><div class="word-line"></div><div class="word-line short"></div><div class="word-selection"></div><div class="word-line"></div><div class="word-line short"></div></div>'
     if app == "deckcraft":
         return '<div class="deck-slide back"></div><div class="deck-slide"><div class="deck-title">Ideest<br>esitluseni.</div><div class="deck-chart"><span></span><span></span><span></span></div><div class="deck-dots">● ○ ○</div></div>'
+    if app == "cadcraft":
+        return '<div class="cad-plan"><svg viewBox="0 0 240 150"><path class="cad-wall" d="M35 30h160v90H35Zm100 0v52h60M35 82h52m25 0h23v38"/><path class="cad-door" d="M87 82v25a25 25 0 0 0 25-25"/><path class="cad-measure" d="M35 15h160M35 10v10m160-10v10M210 30v90m-5-90h10m-10 90h10"/><text x="106" y="12">8 000</text><text x="204" y="144">4 500</text></svg></div>'
+    if app == "gridcraft":
+        return '<div class="grid-sheet"><div class="grid-columns"><span>A</span><span>B</span><span>C</span></div><div class="grid-cells"><span>Ideed</span><span>Tehtud</span><span>Järgmisena</span><span>12</span><span>8</span><span>4</span><span class="grid-selected">=SUM(B2:C2)</span><span></span><span></span></div><div class="grid-bars"><i></i><i></i><i></i><i></i></div></div>'
     # Deterministic original waveform illustration; no external media or scripts.
     heights = [4, 8, 13, 7, 18, 22, 14, 9, 17, 23, 12, 5, 9, 16, 21, 12, 18, 6, 4, 13, 20, 9, 15, 5]
     waves = "".join(f'<span class="wave" style="height:{h}px"></span>' for h in heights)
     return '<div class="sound-tracks">' + f'<div class="track">{waves}</div>' * 3 + '</div>'
 
 def cards(apps):
-    colors = {"photocraft":"photo", "pdfcraft":"pdf", "wordcraft":"word", "deckcraft":"deck", "soundcraft":"sound"}
+    colors = {"photocraft":"photo", "pdfcraft":"pdf", "wordcraft":"word", "deckcraft":"deck", "soundcraft":"sound", "cadcraft":"cad", "gridcraft":"grid"}
     result = []
     for app in apps:
         e = {key: html.escape(str(value), quote=True) for key, value in app.items()}
@@ -55,20 +98,49 @@ def cards(apps):
           <div class="card-bottom"><span class="formats">{e['formats']}</span><span class="open-app">Ava rakendus <span aria-hidden="true">→</span></span></div></div></a>''')
     return "\n".join(result)
 
-def assemble(root=ROOT):
+def landing_cards(apps):
+    """Keep the landing page's featured tools linked to the same app registry."""
+    captions = {"photocraft": "Pildid ja visuaalid", "pdfcraft": "PDF-id ja dokumendid",
+                "wordcraft": "Tekstid ja märkmed", "deckcraft": "Esitlused ja ideed",
+                "soundcraft": "Heli ja muusika"}
+    result = []
+    for app in apps:
+        if app['id'] not in captions:
+            continue
+        name = html.escape(app['name'], quote=True)
+        app_id = html.escape(app['id'], quote=True)
+        result.append(f'<a class="tool-card tool-{app_id}" href="/apps/{app_id}/" aria-label="Ava {name}">'
+                      f'<svg class="tool-icon" viewBox="0 0 48 48" aria-hidden="true"><use href="#icon-{app_id}"/></svg>'
+                      f'<h3>{name}</h3><p>{captions[app["id"]]}</p><span class="tool-arrow" aria-hidden="true">↗</span></a>')
+    return "\n".join(result)
+
+def assemble(root=ROOT, selected=("portal",)):
     apps = json.loads((root / "registry/apps.json").read_text())
-    subprocess.run(["python3", str(root / "scripts/sync-sdk.py"), "--check"], check=True)
-    subprocess.run(["python3", str(root / "scripts/sync-service.py"), "--check"], check=True)
+    app_ids = {app['id'] for app in apps}
+    if set(selected) - app_ids - {"all", "portal"}:
+        raise RuntimeError("Unknown assembly target")
+    replace = app_ids if "all" in selected else set(selected) - {"portal"}
+    previous = root / "dist"
+    manifest_path = previous / "apps.json"
+    cached = {app['id']: app for app in json.loads(manifest_path.read_text())['apps']} if manifest_path.exists() else {}
     runtime = root / ".local/portal-runtime"
+    if manifest_path.exists() and (not runtime.exists() or ("portal" not in selected and "all" not in selected)):
+        runtime = previous / "cloud"
     bindings = list(runtime.glob("sovereign-cloud-web-*.js"))
     wasm = list(runtime.glob("sovereign-cloud-web-*_bg.wasm"))
     if len(bindings) != 1 or len(wasm) != 1:
         raise RuntimeError("Missing portal runtime. Run python3 scripts/build.py portal")
     # Never replace a working bundle with a portal containing missing editor links.
     for app in apps:
-        source = root / "apps" / app['id'] / "dist/web"
+        if app['id'] not in replace:
+            source = previous / "apps" / app['id']
+            if app['id'] not in cached or not (source / "editor.html").is_file() or any(not (source / name).is_file() for name in cached[app['id']]['assets']):
+                raise RuntimeError(f"No packaged {app['id']}; run python3 scripts/build.py {app['id']} --assemble (or build.py all --assemble for initial setup)")
+        else:
+            source = root / "apps" / app['id'] / "dist/web"
         if not (source / "index.html").is_file() or not list(source.glob("*.wasm")) or not list(source.glob("*.js")):
             raise RuntimeError(f"Missing complete {app['id']} build. Run python3 scripts/build.py {app['id']}")
+    (root / ".local").mkdir(exist_ok=True)
     stage = Path(tempfile.mkdtemp(prefix="subnet-site-", dir=root / ".local"))
     try:
         shutil.copytree(root / "portal", stage, dirs_exist_ok=True)
@@ -80,26 +152,32 @@ def assemble(root=ROOT):
             shutil.copy2(path, cloud / path.name)
         facade = (stage / "cloud.js").read_text().replace("__CLOUD_BINDINGS__", "/cloud/" + bindings[0].name).replace("__CLOUD_WASM__", "/cloud/" + wasm[0].name)
         (stage / "cloud.js").write_text(facade)
-        index = ((stage / "index.html").read_text()
-                 .replace("<!-- APP_CARDS -->", cards(apps))
-                 .replace("__APP_COUNT_PADDED__", f"{len(apps):02d}")
-                 .replace("__APP_COUNT__", str(len(apps))))
-        (stage / "index.html").write_text(index)
+        for page in [stage / "index.html", stage / "tooruum/index.html"]:
+            if page.is_file():
+                rendered = (page.read_text()
+                            .replace("<!-- APP_CARDS -->", cards(apps))
+                            .replace("<!-- LANDING_CARDS -->", landing_cards(apps))
+                            .replace("__APP_COUNT_PADDED__", f"{len(apps):02d}")
+                            .replace("__APP_COUNT__", str(len(apps))))
+                page.write_text(rendered)
         hashes = []
         manifest = {"apps": [], "portalAssets": {"cloud/" + p.name: hashlib.sha256(p.read_bytes()).hexdigest() for p in [bindings[0], wasm[0]]},
-                    "shellAssets": {name: hashlib.sha256((stage / name).read_bytes()).hexdigest() for name in ["craft-shell.css", "craft-shell.js"]}}
+                    "shellAssets": {name: hashlib.sha256((stage / name).read_bytes()).hexdigest() for name in ["tokens.css", "craft-shell.css", "craft-shell.js", "craft-loading.js", "craft-wasm.js"]}}
         for app in apps:
             repo = root / "apps" / app['id']
             destination = stage / "apps" / app['id']
+            if app['id'] not in replace:
+                # Reuse the last assembled artifact, even if the source checkout is absent/dirty.
+                shutil.copytree(previous / "apps" / app['id'], destination)
+                (destination / "index.html").write_text(shell.replace("__APP_NAME__", html.escape(app['name'], quote=True)))
+                manifest['apps'].append({**cached[app['id']], **app})
+                continue
             shutil.copytree(repo / "dist/web", destination)
             # Rules and II metadata belong to the enclosing single origin.
             for name in ["_headers", "_redirects", ".well-known"]:
                 nested = destination / name
                 if nested.is_dir(): shutil.rmtree(nested)
                 elif nested.exists(): nested.unlink()
-            parser = InlineScripts()
-            parser.feed((destination / "index.html").read_text())
-            hashes.extend("'sha256-" + base64.b64encode(hashlib.sha256(s.encode()).digest()).decode() + "'" for s in parser.scripts)
             # Preserve relative asset URLs and give every editor its own viewport.
             # Only the public entry point is replaced by the common portal shell.
             (destination / "index.html").rename(destination / "editor.html")
@@ -118,9 +196,16 @@ def assemble(root=ROOT):
             manifest['apps'].append({**app, "path": f"/apps/{app['id']}/", "editorPath": f"/apps/{app['id']}/editor.html", "sourceCommit": subprocess.check_output(["git", "rev-parse", "HEAD"], cwd=repo, text=True).strip(),
                 "sourceDirty": bool(subprocess.check_output(["git", "status", "--porcelain"], cwd=repo, text=True).strip()),
                 "assets": {f.name: hashlib.sha256(f.read_bytes()).hexdigest() for f in sorted(destination.glob("*")) if f.suffix in (".wasm", ".js")}})
+        for app in apps:
+            folder = stage / "apps" / app['id']
+            instrument_editor(folder)
+            parser = InlineScripts()
+            parser.feed((folder / "editor.html").read_text())
+            hashes.extend("'sha256-" + base64.b64encode(hashlib.sha256(s.encode()).digest()).decode() + "'" for s in parser.scripts)
         policy = "; ".join(["default-src 'self'", "script-src 'self' 'wasm-unsafe-eval' " + " ".join(sorted(set(hashes))),
             "style-src 'self' 'unsafe-inline'", "img-src 'self' data: blob:", "font-src 'self' data:", "connect-src 'self'", "worker-src 'self' blob:", "media-src 'self' blob:", "object-src 'none'", "base-uri 'self'", "frame-ancestors 'self'"])
-        headers = f"/*\n  X-Content-Type-Options: nosniff\n  Referrer-Policy: no-referrer\n  Content-Security-Policy: {policy}\n  Cache-Control: no-cache\n\n/apps/*.wasm\n  Content-Type: application/wasm\n  Cache-Control: public, max-age=31536000, immutable\n\n/apps/*.js\n  Cache-Control: public, max-age=31536000, immutable\n\n/cloud/*.wasm\n  Content-Type: application/wasm\n  Cache-Control: public, max-age=31536000, immutable\n\n/cloud/*.js\n  Cache-Control: public, max-age=31536000, immutable\n\n/.well-known/ii-app-metadata\n  Content-Type: application/json\n  Access-Control-Allow-Origin: *\n"
+        headers = f"/*\n  X-Content-Type-Options: nosniff\n  Referrer-Policy: no-referrer\n  Content-Security-Policy: {policy}\n\n/*.html\n  Cache-Control: no-cache\n\n/*.css\n  Cache-Control: no-cache\n\n/*.json\n  Cache-Control: no-cache\n\n/landing.js\n  Cache-Control: no-cache\n\n/cloud.js\n  Cache-Control: no-cache\n\n/craft-shell.js\n  Cache-Control: no-cache\n\n/assets/*\n  Cache-Control: no-cache\n\n/apps/*.wasm\n  Content-Type: application/wasm\n  Cache-Control: public, max-age=31536000, immutable\n\n/apps/*.js\n  Cache-Control: public, max-age=31536000, immutable\n\n/cloud/*.wasm\n  Content-Type: application/wasm\n  Cache-Control: public, max-age=31536000, immutable\n\n/cloud/*.js\n  Cache-Control: public, max-age=31536000, immutable\n\n/.well-known/ii-app-metadata\n  Content-Type: application/json\n  Access-Control-Allow-Origin: *\n"
+        headers += "\n/craft-loading.js\n  Cache-Control: no-cache\n\n/craft-wasm.js\n  Cache-Control: no-cache\n"
         (stage / "_headers").write_text(headers)
         well_known = stage / ".well-known"
         well_known.mkdir(exist_ok=True)
@@ -136,11 +221,13 @@ def assemble(root=ROOT):
             if backup.exists(): backup.rename(destination)
             raise
         if backup.exists(): shutil.rmtree(backup)
-        print(f"Assembled {len(apps)} apps in {destination}")
+        print(f"Assembled portal; replaced editors: {', '.join(sorted(replace)) or 'none'}; reused {len(apps) - len(replace)} packaged editors")
     finally:
         if stage.exists(): shutil.rmtree(stage)
 
 if __name__ == "__main__":
-    (ROOT / ".local").mkdir(exist_ok=True)
-    try: assemble()
+    parser = argparse.ArgumentParser(description=__doc__)
+    parser.add_argument("apps", nargs="*", default=["portal"], help="Editors to replace; default: portal only, all: initial/full assembly")
+    options = parser.parse_args()
+    try: assemble(selected=options.apps)
     except (RuntimeError, subprocess.CalledProcessError) as error: raise SystemExit(str(error))

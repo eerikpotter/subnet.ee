@@ -10,7 +10,7 @@ import subprocess
 import sys
 
 ROOT = Path(__file__).resolve().parents[1]
-APPS = ("photocraft", "pdfcraft", "wordcraft", "deckcraft", "soundcraft")
+APPS = ("photocraft", "pdfcraft", "wordcraft", "deckcraft", "soundcraft", "cadcraft", "gridcraft")
 SHA = re.compile(r"[0-9a-f]{40}\Z")
 
 
@@ -177,6 +177,8 @@ def promote(root, app, commit):
         raise RuntimeError("Backup ref already exists with a different commit")
     git(repo, "merge", "--ff-only", "--no-edit", commit)
     print(f"{app}: promoted {commit}; previous version saved as {backup}\n"
+          f"Local build/sync: python3 scripts/dev.py {app} --build\n"
+          f"Scoped HTTP check: python3 scripts/verify.py {app}\n"
           "Commit the app pointer in subnet-cloud after validation. Nothing was pushed or deployed.")
 
 

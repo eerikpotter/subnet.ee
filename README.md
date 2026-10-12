@@ -1,13 +1,13 @@
-# subnet.ee — local Craft workspace
+# subnet.ee — Craft workspace
 
-One portal and five independent Rust/Wasm editors, served by one certified frontend
-canister. All five editors use the same Sovereign Cloud UI and SDK. The account and file service is a separate
+One portal and seven independent Rust/Wasm editors, served by one certified frontend
+canister. All seven editors use the same Sovereign Cloud UI and SDK. The account and file service is a separate
 canister; editing and media processing run in the browser.
 
 ## Layout
 
-* `portal/`: Estonian launcher, shared sign-in and My files; no editor preloading.
-* `apps/{photocraft,pdfcraft,wordcraft,deckcraft,soundcraft}`: pinned Git submodules to your forks.
+* `portal/`: Estonian public landing page at `/`; the launcher, shared sign-in and My files live at `/tooruum/`. No editor preloading on the landing page.
+* `apps/{photocraft,pdfcraft,wordcraft,deckcraft,soundcraft,cadcraft,gridcraft}`: pinned Git submodules to your forks.
 * `packages/sovereign-cloud/`: internal Rust SDK; canonical source and independent tests.
 * `packages/sovereign-cloud-ui/`: shared File-menu section, sign-in, naming, versions and save/open controller.
 * `packages/sovereign-cloud-web/`: small Wasm facade for the portal, using the same Rust session and Files SDK as every Craft editor.
@@ -27,26 +27,79 @@ rustup toolchain install 1.95.0 --profile minimal --target wasm32-unknown-unknow
 cargo +1.95.0 install trunk --version 0.21.14 --locked
 npm install -g @icp-sdk/icp-cli @icp-sdk/ic-wasm
 python3 scripts/setup.py
-python3 scripts/dev.py --build
-python3 scripts/verify.py
+python3 scripts/dev.py all --build --bootstrap
+python3 scripts/verify.py all
 ```
 
 The dev command deploys **only to local**. It prints the actual URL; never assume a fixed
-gateway port. Later runs without `--build` reuse editor outputs. To change just one app:
+gateway port. The full build/deployment above is for first-time setup only. Later runs
+reuse the packaged editors in `dist/`; ordinary updates never deploy the backend.
+
+For portal HTML/CSS/JavaScript, app cards or the shared header:
 
 ```sh
-python3 scripts/build.py photocraft
 python3 scripts/dev.py
+python3 scripts/verify.py
 ```
 
-After editing the portal Rust facade, run `python3 scripts/build.py portal`.
-After editing only the HTML/CSS/JavaScript portal, `python3 scripts/dev.py` reassembles and serves it.
+This assembles the portal and syncs frontend assets, without Cargo, editor checkout
+inspection or editor downloads during verification. To change just one app:
+
+```sh
+python3 scripts/dev.py photocraft --build
+python3 scripts/verify.py photocraft
+```
+
+Only PhotoCraft is built and its own pinned SDK snapshot checked. Other apps retain
+their existing binaries and source metadata. For a build without deployment, use
+`python3 scripts/build.py photocraft --assemble`; plain `build.py photocraft` only builds.
+After editing the portal Rust facade, use `python3 scripts/dev.py portal --build`.
+Backend changes use the separate command `icp deploy cloud -e local` after focused service checks.
+`all` must be explicit in build, assembly and verification commands. No command here
+automatically runs the Craft repositories' test suites.
 `icp network stop` stops this project's local network. `icp network start local -d`
 restarts it. Keep `.icp/cache/` if you want the local data and network state to survive.
 
 The new workspace has its own local canisters and origin. Existing standalone
 PhotoCraft mainnet/local deployments are not migrated. Their accounts, files and
-canister IDs remain there. No mainnet deployment or remote push is part of this setup.
+canister IDs remain there. The local workflow does not deploy to mainnet or push Git changes.
+
+## Mainnet trial (2026-10-12)
+
+The mainnet trial uses two new canisters, separate from all local data and existing
+standalone Craft deployments:
+
+* Frontend: `vigkv-fqaaa-aaaac-bgeha-cai`, https://vigkv-fqaaa-aaaac-bgeha-cai.icp.net/
+* Accounts/files: `vbfbj-tyaaa-aaaac-bgegq-cai`.
+
+Both are controlled by the existing `efti-nns` identity. Mainnet mappings are in
+`.icp/data/mappings/ic.ids.json`; retain them so later updates reuse these canisters.
+This trial does not configure the `subnet.ee` custom domain.
+
+For a portal-only mainnet update, assemble the current portal and reuse its packaged
+editors, then sync assets explicitly to `ic`:
+
+```sh
+python3 scripts/assemble.py
+icp sync frontend -e ic --identity efti-nns
+python3 scripts/verify.py portal --environment ic
+```
+
+`python3 scripts/verify.py all --environment ic --timings` also downloads and verifies
+all seven editor bundles, reporting compressed HTTP transfer sizes and durations.
+These durations measure individual HTTP requests, not browser startup or cache hits.
+The landing page does not preload editor bundles. Each editor is fetched when opened;
+its fingerprinted JavaScript/Wasm uses a one-year immutable cache. HTML and unversioned
+portal assets revalidate so updates are picked up. Cache rules must not combine
+`no-cache` with the fingerprinted bundles' immutable policy.
+
+The initial mainnet verification passed for all seven editors, including payload
+hashes, certified responses, runtime canister IDs/root key, cache headers and 404s.
+PdfCraft and SoundCraft also started in the browser. Initial gzip Wasm transfers
+were 6.1–12.7 MB and took 3.6–24.8 seconds in one run; these are variable HTTP
+measurements, not complete browser startup times. A separate WordCraft Brotli
+request transferred 7.4 MB in 7.3 seconds; its conditional repeat returned 304
+with no body. The landing page loads no editor Wasm.
 
 ## Git and updates
 
@@ -71,8 +124,12 @@ The root is not a giant Cargo workspace. Build caches can be shared with
 
 ## Internal SDK
 
-Edit `packages/sovereign-cloud`, then run `python3 scripts/sync-sdk.py`. The checked-in
-snapshots keep every fork independently buildable. The build fails if any snapshot differs. See [the SDK README](packages/sovereign-cloud/README.md).
+Edit the canonical packages, then deliberately adopt them in an affected fork with
+`python3 scripts/sync-sdk.py photocraft`. Use `all` only for an intentional fleet-wide
+SDK update. Each fork keeps its own checked-in snapshot; builds verify that snapshot's
+integrity without requiring it to match the latest canonical version. `--check` compares
+with canonical sources; `--check-pinned` checks the fork's existing snapshot. See
+[the SDK README](packages/sovereign-cloud/README.md).
 
 The SDK owns identity adaptation, configured endpoint resolution, transport, upload
 checkpoints, progress and verified downloads. The shared UI owns the menu actions and dialogs;
@@ -88,16 +145,31 @@ accounts to subnet.ee needs an explicit identity/data migration. `app_id` is not
 
 ## Checks
 
-```sh
-python3 scripts/sync-sdk.py --check
-python3 scripts/sync-service.py --check
-cargo +1.95.0 test --manifest-path packages/sovereign-cloud/Cargo.toml --locked
-cargo +1.95.0 test --manifest-path packages/sovereign-cloud-ui/Cargo.toml --locked
-cargo +1.95.0 clippy --manifest-path packages/sovereign-cloud/Cargo.toml --all-targets --locked -- -D warnings
-cargo +1.95.0 test --manifest-path services/sovereign-cloud/Cargo.toml --lib --locked
-cargo +1.95.0 test --manifest-path apps/photocraft/icp/Cargo.toml -p photocraft-cloud --lib --locked
-python3 scripts/verify.py
-```
+Choose checks for the changed boundary. Portal layout needs a visual check; navigation
+logic and startup use `node --test scripts/craft-shell.test.mjs scripts/craft-loading.test.mjs scripts/craft-wasm.test.mjs`. One editor update needs its build,
+relevant adapter checks and a save/open smoke check in that editor. SDK behavior changes
+need the affected package tests; backend behavior changes need the affected service tests.
+Run wider checks only for a shared contract change that can affect multiple consumers.
+
+The common shell reports decoded Wasm package bytes and percentage, then verification
+and startup, until the editor publishes its first `data-craft-dirty` state. Package
+size and SHA-384 come from the assembled artifact; compressed Content-Length is not
+used as the denominator. The bootstrap fetches the original versioned URL once,
+preserves HTTP caching and compiles the stream while downloading. Its SHA-384 check
+gates stream completion, and compilation returns a module without executing it;
+only then does the original Wasm binding instantiate it. This replaces the Wasm
+preload's buffered integrity check; JavaScript module preloads stay intact.
+Slow startup offers a retry after 20 seconds without treating it as a failure;
+startup errors offer recovery, and a running editor cannot be replaced by a late retry.
+
+`verify.py` makes HTTP requests to the local site; it never compiles or runs Craft tests.
+Its default checks the portal/shared files. Pass one app to check that editor's served
+HTML/JS/Wasm, or explicit `all` for a full deployment audit. Shared metadata checks still
+ensure all registered app links exist. Script isolation regressions run offline with
+`python3 -m unittest discover -s scripts -p test_scoped_workflow.py`.
+
+The dated validation notes below record past milestones, not a checklist to repeat on
+every change.
 
 PhotoCraft's existing browser, layer, ownership and persistence tests remain applicable.
 `sdk_migration` additionally takes `PHOTOCRAFT_BASELINE_WASM` and `PHOTOCRAFT_CLOUD_WASM`
@@ -333,3 +405,19 @@ The other upstream updates have only been fetched for inspection; they were not 
 Future reviews should normally select one app at a time. Fetching does not build or deploy
 anything. Neither a small diff nor passing tests establishes that upstream code is safe;
 see [the update guide](scripts/UPDATING.md) before running an unfamiliar build.
+
+### CADCraft and GridCraft cloud adapters
+
+The catalog now includes CADCraft (drawings) and GridCraft (spreadsheets). Both use
+our shared shell, File → Sovereign Cloud menu, account and versioned file service.
+Cloud Save / Save As / Open use upstream's DXF codec (`cadcraft.dxf`, version 1)
+and complete JSON workbook codec (`gridcraft.scjson`, version 1), respectively.
+Ordinary local saves and exports remain upstream-owned. Cloud files reopen in new
+tabs, preserving existing work. GridCraft commits/validates a cell still being typed
+before requesting a cloud save. An upload only marks its exact document revision
+clean; newer edits and unfinished text remain protected by the navigation guard.
+
+The fork integration is confined to the browser host and an optional File-menu
+callback; the storage protocol and UI are generated vendor snapshots. Both apps
+are included in `scripts/update-crafts.py`. Rebuild these two apps with
+`python3 scripts/build.py cadcraft gridcraft --assemble`; other editor outputs are reused.

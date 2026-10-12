@@ -78,5 +78,37 @@
       }
     ],
     "cloudExtension": "scraft.zip"
+  },
+  {
+    "id": "cadcraft",
+    "name": "CADCraft",
+    "kind": "Joonised",
+    "description": "Joonesta täpselt ja anna oma ideedele kuju.",
+    "formats": "DXF · DWG · PDF",
+    "cloud": true,
+    "symbol": "C",
+    "openFormats": [
+      {
+        "id": "cadcraft.dxf",
+        "version": 1
+      }
+    ],
+    "cloudExtension": "dxf"
+  },
+  {
+    "id": "gridcraft",
+    "name": "GridCraft",
+    "kind": "Tabelid",
+    "description": "Korrasta andmeid, arvuta ja leia seoseid.",
+    "formats": "XLSX · CSV · GridCraft",
+    "cloud": true,
+    "symbol": "G",
+    "openFormats": [
+      {
+        "id": "gridcraft.scjson",
+        "version": 1
+      }
+    ],
+    "cloudExtension": "scjson"
   }
 ]

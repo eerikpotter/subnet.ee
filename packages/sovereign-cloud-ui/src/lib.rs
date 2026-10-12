@@ -28,6 +28,8 @@ impl AppSpec {
     pub const WORD: Self = Self { id: "wordcraft", name: "WordCraft", extension: "wcraft.json" };
     pub const DECK: Self = Self { id: "deckcraft", name: "DeckCraft", extension: "deckcraft" };
     pub const SOUND: Self = Self { id: "soundcraft", name: "SoundCraft", extension: "scraft.zip" };
+    pub const CAD: Self = Self { id: "cadcraft", name: "CADCraft", extension: "dxf" };
+    pub const GRID: Self = Self { id: "gridcraft", name: "GridCraft", extension: "scjson" };
     pub fn kind(self) -> CloudResult<FileKind> {
         FileKind::for_app(self.id).ok_or_else(|| "This editor is not registered for cloud files".into())
     }
@@ -93,6 +95,10 @@ impl MenuHandle {
         self.queue.borrow_mut().push_back(request);
         self.ctx.request_repaint();
     }
+    /// Hosts with an in-progress edit buffer commit it before cloud actions run.
+    pub fn has_pending(&self) -> bool {
+        !self.queue.borrow().is_empty()
+    }
     pub fn ui(&self, ui: &mut egui::Ui, has_document: bool) {
         ui.separator();
         presentation::header(ui);
@@ -145,7 +151,7 @@ mod tests {
     #[allow(clippy::unwrap_used)]
     fn every_registered_editor_has_a_distinct_kind_and_native_file_name() {
         let mut kinds = std::collections::BTreeSet::new();
-        for app in [AppSpec::PHOTO, AppSpec::PDF, AppSpec::WORD, AppSpec::DECK, AppSpec::SOUND] {
+        for app in [AppSpec::PHOTO, AppSpec::PDF, AppSpec::WORD, AppSpec::DECK, AppSpec::SOUND, AppSpec::CAD, AppSpec::GRID] {
             let kind = app.kind().unwrap();
             assert!(kinds.insert(kind.format_id));
             let file = app.file_name("Test");

@@ -92,6 +92,18 @@ test("an unavailable or older editor never silently loses work", () => {
   assert.equal(h.unload(), true);
 });
 
+test("startup allows leaving, but a first unsaved edit is still guarded", () => {
+  const h = host(null);
+  h.editor.dataset = { loadState: "loading" };
+  assert.equal(h.click(), false);
+  assert.equal(h.unload(), false);
+  h.editor.dataset.loadState = "error";
+  assert.equal(h.click(), false);
+  h.setState("true");
+  assert.equal(h.click(), true);
+  assert.equal(h.unload(), true);
+});
+
 test("opening another tab does not prompt or disable the existing document guard", () => {
   for (const modifiers of [{ metaKey: true }, { ctrlKey: true }, { shiftKey: true }, { button: 1 }]) {
     const h = host("true");

@@ -321,7 +321,7 @@ mod tests {
         let legacy = store.create(owner(1), "Legacy photo".into(), 1).unwrap();
         store.file_kinds.remove(&legacy.id); // V1/V2 never stored a kind.
         let mut ids = vec![];
-        for app in ["pdfcraft", "wordcraft", "deckcraft", "soundcraft"] {
+        for app in ["pdfcraft", "wordcraft", "deckcraft", "soundcraft", "cadcraft", "gridcraft"] {
             let kind = FileKind::for_app(app).unwrap();
             let file = store.create_typed(owner(1), app.into(), kind.clone(), 2).unwrap();
             let upload = store.begin(owner(1), request(file.id, app.as_bytes(), None), 3).unwrap();
@@ -334,7 +334,7 @@ mod tests {
         let mut store = Store::new(memory);
         assert_eq!(store.list_kind(owner(1), &FileKind::photocraft()).unwrap()[0].id, legacy.id);
         assert_eq!(store.list_kind(owner(1), &FileKind::photocraft()).unwrap().len(), 1);
-        assert_eq!(store.files(owner(1), space, None, 50).unwrap().files.len(), 4);
+        assert_eq!(store.files(owner(1), space, None, 50).unwrap().files.len(), 6);
         for (id, kind) in ids {
             assert_eq!(store.file(owner(1), space, id).unwrap().kind, kind);
             assert_eq!(store.list_kind(owner(1), &kind).unwrap()[0].id, id);
@@ -348,7 +348,7 @@ mod tests {
         let mut spoofed = FileKind::for_app("deckcraft").unwrap();
         spoofed.created_by_app = "photocraft".into();
         assert!(store.create_typed(owner(1), "Wrong format".into(), spoofed, 6).is_err());
-        assert_eq!(store.list(owner(1)).unwrap().len(), 5);
+        assert_eq!(store.list(owner(1)).unwrap().len(), 7);
     }
     fn request(project: u64, data: &[u8], expected: Option<u64>) -> BeginUpload {
         BeginUpload {

@@ -93,6 +93,8 @@ impl FileKind {
             "wordcraft" => "wordcraft.wcraft",
             "deckcraft" => "deckcraft.deckcraft",
             "soundcraft" => "soundcraft.scraft-bundle",
+            "cadcraft" => "cadcraft.dxf",
+            "gridcraft" => "gridcraft.scjson",
             _ => return None,
         };
         Some(Self { format_id: format.into(), format_version: 1, created_by_app: app.into() })

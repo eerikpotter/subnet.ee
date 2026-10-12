@@ -46,14 +46,14 @@ def build(app, dev=False):
     command = ["trunk", "build", "--locked", "--public-url", "./", "--color", "never"]
     if not dev:
         command.append("--release")
-    subprocess.run([sys.executable, str(ROOT / "scripts/sync-sdk.py"), "--check"], check=True)
+    subprocess.run([sys.executable, str(ROOT / "scripts/sync-sdk.py"), app, "--check-pinned"], check=True)
     command.extend(["--features", "icp-cloud"])
     print(f"Building {app}", flush=True)
     subprocess.run(command, cwd=repo / "apps" / f"{app}-web", env=env, check=True)
 
 if __name__ == "__main__":
     parser = argparse.ArgumentParser(description=__doc__)
-    parser.add_argument("apps", nargs="*", choices=["all", "portal", *APPS], default=["all"])
+    parser.add_argument("apps", nargs="+", choices=["all", "portal", *APPS])
     parser.add_argument("--dev", action="store_true")
     parser.add_argument("--assemble", action="store_true")
     options = parser.parse_args()
@@ -63,4 +63,4 @@ if __name__ == "__main__":
     for app in selected:
         build(app, options.dev)
     if options.assemble:
-        subprocess.run([sys.executable, str(ROOT / "scripts/assemble.py")], check=True)
+        subprocess.run([sys.executable, str(ROOT / "scripts/assemble.py"), *options.apps], check=True)

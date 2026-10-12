@@ -44,7 +44,9 @@ anything. Do not blindly accept either side of a conflict or regenerate dependen
 to the newest versions. Preserve the reviewed lockfile versions wherever compatible.
 Our integration is primarily in `apps/<app>-web/src/cloud*` plus small host/menu hooks.
 The canonical cloud packages live in `packages/`; their vendored snapshots are generated
-by `scripts/sync-sdk.py`, not maintained independently in five apps.
+by `scripts/sync-sdk.py <app>`, not maintained independently in individual apps. Each
+fork pins its own SDK snapshot; updating upstream does not require adopting a newer SDK
+or touching other forks.
 
 If code or dependencies are not yet trusted, build and test in a disposable VM/container
 with no host home/SSH/cloud credentials, Docker socket or unrelated workspace mounts,
@@ -53,8 +55,11 @@ host mounts does not provide that protection. The updater intentionally does not
 that a normal local Cargo build is sandboxed. `--locked` prevents dependency resolution
 drift; it does not prevent build scripts or procedural macros from executing.
 
-After review, run the repository's documented checks and the root shared SDK/service
-checks. Check the browser cloud save/open and unsaved-work navigation in the local deployment.
+After review, validate the changed app: its build, relevant adapter tests and one browser
+cloud save/open check. Follow any applicable repository requirements for that app's commit.
+Do not routinely repeat unrelated editor suites or root SDK/backend tests. Expand checks
+only if their code or shared protocol actually changes. Upstream CI remains responsible
+for general editor behavior; do not fix unrelated upstream failures in these forks.
 Then commit the resolved merge **inside the printed review directory**:
 
 ```sh
@@ -78,6 +83,21 @@ review HEAD containing both the original fork commit and the selected upstream c
 It preserves `backup/craft-update-<old-sha>` and fast-forwards the current app branch.
 A detached app must be put on a fork branch first. The script cannot determine whether
 you actually reviewed or tested a commit; `--commit` is that explicit handoff.
+
+Once promoted, the normal local update is:
+
+```sh
+python3 scripts/dev.py photocraft --build
+python3 scripts/verify.py photocraft
+```
+
+This builds PhotoCraft only, checks its own pinned SDK, reuses all other packaged editors,
+and syncs the frontend. It neither rebuilds the portal Rust facade nor deploys the backend.
+For portal text/style/header changes, `python3 scripts/dev.py` needs no Craft build.
+For a build/assembly without deployment, use `python3 scripts/build.py photocraft --assemble`.
+Full builds and HTTP checks require explicit `all`; reserve them for initial setup or
+a deliberate full release check. The site still has one frontend canister: asset sync may
+scan/hash/compress the complete static directory, but it does not execute editor code.
 
 After building and validating the result, commit the updated `apps/photocraft` pointer
 in `subnet-cloud`. Push the fork branch before the parent pointer. Push/deploy remain

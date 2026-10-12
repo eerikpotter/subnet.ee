@@ -1,5 +1,6 @@
 #!/usr/bin/env python3
-"""Verify the actual local canister routes, payloads, CSP, runtime trust and cache headers."""
+"""Verify local or mainnet routes, payloads, CSP, runtime trust and cache headers."""
+import argparse
 import base64
 import gzip
 import hashlib
@@ -7,6 +8,7 @@ import http.client
 import json
 from pathlib import Path
 import subprocess
+import time
 from urllib.parse import unquote, urlparse
 
 from assemble import InlineScripts
@@ -14,56 +16,84 @@ from assemble import InlineScripts
 ROOT = Path(__file__).resolve().parents[1]
 
 def main():
-    network = json.loads(subprocess.check_output(["icp", "network", "status", "local", "--json"], cwd=ROOT))
-    if not network.get("managed"):
+    parser = argparse.ArgumentParser(description=__doc__)
+    registered = json.loads((ROOT / "registry/apps.json").read_text())
+    parser.add_argument("apps", nargs="*", default=["portal"], help="Targets to verify (default: portal); all downloads every editor's assets")
+    parser.add_argument("--environment", choices=("local", "ic"), default="local", help="Deployment to verify; defaults to local")
+    parser.add_argument("--timings", action="store_true", help="Report HTTP transfer sizes and timings (not browser startup times)")
+    options = parser.parse_args()
+    app_ids = {app['id'] for app in registered}
+    if set(options.apps) - app_ids - {"portal", "all"}:
+        parser.error("Unknown application")
+    selected = app_ids if "all" in options.apps else set(options.apps) - {"portal"}
+    network = json.loads(subprocess.check_output(["icp", "network", "status", options.environment, "--json"], cwd=ROOT))
+    if options.environment == "local" and not network.get("managed"):
         raise RuntimeError("Expected the managed local test network")
-    port = urlparse(network['gateway_url']).port
-    ids = json.loads((ROOT / ".icp/cache/mappings/local.ids.json").read_text())
-    host = f"{ids['frontend']}.localhost:{port}"
+    if options.environment == "ic" and network.get("root_key_source") != "mainnet":
+        raise RuntimeError("Expected the pinned mainnet root key")
+    gateway = urlparse(network['gateway_url'])
+    port = gateway.port
+    mapping_dir = "cache" if options.environment == "local" else "data"
+    ids = json.loads((ROOT / f".icp/{mapping_dir}/mappings/{options.environment}.ids.json").read_text())
+    host = (f"{ids['frontend']}.localhost:{port}" if options.environment == "local"
+            else f"{ids['frontend']}.{gateway.hostname}")
+    timings = {}
     def get(path):
-        connection = http.client.HTTPConnection("127.0.0.1", port, timeout=120)
+        connection = (http.client.HTTPConnection("127.0.0.1", port, timeout=120)
+                      if options.environment == "local" else http.client.HTTPSConnection(host, timeout=120))
+        started = time.perf_counter()
         connection.request("GET", path, headers={"Host":host, "Accept-Encoding":"gzip"})
         response = connection.getresponse()
         headers = {k.lower():v for k, v in response.getheaders()}
         status, body = response.status, response.read()
+        timings[path] = (time.perf_counter() - started, len(body))
         connection.close()
         if headers.get("content-encoding") == "gzip": body = gzip.decompress(body)
         return status, headers, body
     manifest = json.loads((ROOT / "dist/apps.json").read_text())
-    registered = json.loads((ROOT / "registry/apps.json").read_text())
     if [app['id'] for app in manifest['apps']] != [app['id'] for app in registered]:
         raise RuntimeError("Deployed bundle must include every registered app in order")
     portal = (ROOT / "dist/index.html").read_text()
-    if '__APP_COUNT' in portal or f"{len(registered)} tööriista" not in portal:
+    workspace = (ROOT / "dist/tooruum/index.html").read_text()
+    if '__APP_COUNT' in portal + workspace or f"{len(registered)} tööriista" not in workspace:
         raise RuntimeError("Portal application count does not match the registry")
     checks = [("/", ROOT / "dist/index.html"), ("/style.css", ROOT / "dist/style.css"), ("/apps.json", ROOT / "dist/apps.json")]
+    checks.append(("/tooruum/", ROOT / "dist/tooruum/index.html"))
+    checks.extend(("/" + name, ROOT / "dist" / name) for name in ["landing.css", "landing.js", "tooruum/index.html", "assets/brand/subnet.png", "assets/landing/estonian-lakes.png", "assets/landing/cloud-of-estonia.png", "assets/landing/creative-workspace.jpg"])
     checks.append(("/cloud.js", ROOT / "dist/cloud.js"))
-    checks.extend(("/" + name, ROOT / "dist" / name) for name in manifest["portalAssets"])
+    if "portal" in options.apps or "all" in options.apps:
+        checks.extend(("/" + name, ROOT / "dist" / name) for name in manifest["portalAssets"])
     checks.extend(("/" + name, ROOT / "dist" / name) for name in manifest["shellAssets"])
     if any((ROOT / "dist" / name).exists() for name in ["browser-session-test.html", "browser-session-test.js"]):
         raise RuntimeError("Remove temporary browser fixtures before final verification")
     for app in manifest['apps']:
-        if f'href="{app["path"]}"' not in portal:
+        if f'href="{app["path"]}"' not in workspace:
             raise RuntimeError(f"Missing portal link: {app['id']}")
         folder = ROOT / "dist/apps" / app['id']
         checks.append((app['path'], folder / "index.html"))
-        checks.append((app['editorPath'], folder / "editor.html"))
         shell = (folder / "index.html").read_text()
-        if '__APP_NAME__' in shell or 'id="craft-editor"' not in shell or 'data-leave' not in shell:
+        if ('__APP_NAME__' in shell or 'id="craft-editor"' not in shell or 'data-leave' not in shell
+                or 'href="/tooruum/"' not in shell or 'href="/tooruum/#failid"' not in shell):
             raise RuntimeError(f"Missing shared navigation: {app['id']}")
+        checks.append((app['editorPath'], folder / "editor.html"))
+        if app['id'] not in selected:
+            continue
         checks.extend((app['path'] + name, folder / name) for name in app['assets'])
     for route, file in checks:
         status, headers, data = get(route)
         if status != 200 or data != file.read_bytes(): raise RuntimeError(f"Wrong payload/status: {route} ({status})")
         if not headers.get("ic-certificate"): raise RuntimeError(f"Missing certification header: {route}")
         if file.suffix == ".wasm" and headers.get("content-type") != "application/wasm": raise RuntimeError(f"Wrong Wasm MIME: {route}")
-        if file.suffix in (".js", ".wasm") and file.parent != ROOT / "dist" and "immutable" not in headers.get("cache-control", ""): raise RuntimeError(f"Missing versioned cache rule: {route}")
+        if file.suffix in (".js", ".wasm") and file.parent != ROOT / "dist":
+            directives = {value.strip().lower() for value in headers.get("cache-control", "").split(",")}
+            if not {"immutable", "max-age=31536000"} <= directives or directives & {"no-cache", "no-store", "max-age=0"}:
+                raise RuntimeError(f"Missing or conflicting versioned cache rule: {route}")
         if file.name in ("index.html", "editor.html"):
             env_cookie = headers.get("set-cookie", "").split(";", 1)[0]
             if not env_cookie.startswith("ic_env="): raise RuntimeError(f"Missing runtime cookie: {route}")
             env = dict(item.split("=", 1) for item in unquote(env_cookie.removeprefix("ic_env=")).split("&"))
             if env.get("PUBLIC_CANISTER_ID:cloud") != ids['cloud'] or env.get("ic_root_key") != network['root_key']:
-                raise RuntimeError("Runtime endpoint/trust does not match managed network")
+                raise RuntimeError("Runtime endpoint/trust does not match deployment network")
             policy = headers.get("content-security-policy", "")
             parser = InlineScripts()
             parser.feed(data.decode())
@@ -72,11 +102,15 @@ def main():
                 if expected not in policy: raise RuntimeError(f"Bootstrap blocked by CSP: {route}")
             if "no-cache" not in headers.get("cache-control", ""): raise RuntimeError(f"Stale HTML cache policy: {route}")
         print(f"PASS {route} ({len(data):,} bytes)")
+        if options.timings:
+            seconds, transferred = timings[route]
+            print(f"  HTTP {seconds:.3f}s; {transferred:,} transferred bytes; encoding={headers.get('content-encoding', 'identity')}; cache={headers.get('cache-control', 'none')}", flush=True)
     for route in ["/apps/photocraft/missing.wasm", "/apps/unknown/", "/missing.js", "/browser-session-test.html", "/browser-session-test.js"]:
         if get(route)[0] != 404: raise RuntimeError(f"Missing file must return 404: {route}")
     status, headers, body = get("/.well-known/ii-app-metadata")
     if status != 200 or json.loads(body)['name'] != "subnet.ee" or headers.get('access-control-allow-origin') != '*':
         raise RuntimeError("II app metadata unavailable")
-    print(f"PASS portal, all {len(manifest['apps'])} applications, trust configuration and removed-fixture/missing-asset handling\nLocal: http://frontend.local.localhost:{port}/")
+    url = f"http://frontend.local.localhost:{port}/" if options.environment == "local" else f"https://{host}/"
+    print(f"PASS shared site, {len(selected)} selected editors ({', '.join(sorted(selected)) or 'none'}), trust and missing-asset handling\n{options.environment}: {url}")
 
 if __name__ == "__main__": main()

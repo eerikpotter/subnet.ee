@@ -4,8 +4,10 @@ An editor-independent Rust client extracted from the working PhotoCraft integrat
 The source of truth is `subnet-cloud/packages/sovereign-cloud`. PhotoCraft consumes a
 checked, hash-manifested snapshot under `vendor/sovereign-cloud`, so its standalone
 fork remains buildable without a relative dependency on the parent repository.
-Run `python3 scripts/sync-sdk.py` from the parent after changing the SDK; `--check`
-is a required build gate. A future published crate/git release can replace vendoring.
+Run `python3 scripts/sync-sdk.py photocraft` to adopt a canonical SDK change in that
+fork. Builds use `--check-pinned` to verify the fork's own snapshot; `--check` compares
+it with the current canonical source. Other forks may stay on their existing version.
+A future published crate/git release can replace vendoring.
 
 * `protocol`: the existing Candid/serde contract, unchanged for old data and clients.
 * `config`: explicit gateway, canister and trusted root key; optional derivation origin.

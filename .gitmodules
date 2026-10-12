@@ -13,3 +13,9 @@
 [submodule "apps/deckcraft"]
 	path = apps/deckcraft
 	url = https://github.com/eerikpotter/deckcraft.git
+[submodule "apps/cadcraft"]
+	path = apps/cadcraft
+	url = https://github.com/eerikpotter/cadcraft.git
+[submodule "apps/gridcraft"]
+	path = apps/gridcraft
+	url = https://github.com/eerikpotter/gridcraft.git
