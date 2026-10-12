@@ -115,12 +115,42 @@ have detached HEAD. Review and test upstream merges inside the fork, commit ther
 then commit the changed submodule pointer in this root. Push app commits before
 pushing root pointers when sharing; local-only commits are not available on GitHub.
 
-The shared-account milestone is on `codex/shared-account-files` in the root and PhotoCraft.
-The other four app integrations are on `codex/sovereign-cloud` in their forks.
+The current portal and all seven app integrations are published on each fork's `main`.
+Earlier integration milestones remain on `codex/shared-account-files` in the root and
+PhotoCraft, and `codex/sovereign-cloud` in the other six forks.
 The root remote is `https://github.com/eerikpotter/subnet.ee.git`.
 The first extraction remains on `codex/subnet-cloud-base`. Each app keeps its own Cargo workspace and lockfile.
 The root is not a giant Cargo workspace. Build caches can be shared with
 `CARGO_TARGET_DIR`; `SUBNET_RUST_TOOLCHAIN` overrides the compiler when deliberately testing.
+Give each repository's `xtask` its own target directory, or run `cargo clean -p xtask`
+before switching repositories: their identically named binaries embed the workspace path.
+
+Upstream refresh (2026-10-12): the fork merges retain both upstream history and the
+existing subnet integration. Reviewed upstream tips were PhotoCraft `bb17dd555c16`,
+PdfCraft `87b448b664e1`, WordCraft `fc52079f587a`, DeckCraft `0ec0cc5e815c`,
+SoundCraft `df0c4790b729`, CADCraft `4cb9e8a535b2` and GridCraft `b3acae6b7782`.
+GridCraft's cloud actions now live in its new Backstage view. WordCraft uses upstream's
+document identity API; SoundCraft keeps its portable cloud format alongside upstream's
+new local file handling. CADCraft and PdfCraft retain their new upstream host bridges.
+All seven forks retain the same pinned Sovereign Cloud SDK and UI source snapshots.
+All seven release Wasm builds pass. The 25 focused tests pass: PhotoCraft web-host/menu
+tests (13), WordCraft native-format/document identity (3), SoundCraft portable audio
+format (5), CADCraft cloud adapter (1), and GridCraft cloud adapter/Backstage wiring (3).
+All seven browser cloud save/open checks pass using a disposable identity on the local
+test network, including edited image, text, spreadsheet, CAD and PDF content and the
+slide/audio demos. No browser console errors were observed. Temporary session fixtures
+and their generated redirects were removed; `python3 scripts/verify.py all` passes for
+the final local bundle, including exact asset payloads, certification, cache/CSP headers,
+runtime trust and missing-file responses. These checks do not cover Internet Identity
+issuance or constitute a deployment of this upstream refresh to mainnet.
+
+Strict editor-wide CI is not green on Rust 1.95.0: it stops at upstream Clippy warnings
+in CADCraft `geom/nurbs.rs`, GridCraft's XLSX code/tests, DeckCraft's ISOBMFF codec,
+WordCraft `proof/affix.rs`, SoundCraft's video codec and PdfCraft `forms/af.rs`.
+PhotoCraft's scoped Wasm Clippy check likewise stops at `drop_non_drop` in upstream
+`format/store.rs` when checking the browser target.
+These files are unchanged by the cloud integration; the refresh does not suppress
+their lints or modify unrelated editor behavior. PhotoCraft's 29-crate layer check passes.
 
 ## Internal SDK
 
@@ -193,7 +223,7 @@ and mobile editor ergonomics are outside this setup's smoke check.
 
 ## Next boundaries
 
-All five editors now share cloud storage and compatible format metadata. Shared spaces,
+All seven editors now share cloud storage and compatible format metadata. Shared spaces,
 per-app grants, user-owned canisters, encrypted storage, alternate blob stores and
 Cloud Engine migration remain later work.
 
