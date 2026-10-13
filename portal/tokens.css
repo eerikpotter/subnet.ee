@@ -45,3 +45,10 @@
 .icon { width: 20px; height: 20px; flex: 0 0 auto; fill: none; stroke: currentColor; stroke-width: 1.6; stroke-linecap: round; stroke-linejoin: round; }
 a:focus-visible, button:focus-visible { outline: 2px solid var(--action); outline-offset: 4px; }
 [hidden] { display: none !important; }
+
+/* The same compact language control on the public page and workspace. */
+/* Real links also work without JavaScript; the runtime switches in place. */
+.language-switch { display: inline-flex; align-items: center; gap: 2px; padding: 3px; border: 1px solid #afc7e066; border-radius: 8px; background: #ffffffb3; flex-shrink: 0; }
+.language-switch a { display: inline-flex; align-items: center; justify-content: center; min-width: 30px; min-height: 30px; padding: 0 3px; border-radius: 5px; color: var(--ink); font: 500 11px var(--font-ui); text-decoration: none; }
+.language-switch a[aria-current="true"] { background: #e0ecff; color: var(--action); }
+.language-switch a:focus-visible { outline: 2px solid var(--action); outline-offset: 2px; }

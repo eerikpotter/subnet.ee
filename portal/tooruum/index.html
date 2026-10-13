@@ -4,6 +4,8 @@
   <meta charset="utf-8">
   <meta name="viewport" content="width=device-width, initial-scale=1">
   <meta name="color-scheme" content="light">
+  <script src="/translations.js" defer></script>
+  <script src="/i18n.js" defer></script>
   <meta name="description" content="subnet.ee loomeruum: pildid, dokumendid, PDF, slaidid, heli, joonised ja tabelid ühes kohas.">
   <title>subnet.ee — Sinu loomeruum</title>
   <script type="module" src="/cloud.js"></script>
@@ -21,7 +23,7 @@
       <div class="sidebar-bottom"><span class="status-dot"></span> Kohalik töökeskkond<p>Sinu ideed. Sinu tööriistad.</p></div>
     </aside>
     <main>
-      <header class="topbar"><span>Loomeruum <span class="breadcrumb">/</span> <span id="page-name">Rakendused</span></span><div class="account-controls"><span id="account-status">Ühendan kontoga…</span><button id="sign-in" class="button button-primary" disabled>Logi sisse</button><button id="sign-out" class="button" hidden>Logi välja</button></div></header>
+      <header class="topbar"><span>Loomeruum <span class="breadcrumb">/</span> <span id="page-name">Rakendused</span></span><div class="account-controls"><div class="language-switch" role="group" aria-label="Keel"><a href="/tooruum/" data-language="et" lang="et" aria-label="Eesti keeles">ET</a><a href="/en/tooruum/" data-language="en" lang="en" aria-label="In English">EN</a></div><span id="account-status">Ühendan kontoga…</span><button id="sign-in" class="button button-primary" disabled>Logi sisse</button><button id="sign-out" class="button" hidden>Logi välja</button></div></header>
       <p id="account-message" class="account-message" role="status" hidden></p>
       <div id="apps-view">
       <section class="intro" aria-labelledby="intro-title">
@@ -44,7 +46,7 @@
         <div class="files-heading"><div><h1 id="files-title">Minu <em>failid</em></h1><p>Kõik sinu pilve salvestatud tööd ühes kohas.</p></div><a class="button button-primary" href="#rakendused">Vali rakendus <span aria-hidden="true">→</span></a></div>
         <div class="files-toolbar"><span id="storage-usage">Sinu failid on seotud sinu kontoga.</span><button id="refresh-files" class="button" disabled>Värskenda</button></div>
         <div id="file-status" class="file-status" role="status">Logi sisse, et näha oma salvestatud faile.</div>
-        <div id="file-list" class="file-list" aria-label="Salvestatud failid" aria-live="polite"></div>
+        <div data-no-translate id="file-list" class="file-list" aria-label="Salvestatud failid" aria-live="polite"></div>
         <button id="more-files" class="button" hidden>Näita rohkem</button>
         <p class="files-footnote">Salvestamiseks vali rakenduse File-menüüst Sovereign Cloud → Save.</p>
       </section>

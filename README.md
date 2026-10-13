@@ -6,7 +6,7 @@ canister; editing and media processing run in the browser.
 
 ## Layout
 
-* `portal/`: Estonian public landing page at `/`; the launcher, shared sign-in and My files live at `/tooruum/`. No editor preloading on the landing page.
+* `portal/`: Estonian/English public landing page at `/`; the launcher, shared sign-in and My files live at `/tooruum/`. No editor preloading on the landing page.
 * `apps/{photocraft,pdfcraft,wordcraft,deckcraft,soundcraft,cadcraft,gridcraft}`: pinned Git submodules to your forks.
 * `packages/sovereign-cloud/`: internal Rust SDK; canonical source and independent tests.
 * `packages/sovereign-cloud-ui/`: shared File-menu section, sign-in, naming, versions and save/open controller.
@@ -16,6 +16,30 @@ canister; editing and media processing run in the browser.
 * `scripts/`: reproducible setup, build, SDK vendoring, assembly and local verification.
 * `icp.yaml`: one frontend plus the shared account/file backend (same local canister ID).
 * `dist/`: generated deployment artifact; each app lives at `/apps/<id>/`.
+
+## Languages
+
+The landing page and workspace are prerendered in Estonian at `/` and `/tooruum/`,
+and in English at `/en/` and `/en/tooruum/`. Each URL serves complete, indexable HTML
+with a canonical URL and reciprocal `hreflang` links. Canonicals use the mapped mainnet
+frontend origin; set `SUBNET_PUBLIC_ORIGIN` when a custom domain is configured.
+
+Both translations are embedded in HTML attributes. ET/EN links switch text and labels
+in place without fetching, reloading, or resetting account/file-list state. Browser
+back/forward and fragments work; without JavaScript the same links open static pages.
+Legacy `?lang=en` / `?lang=et` links are normalized without a reload. Public paths select
+the language; the stored `subnet.language` preference is only a fallback for app wrappers.
+App URLs keep `?lang=` alongside cloud file references and renderer flags.
+
+`portal/translations.js` maps authored Estonian UI text to English; dynamic messages use
+`SubnetI18n.text(element, source, values)` or `bind(element, render)` so current states
+repaint on language changes. `t()` formats strings and `locale` is a live getter. Add a
+translation when changing UI copy; `scripts/localize.py` prerenders it during assembly. Translation only touches text and
+label attributes; user file names/content and the already-English Craft editors stay intact.
+Language changes never reload an open editor. Run `node --test scripts/i18n.test.mjs
+scripts/cloud-i18n.test.mjs scripts/craft-shell.test.mjs scripts/craft-loading.test.mjs`
+and `python3 -m unittest discover -s scripts -p test_localize.py` for the locale,
+state-preservation, static HTML and shared-shell checks.
 
 ## Start locally
 

@@ -424,3 +424,8 @@ footer { border-top: 1px solid var(--line); padding: 24px 0; display: flex; flex
 .grid-bars { position: absolute; right: 20px; bottom: 0; display: flex; gap: 6px; align-items: flex-end; height: 47px; }
 .grid-bars i { width: 17px; height: 18px; background: #a2bfae; border-radius: 2px 2px 0 0; }
 .grid-bars i:nth-child(2) { height: 31px; }.grid-bars i:nth-child(3) { height: 26px; }.grid-bars i:nth-child(4) { height: 42px; background: #769f87; }
+@media (max-width: 520px) {
+  .topbar { flex-wrap: wrap; gap: 8px; padding-block: 12px; }
+  .account-controls { gap: 8px; margin-left: auto; }
+  .section-heading { flex-wrap: wrap; gap: 8px; }
+}

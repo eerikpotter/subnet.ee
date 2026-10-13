@@ -58,7 +58,8 @@ def main():
     if '__APP_COUNT' in portal + workspace or f"{len(registered)} tööriista" not in workspace:
         raise RuntimeError("Portal application count does not match the registry")
     checks = [("/", ROOT / "dist/index.html"), ("/style.css", ROOT / "dist/style.css"), ("/apps.json", ROOT / "dist/apps.json")]
-    checks.append(("/tooruum/", ROOT / "dist/tooruum/index.html"))
+    checks.extend((route, ROOT / "dist" / path) for route, path in [
+        ("/tooruum/", "tooruum/index.html"), ("/en/", "en/index.html"), ("/en/tooruum/", "en/tooruum/index.html")])
     checks.extend(("/" + name, ROOT / "dist" / name) for name in ["landing.css", "landing.js", "tooruum/index.html", "assets/brand/subnet.png", "assets/landing/estonian-lakes.png", "assets/landing/cloud-of-estonia.png", "assets/landing/creative-workspace.jpg"])
     checks.append(("/cloud.js", ROOT / "dist/cloud.js"))
     if "portal" in options.apps or "all" in options.apps:

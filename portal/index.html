@@ -4,13 +4,15 @@
   <meta charset="utf-8">
   <meta name="viewport" content="width=device-width, initial-scale=1">
   <meta name="color-scheme" content="light">
+  <script src="/translations.js" defer></script>
+  <script src="/i18n.js" defer></script>
   <meta name="theme-color" content="#f4f9ff">
-  <meta name="description" content="Eesti suveräänne nutipilv. Avatud lähtekoodiga loometööriistad brauseris ja suund inimese enda kontrollitava pilve poole.">
-  <meta property="og:title" content="subnet.ee — Eesti suveräänne nutipilv">
+  <meta name="description" content="Eesti esimene suveräänne nutipilv. Avatud lähtekoodiga loometööriistad brauseris ja suund inimese enda kontrollitava pilve poole.">
+  <meta property="og:title" content="subnet.ee — Eesti esimene suveräänne nutipilv">
   <meta property="og:description" content="Tutvu avatud loometööriistadega ja proovi neid brauseris. Suveräänse pilve siht on inimese kontroll oma andmete ja tarkvara üle.">
   <meta property="og:type" content="website">
   <meta property="og:locale" content="et_EE">
-  <title>subnet.ee — Eesti suveräänne nutipilv</title>
+  <title>subnet.ee — Eesti esimene suveräänne nutipilv</title>
   <link rel="icon" type="image/png" href="/assets/brand/subnet.png">
   <link rel="preload" as="image" href="/assets/landing/estonian-lakes.png" fetchpriority="high">
   <link rel="preload" as="image" href="/assets/landing/cloud-of-estonia.png">
@@ -23,12 +25,14 @@
   <svg class="icon-library" xmlns="http://www.w3.org/2000/svg" aria-hidden="true">
     <defs>
       <symbol id="icon-arrow" viewBox="0 0 24 24"><path d="M4 12h15m-6-6 6 6-6 6"/></symbol>
-      <symbol id="icon-search" viewBox="0 0 24 24"><circle cx="10.5" cy="10.5" r="6.5"/><path d="m16 16 5 5"/></symbol>
       <symbol id="icon-photocraft" viewBox="0 0 48 48"><rect x="6" y="7" width="36" height="34" rx="4"/><circle cx="32" cy="17" r="3" fill="currentColor" stroke="none"/><path d="m8 36 11-13 9 10 6-6 7 9"/><path d="m8 36 11-13 9 10 6-6 7 9v4H8Z" fill="currentColor" stroke="none"/></symbol>
       <symbol id="icon-pdfcraft" viewBox="0 0 48 48"><path d="M12 5h18l9 10v26a2 2 0 0 1-2 2H12a2 2 0 0 1-2-2V7a2 2 0 0 1 2-2Z"/><path d="M29 5v11h10M18 24h13M18 30h13M18 36h9"/></symbol>
       <symbol id="icon-wordcraft" viewBox="0 0 48 48"><path d="M12 5h18l9 10v26a2 2 0 0 1-2 2H12a2 2 0 0 1-2-2V7a2 2 0 0 1 2-2Z"/><path d="M29 5v11h10M18 23h8M18 29h14M18 35h14"/></symbol>
       <symbol id="icon-deckcraft" viewBox="0 0 48 48"><rect x="4" y="9" width="40" height="27" rx="3"/><path d="M24 36v7M16 43h16"/><circle cx="24" cy="22" r="4" fill="currentColor" stroke="none"/></symbol>
       <symbol id="icon-soundcraft" viewBox="0 0 48 48"><path d="M5 21v7M14 14v20M24 5v38M34 13v22M43 21v7" stroke-width="4.5"/></symbol>
+      <symbol id="icon-cadcraft" viewBox="0 0 48 48"><path d="m8 39 31-31v31ZM22 32h10V22M9 9l7 7M6 12l6-6M32 42v-3M24 42v-3M16 42v-3"/></symbol>
+      <symbol id="icon-gridcraft" viewBox="0 0 48 48"><rect x="5" y="7" width="38" height="34" rx="4"/><path d="M5 18h38M5 29h38M18 18v23M31 18v23"/></symbol>
+      <symbol id="icon-application" viewBox="0 0 48 48"><rect x="6" y="6" width="36" height="36" rx="7"/><path d="M16 24h16M24 16v16"/></symbol>
       <symbol id="icon-cloud" viewBox="0 0 48 48"><path d="M13 37a10 10 0 0 1-2-20 10 10 0 0 1 19-6 12 12 0 0 1 6 23H23"/><circle cx="17" cy="36" r="4"/><circle cx="33" cy="23" r="3"/><path d="m20 33 10-8"/></symbol>
       <symbol id="icon-person" viewBox="0 0 48 48"><circle cx="24" cy="13" r="7"/><path d="M10 41v-7a14 14 0 0 1 28 0v7Z"/></symbol>
       <symbol id="icon-seed" viewBox="0 0 48 48"><path d="M24 43V22M24 30C7 32 6 21 6 15c13-1 19 4 18 15ZM24 23C22 9 33 6 43 6c0 13-5 20-19 17Z"/></symbol>
@@ -39,10 +43,10 @@
     <header class="site-header container">
       <a class="brand" href="/" aria-label="subnet.ee avaleht"><img src="/assets/brand/subnet.png" width="542" height="394" alt=""><span class="subnet-wordmark">subnet<span>.ee</span></span></a>
       <nav class="main-nav" id="main-nav" aria-label="Peamenüü">
-        <a href="#visioon">Visioon</a><a href="#tooriistad">Tööriistad</a><a href="#tehnoloogia">Tehnoloogia</a><a href="#arendus" data-dialog="arendus">Arendus</a><a href="#meist" data-dialog="meist">Meist</a>
+        <a href="#visioon">Visioon</a><a href="#tooriistad">Tööriistad</a><a href="#tehnoloogia">Tehnoloogia</a><a href="#arendus" data-dialog="arendus">Arendus</a><a href="#meist" data-dialog="meist">Meist</a><a class="mobile-workspace" href="/tooruum/">Ava tööruum</a>
       </nav>
       <div class="header-actions">
-        <button class="icon-button search-toggle" type="button" data-dialog="otsing" aria-label="Otsi tööriistu"><svg viewBox="0 0 24 24" aria-hidden="true"><use href="#icon-search"/></svg></button>
+        <div class="language-switch" role="group" aria-label="Keel"><a href="/" data-language="et" lang="et" aria-label="Eesti keeles">ET</a><a href="/en/" data-language="en" lang="en" aria-label="In English">EN</a></div>
         <a class="button primary header-workspace" href="/tooruum/">Ava tööruum</a>
         <button class="icon-button menu-toggle" type="button" aria-label="Ava menüü" aria-controls="main-nav" aria-expanded="false"><span></span><span></span><span></span></button>
       </div>
@@ -54,7 +58,7 @@
       <section class="hero container" aria-labelledby="hero-title">
         <div class="hero-copy">
           <p class="eyebrow">EFTI AVALIK PILOOT</p>
-          <h1 id="hero-title">Eesti suveräänne<br> nutipilv.</h1>
+          <h1 id="hero-title">Eesti esimene<br>suveräänne nutipilv.</h1>
           <h2>Pilveprotokoll uue põlvkonna tarkvarale.</h2>
           <p class="hero-description">subnet.ee tutvustab avatud lähtekoodiga loometööriistu ja suveräänse pilve võimalusi. Siht on anda inimesele kontroll oma andmete ja tarkvara üle.</p>
           <div class="hero-buttons"><a class="button primary" href="#tehnoloogia">Tutvu visiooniga <svg viewBox="0 0 24 24" aria-hidden="true"><use href="#icon-arrow"/></svg></a><a class="button secondary" href="#tooriistad">Vaata tööriistu</a></div>
@@ -73,7 +77,16 @@
   <div class="content-panels container">
     <section class="tools-panel soft-panel" id="tooriistad" aria-labelledby="tools-title">
       <div class="section-heading"><div><p class="eyebrow">AVATUD LÄHTEKOODIGA RAKENDUSED</p><h2 id="tools-title">Tööriistad loomiseks.</h2></div><a class="text-link" href="/tooruum/">Vaata kõiki tööriistu <svg viewBox="0 0 24 24" aria-hidden="true"><use href="#icon-arrow"/></svg></a></div>
-      <div class="tools-grid"><!-- LANDING_CARDS --></div>
+      <div class="tools-carousel">
+        <div class="tools-grid" id="tools-track" tabindex="0" role="region" aria-label="Kõik loometööriistad" aria-describedby="tools-hint"><!-- LANDING_CARDS --></div>
+        <div class="tools-toolbar">
+          <p id="tools-hint"><span class="tools-count">__APP_COUNT__ rakendust</span><span class="tools-divider" aria-hidden="true">·</span> Lohista või keri</p>
+          <div class="tools-controls" aria-label="Rakenduste riba juhtimine" hidden>
+            <button class="icon-button" type="button" data-tools-previous aria-label="Eelmised rakendused" aria-controls="tools-track"><svg viewBox="0 0 24 24" aria-hidden="true"><path d="m14 6-6 6 6 6"/></svg></button>
+            <button class="icon-button" type="button" data-tools-next aria-label="Järgmised rakendused" aria-controls="tools-track"><svg viewBox="0 0 24 24" aria-hidden="true"><path d="m10 6 6 6-6 6"/></svg></button>
+          </div>
+        </div>
+      </div>
     </section>
 
     <section class="technology-panel soft-panel" id="tehnoloogia" aria-labelledby="technology-title">
@@ -114,11 +127,10 @@
   </main>
   <footer class="site-footer container">
     <a class="footer-brand" href="/" aria-label="subnet.ee avaleht"><img src="/assets/brand/subnet.png" width="542" height="394" alt=""><span><span class="subnet-wordmark">subnet<span>.ee</span></span><small>Eesti digivabaduse heaks</small></span></a>
-    <nav aria-label="Jaluse menüü"><a href="#kontakt" data-dialog="kontakt">Kontakt</a><a href="#lahtekood" data-dialog="lahtekood">Lähtekood</a><a href="#arendus" data-dialog="arendus">Piloodi seis</a><a href="#kkk" data-dialog="kkk">KKK</a></nav>
-    <div class="footer-meta"><span class="language" lang="et" aria-label="Lehe keel: eesti">ET <span class="mini-flag" aria-hidden="true"></span></span><a class="icon-button" href="#lahtekood" data-dialog="lahtekood" aria-label="Lähtekoodi info"><svg viewBox="0 0 24 24" aria-hidden="true"><use href="#icon-github"/></svg></a></div>
+    <nav aria-label="Jaluse menüü"><a href="#kontakt" data-dialog="kontakt">Kontakt</a><a href="#arendus" data-dialog="arendus">Piloodi seis</a><a href="#kkk" data-dialog="kkk">KKK</a></nav>
+    <div class="footer-meta"><div class="language-switch" role="group" aria-label="Keel"><a href="/" data-language="et" lang="et" aria-label="Eesti keeles">ET</a><a href="/en/" data-language="en" lang="en" aria-label="In English">EN</a></div><a class="icon-button" href="https://github.com/eerikpotter/subnet.ee" target="_blank" rel="noopener noreferrer" aria-label="subnet.ee GitHub"><svg viewBox="0 0 24 24" aria-hidden="true"><use href="#icon-github"/></svg></a></div>
   </footer>
 
-  <dialog class="info-dialog search-dialog" id="otsing" aria-labelledby="search-title"><button class="dialog-close icon-button" type="button" aria-label="Sulge otsing" data-close>×</button><p class="eyebrow">LEIA OMA TÖÖRIIST</p><h2 id="search-title">Mida soovid luua?</h2><label class="search-field"><svg viewBox="0 0 24 24" aria-hidden="true"><use href="#icon-search"/></svg><input id="tool-search" type="search" placeholder="Otsi nime või tegevuse järgi…" aria-label="Otsi tööriistu" autocomplete="off"></label><p id="search-status" class="search-status" role="status"></p><div id="search-results" class="search-results"></div><a class="text-link" href="/tooruum/">Kõik tööriistad tööruumis →</a></dialog>
   <dialog class="info-dialog" id="kuidas" aria-labelledby="how-title">
     <button class="dialog-close icon-button" type="button" aria-label="Sulge" data-close>×</button>
     <p class="eyebrow">TÖÖRIISTADE KASUTAMINE</p><h2 id="how-title">Kuidas alustada?</h2>

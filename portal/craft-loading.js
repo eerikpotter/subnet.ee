@@ -1,3 +1,4 @@
+const { t } = window.SubnetI18n;
 // Track the package's decoded bytes, then wait for the editor's first frame.
 // The bootstrap publishes progress; this shell never fetches a second copy.
 const frame = document.getElementById("craft-editor");
@@ -37,8 +38,8 @@ function failed() {
   frame.dataset.loadState = "error";
   loading.dataset.state = "error";
   progress.hidden = true;
-  status.textContent = "Rakendust ei õnnestunud avada.";
-  hint.textContent = "Proovi uuesti. Kui tõrge kordub, saad ülamenüüst tööruumi tagasi minna.";
+  status.textContent = t("Rakendust ei õnnestunud avada.");
+  hint.textContent = t("Proovi uuesti. Kui tõrge kordub, saad ülamenüüst tööruumi tagasi minna.");
   help.hidden = false;
   stopWatching();
 }
@@ -62,17 +63,17 @@ function showDownload(doc) {
   if (phase === "error") { failed(); return; }
   if (!["download", "verify", "starting"].includes(phase)) return;
   const percent = Math.floor(loaded / total * 100);
-  const mb = value => (value / 1_000_000).toLocaleString("et-EE", { minimumFractionDigits: 1, maximumFractionDigits: 1 });
+  const mb = value => (value / 1_000_000).toLocaleString(window.SubnetI18n.locale, { minimumFractionDigits: 1, maximumFractionDigits: 1 });
   const label = `${mb(loaded)} / ${mb(total)} MB · ${percent}%`;
   progress.setAttribute("data-determinate", "");
   progress.setAttribute("aria-valuemin", "0");
   progress.setAttribute("aria-valuemax", "100");
   progress.setAttribute("aria-valuenow", String(percent));
-  progress.setAttribute("aria-valuetext", `Rakendusepakett: ${label}`);
+  progress.setAttribute("aria-valuetext", t("Rakendusepakett: {amount}", { amount: label }));
   progress.style.setProperty("--loading-percent", `${loaded / total * 100}%`);
   if (amount.textContent !== label) amount.textContent = label;
-  const message = phase === "download" ? "Laadin rakendusepaketti…"
-    : phase === "verify" ? "Kontrollin rakendusepaketti…" : "Käivitan rakendust…";
+  const message = phase === "download" ? t("Laadin rakendusepaketti…")
+    : phase === "verify" ? t("Kontrollin rakendusepaketti…") : t("Käivitan rakendust…");
   if (status.textContent !== message) status.textContent = message;
 }
 
@@ -101,7 +102,7 @@ function inspect() {
       };
     }
     showDownload(doc);
-    if (frame.dataset.loadState === "loading" && frame.contentWindow.wasmBindings) status.textContent = "Käivitan rakendust…";
+    if (frame.dataset.loadState === "loading" && frame.contentWindow.wasmBindings) status.textContent = t("Käivitan rakendust…");
   } catch {
     failed();
   }
@@ -121,8 +122,8 @@ function startWatching() {
   progress.style.removeProperty("--loading-percent");
   amount.textContent = "";
   help.hidden = true;
-  status.textContent = "Laadin rakendust…";
-  hint.textContent = "Esimene avamine võib võtta veidi kauem. Kui laadimine ei lõpe, proovi uuesti.";
+  status.textContent = t("Laadin rakendust…");
+  hint.textContent = t("Esimene avamine võib võtta veidi kauem. Kui laadimine ei lõpe, proovi uuesti.");
   poll = window.setInterval(inspect, 100);
   // A slow connection is not a failure: keep watching and allow it to finish.
   slow = window.setTimeout(() => { help.hidden = false; }, 20000);

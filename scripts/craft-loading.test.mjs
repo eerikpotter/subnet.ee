@@ -1,17 +1,19 @@
 import { readFileSync } from "node:fs";
 import vm from "node:vm";
+import { localeHost } from "./i18n-test-helpers.mjs";
 import test from "node:test";
 import assert from "node:assert/strict";
 
 const source = readFileSync(new URL("../portal/craft-loading.js", import.meta.url), "utf8");
 
-function host() {
+function host(language = "et") {
   let state = null;
   let download = null;
   let nextTimer = 0;
   const intervals = new Map();
   const timeouts = new Map();
   const window = new EventTarget();
+  window.SubnetI18n = localeHost({ search: `?lang=${language}` }).i18n;
   window.location = { search: "?cloud_file=one&webgl", hash: "#page=2" };
   window.setInterval = fn => { intervals.set(++nextTimer, fn); return nextTimer; };
   window.setTimeout = fn => { timeouts.set(++nextTimer, fn); return nextTimer; };
@@ -148,4 +150,15 @@ test("a failed package exposes recovery and a retry clears previous progress", (
   h.retry();
   assert.equal(h.elements["loading-progress"]["aria-valuenow"], undefined);
   assert.equal(h.elements["loading-amount"].textContent, "");
+});
+
+test("English loading reports real byte progress and translates failures", () => {
+  const h = host("en");
+  h.tick();
+  h.download({ phase: "download", loaded: 2_000_000, total: 10_000_000 });
+  assert.equal(h.elements["loading-status"].textContent, "Downloading application…");
+  assert.equal(h.elements["loading-amount"].textContent, "2.0 / 10.0 MB · 20%");
+  assert.match(h.elements["loading-progress"]["aria-valuetext"], /^Application package:/);
+  h.download({ phase: "error", loaded: 2_000_000, total: 10_000_000 });
+  assert.equal(h.elements["loading-status"].textContent, "The application could not be opened.");
 });

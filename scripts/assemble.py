@@ -6,11 +6,15 @@ import hashlib
 import html
 from html.parser import HTMLParser
 import json
+import os
 from pathlib import Path
 import re
 import shutil
 import subprocess
 import tempfile
+from urllib.parse import urlsplit
+
+from localize import Page, dictionary
 
 ROOT = Path(__file__).resolve().parents[1]
 
@@ -99,23 +103,31 @@ def cards(apps):
     return "\n".join(result)
 
 def landing_cards(apps):
-    """Keep the landing page's featured tools linked to the same app registry."""
+    """Show every registered app, including future apps without custom artwork."""
     captions = {"photocraft": "Pildid ja visuaalid", "pdfcraft": "PDF-id ja dokumendid",
                 "wordcraft": "Tekstid ja märkmed", "deckcraft": "Esitlused ja ideed",
-                "soundcraft": "Heli ja muusika"}
+                "soundcraft": "Heli ja muusika", "cadcraft": "Joonised ja kavandid",
+                "gridcraft": "Tabelid ja andmed"}
     result = []
     for app in apps:
-        if app['id'] not in captions:
-            continue
         name = html.escape(app['name'], quote=True)
         app_id = html.escape(app['id'], quote=True)
+        caption = html.escape(captions.get(app['id'], app['kind']))
+        icon = app_id if app['id'] in captions else "application"
         result.append(f'<a class="tool-card tool-{app_id}" href="/apps/{app_id}/" aria-label="Ava {name}">'
-                      f'<svg class="tool-icon" viewBox="0 0 48 48" aria-hidden="true"><use href="#icon-{app_id}"/></svg>'
-                      f'<h3>{name}</h3><p>{captions[app["id"]]}</p><span class="tool-arrow" aria-hidden="true">↗</span></a>')
+                      f'<svg class="tool-icon" viewBox="0 0 48 48" aria-hidden="true"><use href="#icon-{icon}"/></svg>'
+                      f'<h3>{name}</h3><p>{caption}</p><span class="tool-arrow" aria-hidden="true">↗</span></a>')
     return "\n".join(result)
 
 def assemble(root=ROOT, selected=("portal",)):
     apps = json.loads((root / "registry/apps.json").read_text())
+    english = dictionary(root / "portal/translations.js")
+    ids = root / ".icp/data/mappings/ic.ids.json"
+    default_origin = f"https://{json.loads(ids.read_text())['frontend']}.icp.net" if ids.exists() else "https://subnet.ee"
+    origin = os.environ.get("SUBNET_PUBLIC_ORIGIN", default_origin).rstrip("/")
+    parsed_origin = urlsplit(origin)
+    if parsed_origin.scheme not in ("http", "https") or not parsed_origin.netloc or parsed_origin.path or parsed_origin.query or parsed_origin.fragment:
+        raise RuntimeError("SUBNET_PUBLIC_ORIGIN must be an absolute HTTP(S) origin without a path")
     app_ids = {app['id'] for app in apps}
     if set(selected) - app_ids - {"all", "portal"}:
         raise RuntimeError("Unknown assembly target")
@@ -159,17 +171,23 @@ def assemble(root=ROOT, selected=("portal",)):
                             .replace("<!-- LANDING_CARDS -->", landing_cards(apps))
                             .replace("__APP_COUNT_PADDED__", f"{len(apps):02d}")
                             .replace("__APP_COUNT__", str(len(apps))))
-                page.write_text(rendered)
+                path = "/tooruum/" if page.parent.name == "tooruum" else "/"
+                template = Page(rendered)
+                page.write_text(template.render(english, "et", path, origin))
+                english_page = stage / "en" / page.relative_to(stage)
+                english_page.parent.mkdir(parents=True, exist_ok=True)
+                english_page.write_text(template.render(english, "en", path, origin))
         hashes = []
         manifest = {"apps": [], "portalAssets": {"cloud/" + p.name: hashlib.sha256(p.read_bytes()).hexdigest() for p in [bindings[0], wasm[0]]},
-                    "shellAssets": {name: hashlib.sha256((stage / name).read_bytes()).hexdigest() for name in ["tokens.css", "craft-shell.css", "craft-shell.js", "craft-loading.js", "craft-wasm.js"]}}
+                    "shellAssets": {name: hashlib.sha256((stage / name).read_bytes()).hexdigest() for name in ["tokens.css", "craft-shell.css", "craft-shell.js", "craft-loading.js", "craft-wasm.js", "i18n.js", "translations.js"]}}
         for app in apps:
             repo = root / "apps" / app['id']
             destination = stage / "apps" / app['id']
+            app_shell = Page(shell.replace("__APP_NAME__", html.escape(app['name'], quote=True))).render(english, "et")
             if app['id'] not in replace:
                 # Reuse the last assembled artifact, even if the source checkout is absent/dirty.
                 shutil.copytree(previous / "apps" / app['id'], destination)
-                (destination / "index.html").write_text(shell.replace("__APP_NAME__", html.escape(app['name'], quote=True)))
+                (destination / "index.html").write_text(app_shell)
                 manifest['apps'].append({**cached[app['id']], **app})
                 continue
             shutil.copytree(repo / "dist/web", destination)
@@ -181,7 +199,7 @@ def assemble(root=ROOT, selected=("portal",)):
             # Preserve relative asset URLs and give every editor its own viewport.
             # Only the public entry point is replaced by the common portal shell.
             (destination / "index.html").rename(destination / "editor.html")
-            (destination / "index.html").write_text(shell.replace("__APP_NAME__", html.escape(app['name'], quote=True)))
+            (destination / "index.html").write_text(app_shell)
             licenses = destination / "licenses"
             licenses.mkdir(exist_ok=True)
             for name in ["LICENSE-MIT", "LICENSE-APACHE", "NOTICE", "ATTRIBUTION.md", "ATTRIBUTION.toml"]:
@@ -204,7 +222,7 @@ def assemble(root=ROOT, selected=("portal",)):
             hashes.extend("'sha256-" + base64.b64encode(hashlib.sha256(s.encode()).digest()).decode() + "'" for s in parser.scripts)
         policy = "; ".join(["default-src 'self'", "script-src 'self' 'wasm-unsafe-eval' " + " ".join(sorted(set(hashes))),
             "style-src 'self' 'unsafe-inline'", "img-src 'self' data: blob:", "font-src 'self' data:", "connect-src 'self'", "worker-src 'self' blob:", "media-src 'self' blob:", "object-src 'none'", "base-uri 'self'", "frame-ancestors 'self'"])
-        headers = f"/*\n  X-Content-Type-Options: nosniff\n  Referrer-Policy: no-referrer\n  Content-Security-Policy: {policy}\n\n/*.html\n  Cache-Control: no-cache\n\n/*.css\n  Cache-Control: no-cache\n\n/*.json\n  Cache-Control: no-cache\n\n/landing.js\n  Cache-Control: no-cache\n\n/cloud.js\n  Cache-Control: no-cache\n\n/craft-shell.js\n  Cache-Control: no-cache\n\n/assets/*\n  Cache-Control: no-cache\n\n/apps/*.wasm\n  Content-Type: application/wasm\n  Cache-Control: public, max-age=31536000, immutable\n\n/apps/*.js\n  Cache-Control: public, max-age=31536000, immutable\n\n/cloud/*.wasm\n  Content-Type: application/wasm\n  Cache-Control: public, max-age=31536000, immutable\n\n/cloud/*.js\n  Cache-Control: public, max-age=31536000, immutable\n\n/.well-known/ii-app-metadata\n  Content-Type: application/json\n  Access-Control-Allow-Origin: *\n"
+        headers = f"/*\n  X-Content-Type-Options: nosniff\n  Referrer-Policy: no-referrer\n  Content-Security-Policy: {policy}\n\n/*.html\n  Cache-Control: no-cache\n\n/*.css\n  Cache-Control: no-cache\n\n/*.json\n  Cache-Control: no-cache\n\n/i18n.js\n  Cache-Control: no-cache\n\n/translations.js\n  Cache-Control: no-cache\n\n/landing.js\n  Cache-Control: no-cache\n\n/cloud.js\n  Cache-Control: no-cache\n\n/craft-shell.js\n  Cache-Control: no-cache\n\n/assets/*\n  Cache-Control: no-cache\n\n/apps/*.wasm\n  Content-Type: application/wasm\n  Cache-Control: public, max-age=31536000, immutable\n\n/apps/*.js\n  Cache-Control: public, max-age=31536000, immutable\n\n/cloud/*.wasm\n  Content-Type: application/wasm\n  Cache-Control: public, max-age=31536000, immutable\n\n/cloud/*.js\n  Cache-Control: public, max-age=31536000, immutable\n\n/.well-known/ii-app-metadata\n  Content-Type: application/json\n  Access-Control-Allow-Origin: *\n"
         headers += "\n/craft-loading.js\n  Cache-Control: no-cache\n\n/craft-wasm.js\n  Cache-Control: no-cache\n"
         (stage / "_headers").write_text(headers)
         well_known = stage / ".well-known"

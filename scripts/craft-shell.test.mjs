@@ -1,14 +1,16 @@
 import { readFileSync } from "node:fs";
 import vm from "node:vm";
+import { localeHost } from "./i18n-test-helpers.mjs";
 import test from "node:test";
 import assert from "node:assert/strict";
 
 const source = readFileSync(new URL("../portal/craft-shell.js", import.meta.url), "utf8");
 
-function host(initialState, search = "", hash = "") {
+function host(initialState, search = "", hash = "", language = "et") {
   let state = initialState;
   const locations = [];
   const window = new EventTarget();
+  window.SubnetI18n = localeHost({ search: `?lang=${language}` }).i18n;
   window.location = { search, hash, assign: target => locations.push(target) };
   const editor = { contentDocument: { documentElement: { getAttribute: () => state } } };
   const description = {};
@@ -123,4 +125,15 @@ test("returning with browser history restores the guard and Escape cannot reuse 
   assert.equal(h.dialog.returnValue, "cancel");
   h.answer(h.dialog.returnValue);
   assert.deepEqual(h.locations, ["https://subnet.ee/"]);
+});
+
+test("English unsaved-work prompts keep the same cancellation and leave guard", () => {
+  const h = host("true", "?lang=en&cloud_file=one", "#page=2", "en");
+  const original = h.editor.src;
+  h.click();
+  assert.match(h.description.textContent, /You have unsaved changes/);
+  h.answer("cancel");
+  assert.equal(h.editor.src, original);
+  assert.equal(h.unload(), true);
+  assert.deepEqual(h.locations, []);
 });

@@ -1,4 +1,5 @@
 import init, { CloudPortal } from "__CLOUD_BINDINGS__";
+const { t, text, bind, href: localizedHref } = window.SubnetI18n;
 
 const $ = (id) => document.getElementById(id);
 let cloud;
@@ -16,7 +17,7 @@ function route() {
   const files = location.hash === "#failid";
   $("apps-view").hidden = files;
   $("failid").hidden = !files;
-  $("page-name").textContent = files ? "Minu failid" : "Rakendused";
+  text($("page-name"), files ? "Minu failid" : "Rakendused");
   for (const [id, active] of [["files-nav", files], ["apps-nav", !files]]) {
     $(id).classList.toggle("nav-active", active);
     if (active) $(id).setAttribute("aria-current", "page");
@@ -24,20 +25,20 @@ function route() {
   }
   if (files && cloud && Date.now() - lastRefresh > 5000) refresh();
 }
-function message(text, error = false) {
-  $("account-message").textContent = text;
-  $("account-message").hidden = !text;
+function message(source, error = false) {
+  text($("account-message"), source);
+  $("account-message").hidden = !source;
   $("account-message").classList.toggle("is-error", error);
 }
 function size(bytes) {
-  return new Intl.NumberFormat("et-EE", { maximumFractionDigits: 1 }).format(bytes / 1024 / 1024) + " MB";
+  return new Intl.NumberFormat(window.SubnetI18n.locale, { maximumFractionDigits: 1 }).format(bytes / 1024 / 1024) + " MB";
 }
-function clearFiles(text) {
+function clearFiles(source) {
   cursor = null;
   $("file-list").replaceChildren();
   $("more-files").hidden = true;
   $("file-status").hidden = false;
-  $("file-status").textContent = text;
+  text($("file-status"), source);
 }
 function updateAccount() {
   const signedIn = !!account?.authenticated;
@@ -46,9 +47,11 @@ function updateAccount() {
   $("sign-in").disabled = !cloud || restoring;
   $("sign-out").disabled = restoring;
   $("refresh-files").disabled = !cloud || restoring || loading;
-  $("account-status").textContent = signedIn ? "Minu konto" : "Sinu isiklik loomeruum";
+  text($("account-status"), signedIn ? "Minu konto" : "Sinu isiklik loomeruum");
   $("account-status").title = signedIn ? account.principal : "";
-  $("storage-usage").textContent = signedIn ? `${size(account.usedBytes)} / ${size(account.quotaBytes)} kasutusel` : "Sinu failid on seotud sinu kontoga.";
+  bind($("storage-usage"), () => {
+    $("storage-usage").textContent = signedIn ? t("{used} / {quota} kasutusel", { used: size(account.usedBytes), quota: size(account.quotaBytes) }) : t("Sinu failid on seotud sinu kontoga.");
+  });
 }
 function appendFile(file) {
   const app = registry.find((app) => app.cloud && app.openFormats?.some((format) => format.id === file.formatId && format.version === file.formatVersion));
@@ -64,18 +67,20 @@ function appendFile(file) {
   const suffix = app?.cloudExtension ? `.${app.cloudExtension}` : "";
   title.textContent = suffix && !file.name.toLowerCase().endsWith(suffix) ? `${file.name}${suffix}` : file.name;
   const meta = document.createElement("p");
-  meta.textContent = `${new Date(file.updatedMs).toLocaleString("et-EE", { dateStyle: "medium", timeStyle: "short" })} · ${file.versions} ${file.versions === 1 ? "versioon" : "versiooni"}`;
+  bind(meta, () => {
+    meta.textContent = `${new Date(file.updatedMs).toLocaleString(window.SubnetI18n.locale, { dateStyle: "medium", timeStyle: "short" })} · ${t(file.versions === 1 ? "{count} versioon" : "{count} versiooni", { count: file.versions })}`;
+  });
   detail.append(title, meta);
   const bytes = document.createElement("span");
   bytes.className = "file-size";
-  bytes.textContent = size(file.bytes);
+  bind(bytes, () => { bytes.textContent = size(file.bytes); });
   row.append(icon, detail, bytes);
   if (app && /^[a-z]+$/.test(app.id)) {
     const link = document.createElement("a");
     link.className = "button";
     const params = new URLSearchParams({ cloud_service: "cloud", cloud_space: file.spaceId, cloud_file: file.id });
-    link.href = `/apps/${app.id}/?${params}`;
-    link.textContent = `Ava ${app.name}is →`;
+    link.href = localizedHref(`/apps/${app.id}/?${params}`);
+    text(link, "Ava rakenduses {name} →", { name: app.name });
     row.append(link);
   }
   $("file-list").append(row);
@@ -93,11 +98,11 @@ async function loadFiles(epoch, append = false) {
     cursor = page.nextCursor;
     $("more-files").hidden = !cursor;
     $("file-status").hidden = $("file-list").children.length > 0;
-    $("file-status").textContent = "Sinu esimene fail ootab loomist. Vali rakenduses File → Sovereign Cloud → Save.";
+    text($("file-status"), "Sinu esimene fail ootab loomist. Vali rakenduses File → Sovereign Cloud → Save.");
   } catch (error) {
     if (epoch !== generation) return;
     $("file-status").hidden = false;
-    $("file-status").textContent = "Failide laadimine ebaõnnestus. Proovi värskendada.";
+    text($("file-status"), "Failide laadimine ebaõnnestus. Proovi värskendada.");
     message(error.message || String(error), true);
   } finally {
     if (epoch === generation) {
@@ -139,13 +144,13 @@ $("sign-in").addEventListener("click", async () => {
   const attempt = ++loginAttempt;
   try {
     message("Lõpeta sisselogimine Internet Identity aknas.");
-    $("sign-in").textContent = "Ava sisselogimine uuesti";
+    text($("sign-in"), "Ava sisselogimine uuesti");
     await cloud.sign_in();
     if (attempt === loginAttempt) await refresh();
   } catch (error) {
     if (attempt === loginAttempt) message(error.message || String(error), true);
   } finally {
-    if (attempt === loginAttempt) $("sign-in").textContent = "Logi sisse";
+    if (attempt === loginAttempt) text($("sign-in"), "Logi sisse");
   }
 });
 $("sign-out").addEventListener("click", async () => {
@@ -169,12 +174,12 @@ setInterval(() => { if (!document.hidden && cloud?.needs_refresh()) refresh(); }
 route();
 try {
   const response = await fetch("/apps.json");
-  if (!response.ok) throw new Error("Rakenduste register ei ole kättesaadav.");
+  if (!response.ok) throw new Error(t("Rakenduste register ei ole kättesaadav."));
   registry = (await response.json()).apps;
   await init({ module_or_path: "__CLOUD_WASM__" });
   cloud = new CloudPortal();
   await refresh();
 } catch (error) {
-  $("account-status").textContent = "Konto pole kättesaadav";
+  text($("account-status"), "Konto pole kättesaadav");
   message(error.message || String(error), true);
 }

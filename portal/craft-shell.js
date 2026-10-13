@@ -1,3 +1,4 @@
+const { t } = window.SubnetI18n;
 // One host for every Craft. The editor publishes only its aggregate dirty state;
 // document contents and account data stay in the editor.
 const editor = document.getElementById("craft-editor");
@@ -39,9 +40,9 @@ document.querySelectorAll("[data-leave]").forEach(link => {
     destination = link.href;
     const dirty = dirtyState() === "true";
     description.textContent = dirty
-      ? "Sul on salvestamata muudatusi. Salvesta oma töö rakenduses või lahku muudatusi salvestamata."
-      : "Enne lahkumist veendu, et oled oma töö salvestanud. Salvestamata muudatused lähevad lahkumisel kaotsi.";
-    leaveButton.textContent = dirty ? "Lahku salvestamata" : "Lahku rakendusest";
+      ? t("Sul on salvestamata muudatusi. Salvesta oma töö rakenduses või lahku muudatusi salvestamata.")
+      : t("Enne lahkumist veendu, et oled oma töö salvestanud. Salvestamata muudatused lähevad lahkumisel kaotsi.");
+    leaveButton.textContent = dirty ? t("Lahku salvestamata") : t("Lahku rakendusest");
     dialog.returnValue = "cancel";
     dialog.showModal();
   });
