@@ -60,7 +60,7 @@
           <p class="eyebrow">EFTI AVALIK DEMO</p>
           <h1 id="hero-title">Eesti esimene<br>suveräänne nutipilv</h1>
           <h2>Avatud tarkvara ICP pilveprotokollil</h2>
-          <p class="hero-description">Proovi brauseris töötavaid loometööriistu ja salvesta oma failid pilve. subnet.ee demonstreerib avatud pilvemudelit, sihiga jõuda kasutaja enda hallatava pilveni.</p>
+          <p class="hero-description">Loo ja halda oma faile otse brauseris. Kasuta tuttavaid tööriistu või anna oma AI-agendile turvaline ligipääs.</p>
           <div class="hero-buttons"><a class="button primary" href="#tehnoloogia">Tutvu visiooniga <svg viewBox="0 0 24 24" aria-hidden="true"><use href="#icon-arrow"/></svg></a><a class="button secondary" href="#tooriistad">Vaata tööriistu</a></div>
         </div>
       </section>
@@ -89,32 +89,61 @@
     </section>
 
     <section class="technology-panel soft-panel" id="tehnoloogia" aria-labelledby="technology-title">
-      <div class="technology-copy"><p class="eyebrow">AVATUD TARKVARA · AVATUD PILVEPROTOKOLL</p><h2 id="technology-title">Pilveteenusest<br> pilveprotokollini</h2><p class="body-copy">Avatud tarkvara võib töötada ka tavapärases pilveteenuses. Siin ühendame brauseris töötavad loometööriistad ICP avatud pilveprotokolliga.</p><p class="pilot-note">Oleme lisanud ArtCrafti rakendustele ICP-pilvetoe. Nimetame seda siin OpenSaaS-iks: avatud tarkvara teenusena avatud pilveprotokollil.</p><div class="technology-buttons"><button type="button" class="button dark" data-dialog="kuidas">Kuidas alustada?</button><a class="button outline" href="#arhitektuur" data-dialog="arhitektuur">Tehniline ülevaade</a></div></div>
-      <div class="architecture">
+      <div class="technology-copy"><p class="eyebrow">AVATUD TARKVARA · AVATUD PILVEPROTOKOLL</p><h2 id="technology-title">Pilveteenusest<br> pilveprotokollini</h2><p class="body-copy">Internet ühendab sõltumatud võrgud ühiste protokollide abil. ICP toob sama põhimõtte pilve, ühendades sõltumatute teenusepakkujate taristu ühiseks pilvekeskkonnaks. subnet.ee näitab selle mudeli võimalusi avatud loometööriistade kaudu.</p><div class="technology-buttons"><button type="button" class="button dark" data-dialog="kuidas">Kuidas alustada?</button><a class="button outline" href="#arhitektuur" data-dialog="arhitektuur">Tehniline ülevaade</a></div></div>
+      <figure class="architecture" aria-label="ICP pilve kasutusvõimalused">
+        <figcaption class="sr-only">Avatud rakendused saavad kasutada jagatud ICP-pilve või oma pilvemootorit. Mõlemad toetuvad ICP pilveprotokollile.</figcaption>
         <div class="architecture-visual">
-        <svg class="architecture-diagram" viewBox="0 0 580 320" role="img" aria-labelledby="diagram-title diagram-description">
-          <title id="diagram-title">Demo tehniline alus</title><desc id="diagram-description">Crafti loometööriistad töötavad brauseris. Pilveliides ühendab need ICP-l pakutava sisselogimise ja failisalvestusega.</desc>
-          <defs>
-            <linearGradient id="glass-warm" x1="0" y1="0" x2="1" y2="1"><stop stop-color="#fff1dd" stop-opacity=".95"/><stop offset=".5" stop-color="#ecd0b1" stop-opacity=".82"/><stop offset="1" stop-color="#fff3e2" stop-opacity=".9"/></linearGradient>
-            <linearGradient id="glass-blue" x1="0" y1="0" x2="1" y2="1"><stop stop-color="#b8daff"/><stop offset=".5" stop-color="#458fff" stop-opacity=".87"/><stop offset="1" stop-color="#badcff"/></linearGradient>
-            <linearGradient id="glass-dark" x1="0" y1="0" x2="1" y2="1"><stop stop-color="#70849d"/><stop offset=".6" stop-color="#213d5e"/><stop offset="1" stop-color="#627792"/></linearGradient>
-            <filter id="layer-shadow" x="-40%" y="-40%" width="180%" height="200%"><feDropShadow dx="0" dy="13" stdDeviation="9" flood-color="#244772" flood-opacity=".16"/></filter>
-          </defs>
-          <g fill="none" stroke-width="1"><path d="M306 80h65" stroke="#f0bd70"/><path d="M306 157h65" stroke="#8bbbff"/><path d="M306 237h65" stroke="#9dadc0"/></g>
-          <g filter="url(#layer-shadow)">
-            <path d="m65 228 124-48 130 48v9L195 294 65 238Z" fill="#314860" stroke="#8b9bb0"/><path d="m65 228 124-49 130 49-125 55Z" fill="url(#glass-dark)" stroke="#d5e0ef" stroke-opacity=".6"/>
-            <path d="m67 161 122-48 128 47v10l-124 54-126-53Z" fill="#438cf4" fill-opacity=".56" stroke="#a6ceff"/><path d="m67 160 122-48 128 48-124 54Z" fill="url(#glass-blue)" stroke="#c9e4ff" stroke-width="2"/>
-            <path d="m70 85 120-48 124 47v8l-122 52L70 94Z" fill="#f4dec7" fill-opacity=".7" stroke="#ffd5a8"/><path d="m70 84 120-48 124 48-122 52Z" fill="url(#glass-warm)" stroke="#ffe7cc" stroke-width="2"/>
-          </g>
-          <g fill="none" stroke="#fffaf3" stroke-linecap="round" stroke-linejoin="round" stroke-width="4"><path d="m178 73-12 11 12 10m28-21 12 11-12 10m-11-25-9 30"/></g>
-          <path d="M177 184c-15 0-17-20-3-24 0-20 29-22 33-4 18-2 20 26 3 28Z" fill="#d9efff" stroke="#bfe1ff" stroke-width="1.5"/>
-          <g fill="none" stroke="#edf5ff" stroke-width="2"><path d="m192 237-17 24m21-24 17 24m-34 4h30"/><circle cx="194" cy="231" r="6" fill="#324d6f"/><circle cx="173" cy="267" r="6" fill="#324d6f"/><circle cx="215" cy="267" r="6" fill="#324d6f"/></g>
-          <circle cx="377" cy="80" r="8" fill="#ffa500" stroke="#ffe6ba" stroke-width="3"/><circle cx="377" cy="157" r="8" fill="#1873ff" stroke="#d4e7ff" stroke-width="3"/><circle cx="377" cy="237" r="8" fill="#314d70" stroke="#d7e2ee" stroke-width="3"/>
-          <g class="diagram-labels"><text x="399" y="85">Avatud rakendused</text><text x="399" y="108" class="diagram-note">Loomevahendid brauseris</text><text x="399" y="162">Pilveliides</text><text x="399" y="185" class="diagram-note">Sisselogimine ja failid</text><text x="399" y="242">ICP pilveprotokoll</text><text x="399" y="265" class="diagram-note">Veeb ja andmesalvestus</text></g>
-        </svg>
+          <svg class="architecture-diagram" viewBox="0 0 320 360" aria-hidden="true">
+            <defs>
+              <linearGradient id="glass-warm" x1="0" y1="0" x2="1" y2="1"><stop stop-color="#fff1dd"/><stop offset=".5" stop-color="#ecd0b1"/><stop offset="1" stop-color="#fff3e2"/></linearGradient>
+              <linearGradient id="glass-blue" x1="0" y1="0" x2="1" y2="1"><stop stop-color="#b8daff"/><stop offset=".5" stop-color="#649af0"/><stop offset="1" stop-color="#badcff"/></linearGradient>
+              <linearGradient id="glass-protocol" x1="0" y1="0" x2="1" y2="1"><stop stop-color="#d3e1f0"/><stop offset=".55" stop-color="#9fb8d5"/><stop offset="1" stop-color="#deebf8"/></linearGradient>
+              <filter id="layer-shadow" x="-40%" y="-40%" width="180%" height="200%"><feDropShadow dx="0" dy="10" stdDeviation="8" flood-color="#244772" flood-opacity=".13"/></filter>
+            </defs>
+            <g class="architecture-connections" fill="none" stroke="#afc6e3" stroke-width="1.5">
+              <path data-layer-links="upper" d="M160 124v10"/>
+              <path data-layer-links="lower" d="M160 242v5"/>
+            </g>
+            <g class="architecture-layer" data-layer="protocol">
+              <g filter="url(#layer-shadow)" transform="translate(0 283) scale(1 .86) translate(0 -283)">
+                <path d="m40 284 120-48 120 48v8l-120 52L40 292Z" fill="#8ba6c6" fill-opacity=".65" stroke="#bfd2e7"/>
+                <path d="m40 283 120-48 120 48-120 52Z" fill="url(#glass-protocol)" stroke="#e6f0fa" stroke-width="1.5"/>
+              </g>
+              <g transform="translate(160 283) scale(.86) translate(-160 -283)">
+                <path d="M119 307c-14 0-23-9-23-20s9-20 21-20c5-15 22-21 35-12 14-13 37-6 41 12 17-3 31 7 31 20 0 12-10 20-24 20Z" fill="#f3f8ff" fill-opacity=".38" stroke="#f3f8ff" stroke-opacity=".9" stroke-width="1.8" stroke-linejoin="round"/>
+                <image href="/assets/brand/icp.svg" x="126" y="270" width="68" height="32"/>
+              </g>
+            </g>
+            <g class="architecture-layer" data-layer="environment">
+              <g filter="url(#layer-shadow)" transform="translate(0 182) scale(1 .86) translate(0 -182)">
+                <path d="m40 183 120-48 120 48v8l-120 52L40 191Z" fill="#77abec" fill-opacity=".5" stroke="#b5d6fc"/><path d="m40 182 120-48 120 48-120 52Z" fill="url(#glass-blue)" stroke="#d6e8ff" stroke-width="1.5"/>
+                <path d="M160 135v98" fill="none" stroke="#eff7ff" stroke-opacity=".8" stroke-width="1.5"/>
+              </g>
+              <g fill="none" stroke="#285b94" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round">
+                <circle cx="127" cy="182" r="18"/>
+                <ellipse cx="127" cy="182" rx="8" ry="18"/>
+                <path d="M109 182h36M112 172h30M112 192h30"/>
+              </g>
+              <image href="/assets/brand/subnet.png" x="167" y="164" width="50" height="36"/>
+            </g>
+            <g class="architecture-layer" data-layer="applications">
+              <g filter="url(#layer-shadow)" transform="translate(0 72) scale(1 .86) translate(0 -72)"><path d="m40 73 120-48 120 48v8l-120 52L40 81Z" fill="#f4dec7" stroke="#ffd5a8"/><path d="m40 72 120-48 120 48-120 52Z" fill="url(#glass-warm)" stroke="#ffe7cc" stroke-width="2"/></g>
+              <g fill="none" stroke="#9b693b" stroke-linecap="round" stroke-linejoin="round" stroke-width="3"><path d="m143 62-12 11 12 10m34-21 12 11-12 10m-12-27-10 33"/></g>
+            </g>
+          </svg>
         </div>
-        <dl class="architecture-legend" aria-hidden="true"><div><dt>Avatud rakendused</dt><dd>Loomevahendid brauseris</dd></div><div><dt>Pilveliides</dt><dd>Sisselogimine ja failid</dd></div><div><dt>ICP pilveprotokoll</dt><dd>Veeb ja andmesalvestus</dd></div></dl>
-      </div>
+        <div class="architecture-labels">
+          <button class="architecture-label" type="button" data-layer="applications" aria-pressed="false">
+            <span class="layer-title">Avatud rakendused</span><span class="layer-note">Tööriistad ja teenused</span>
+          </button>
+          <button class="architecture-label" type="button" data-layer="environment" aria-pressed="false">
+            <span class="layer-title">Pilvekeskkond</span><span class="layer-note">Jagatud ICP-pilv või oma pilvemootor</span>
+          </button>
+          <button class="architecture-label" type="button" data-layer="protocol" aria-pressed="false">
+            <span class="layer-title">ICP pilveprotokoll</span><span class="layer-note">Arvutus · andmed · turvalisus</span>
+          </button>
+        </div>
+      </figure>
     </section>
 
     <section class="roadmap-panel soft-panel" id="arendus" aria-labelledby="roadmap-title">
@@ -122,9 +151,9 @@
       <ol class="roadmap-stages">
         <li class="roadmap-stage is-current"><div class="stage-heading"><span class="stage-number" aria-hidden="true">01</span><span class="stage-status">PRAEGU</span></div><h3>Avalik ICP-demo</h3><p>Crafti rakendused töötavad brauseris. Oma kontoga saad töid pilve salvestada ja hiljem uuesti avada.</p></li>
         <li class="roadmap-stage"><div class="stage-heading"><span class="stage-number" aria-hidden="true">02</span><span class="stage-status">JÄRGMINE</span></div><h3><a href="https://opencloud.org" target="_blank" rel="noopener noreferrer">Pilvemootor <span aria-hidden="true">↗</span></a></h3><p>Plaanime viia teenuse OpenCloudi pilvemootorile, et pakkuda suuremate failide salvestamist mõistlikuma kuluga. Ootame toote peatset kättesaadavaks muutumist.</p></li>
-        <li class="roadmap-stage"><div class="stage-heading"><span class="stage-number" aria-hidden="true">03</span><span class="stage-status">ICP ARENGUPLAANIS</span></div><h3>Kasutaja enda pilv</h3><p>Siht on sinu enda andmekanister ja soodne failisalvestus otse ICP protokollil. Ootame selleks Protiumi salvestuslahendust, mis on juba ICP ametlikus arenguplaanis.</p><a class="text-link roadmap-source" href="https://internetcomputer.org/roadmap/#Compute%20Platform-Protium" target="_blank" rel="noopener noreferrer">Protium ICP arenguplaanis <span aria-hidden="true">↗</span></a></li>
+        <li class="roadmap-stage"><div class="stage-heading"><span class="stage-number" aria-hidden="true">03</span><span class="stage-status">ICP ARENGUPLAANIS</span></div><h3>Kasutaja enda pilv</h3><p>Siht on sinu enda andmekanister ja soodne failisalvestus otse ICP protokollil. Ootame selleks suurte failide salvestuslahendust, mis on juba ICP ametlikus arenguplaanis.</p><a class="text-link roadmap-source" href="https://internetcomputer.org/roadmap/#Compute%20Platform-Protium" target="_blank" rel="noopener noreferrer">Failisalvestus ICP arenguplaanis <span aria-hidden="true">↗</span></a></li>
       </ol>
-      <p class="roadmap-timing">Pilvemootori ja Protiumi valmimisel saame need võimalused loometööriistadega siduda.</p>
+      <p class="roadmap-timing">Pilvemootori ja uue salvestuslahenduse valmimisel saame need võimalused loometööriistadega siduda.</p>
       <p class="demo-note">Keskkond on arenduses. Katseta mittetundlike failidega ja hoia oma töödest ka kohalik koopia.</p>
     </section>
   </div>
@@ -171,7 +200,7 @@
       <details open><summary>Kas see on valmis teenus?</summary><p>See on töötav avalik demo, mida arendame edasi. Saad juba kasutada rakendusi ja pilvesalvestust. Kavandatud järgmised etapid leiad arenguplaanist.</p><a class="text-link" href="#arendus" data-close-anchor>Vaata arenguplaani →</a></details>
       <details><summary>Mida tähendab nutipilv?</summary><p>Nutipilve all peame siin silmas ICP avatud pilveprotokollile toetuvat rakenduste ja andmete keskkonda. Pikemas visioonis kuuluvad siia ka tehisaruteenused.</p></details>
       <details><summary>Mida tähendab suveräänne pilv?</summary><p>Meie siht on, et inimene saaks hallata oma andmekanistrit ja valida, millised rakendused sellega ühenduvad. Tänane demo näitab selle suuna esimest sammu: avatud loometööriistu koos ICP-pilvetoega.</p></details>
-      <details><summary>Kas mul on juba enda andmekanister?</summary><p>Praegu asuvad pilvefailid teenuse hallatavas andmekanistris ning on seotud sinu kontoga. Siht on kasutaja enda kanister koos soodsa failisalvestusega otse ICP protokollil. Selleks ootame ICP ametlikku arenguplaani kuuluva Protiumi salvestuslahendust.</p></details>
+      <details><summary>Kas mul on juba enda andmekanister?</summary><p>Praegu asuvad pilvefailid teenuse hallatavas andmekanistris ning on seotud sinu kontoga. Siht on kasutaja enda kanister koos soodsa failisalvestusega otse ICP protokollil. Selleks ootame ICP ametlikku arenguplaani kuuluvat suurte failide salvestuslahendust.</p></details>
       <details><summary>Kuidas on pilvefailide ligipääs korraldatud?</summary><p>Taustateenus kontrollib sisselogitud kasutaja õigust tema failidele ligi pääseda. Teenuse haldajad saavad kanistri koodi uuendada. Pilvesalvestus ei kasuta praegu otsast lõpuni krüpteerimist.</p></details>
       <details><summary>Millised tööriistad on olemas?</summary><p>PhotoCraft piltidele, PdfCraft PDF-idele, WordCraft tekstidele, DeckCraft esitlustele, SoundCraft helile, CADCraft joonistele ja GridCraft tabelitele.</p></details>
       <details><summary>Kas pean midagi paigaldama?</summary><p>Rakendused töötavad otse sinu brauseris. Vali tööruumist sobiv tööriist ja ava see.</p></details>
@@ -185,8 +214,8 @@
     <ol class="steps"><li><h3>Avatud rakendused töötavad brauseris</h3><p>ArtCrafti avatud lähtekoodiga loomevahendid laaditakse brauserisse. Pildi-, teksti- ja muu loometöötlus toimub kasutaja seadmes.</p></li><li><h3>EFTI pilveliides ühendab rakendused ICP-ga</h3><p>Sisselogimiseks kasutame Internet Identityt. Pilveliides lisab rakendustele failide salvestamise, versioonid ja uuesti avamise. Taustateenus kontrollib kasutaja ligipääsu tema failidele.</p></li><li><h3>Demo veeb ja pilvefailid asuvad ICP-s</h3><p>Veebilehte ja rakendusefaile teenindab esikanister. Pilvefailid ja nende versioonid asuvad eraldi andmekanistris. Tänast kanistrit haldab teenuse käitaja.</p></li></ol>
     <h3 class="dialog-subtitle">Teenuse taristu ja kasutaja kontroll</h3>
     <p>Pilvemootori etapis on eesmärk pakkuda suuremate failide salvestamist mõistlikuma kuluga. Ootame OpenCloudi toote peatset kättesaadavaks muutumist.</p>
-    <p>Kasutaja enda pilve siht on isiklik andmekanister ja soodne failisalvestus otse ICP protokollil. Seda toetab ICP ametlikus arenguplaanis olev Protium (Immutable Blob Storage), mis on mõeldud suurte muutumatute failide turvaliseks ja kulutõhusaks salvestamiseks. subnet.ee ülesanne on liidestada loometööriistad selle võimaluse ja kasutaja enda kanistriga.</p>
-    <p><a class="text-link" href="https://internetcomputer.org/roadmap/#Compute%20Platform-Protium" target="_blank" rel="noopener noreferrer">Protium ICP arenguplaanis <span aria-hidden="true">↗</span></a></p>
+    <p>Kasutaja enda pilve siht on isiklik andmekanister ja soodne failisalvestus otse ICP protokollil. Seda toetab ICP ametlikus arenguplaanis olev salvestuslahendus, mis on mõeldud suurte muutumatute failide turvaliseks ja kulutõhusaks salvestamiseks. subnet.ee ülesanne on liidestada loometööriistad selle võimaluse ja kasutaja enda kanistriga.</p>
+    <p><a class="text-link" href="https://internetcomputer.org/roadmap/#Compute%20Platform-Protium" target="_blank" rel="noopener noreferrer">Failisalvestus ICP arenguplaanis <span aria-hidden="true">↗</span></a></p>
     <a class="text-link" href="#arendus" data-close-anchor>Vaata arenguplaani →</a>
   </dialog>
   <dialog class="info-dialog" id="lahtekood" aria-labelledby="source-title">
