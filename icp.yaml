@@ -13,3 +13,13 @@ networks:
     mode: managed
     gateway:
       port: 0
+
+environments:
+  - name: ic
+    network: ic
+    canisters: [frontend, cloud]
+    settings:
+      frontend:
+        environment_variables:
+          PUBLIC_SOVEREIGN_CLOUD_GATEWAY: "https://icp-api.io"
+          PUBLIC_SOVEREIGN_CLOUD_DERIVATION_ORIGIN: "https://vigkv-fqaaa-aaaac-bgeha-cai.icp.net"

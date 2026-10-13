@@ -122,9 +122,7 @@ def landing_cards(apps):
 def assemble(root=ROOT, selected=("portal",)):
     apps = json.loads((root / "registry/apps.json").read_text())
     english = dictionary(root / "portal/translations.js")
-    ids = root / ".icp/data/mappings/ic.ids.json"
-    default_origin = f"https://{json.loads(ids.read_text())['frontend']}.icp.net" if ids.exists() else "https://subnet.ee"
-    origin = os.environ.get("SUBNET_PUBLIC_ORIGIN", default_origin).rstrip("/")
+    origin = os.environ.get("SUBNET_PUBLIC_ORIGIN", "https://www.subnet.ee").rstrip("/")
     parsed_origin = urlsplit(origin)
     if parsed_origin.scheme not in ("http", "https") or not parsed_origin.netloc or parsed_origin.path or parsed_origin.query or parsed_origin.fragment:
         raise RuntimeError("SUBNET_PUBLIC_ORIGIN must be an absolute HTTP(S) origin without a path")
@@ -221,9 +219,10 @@ def assemble(root=ROOT, selected=("portal",)):
             parser.feed((folder / "editor.html").read_text())
             hashes.extend("'sha256-" + base64.b64encode(hashlib.sha256(s.encode()).digest()).decode() + "'" for s in parser.scripts)
         policy = "; ".join(["default-src 'self'", "script-src 'self' 'wasm-unsafe-eval' " + " ".join(sorted(set(hashes))),
-            "style-src 'self' 'unsafe-inline'", "img-src 'self' data: blob:", "font-src 'self' data:", "connect-src 'self'", "worker-src 'self' blob:", "media-src 'self' blob:", "object-src 'none'", "base-uri 'self'", "frame-ancestors 'self'"])
+            "style-src 'self' 'unsafe-inline'", "img-src 'self' data: blob:", "font-src 'self' data:", "connect-src 'self' https://icp-api.io", "worker-src 'self' blob:", "media-src 'self' blob:", "object-src 'none'", "base-uri 'self'", "frame-ancestors 'self'"])
         headers = f"/*\n  X-Content-Type-Options: nosniff\n  Referrer-Policy: no-referrer\n  Content-Security-Policy: {policy}\n\n/*.html\n  Cache-Control: no-cache\n\n/*.css\n  Cache-Control: no-cache\n\n/*.json\n  Cache-Control: no-cache\n\n/i18n.js\n  Cache-Control: no-cache\n\n/translations.js\n  Cache-Control: no-cache\n\n/landing.js\n  Cache-Control: no-cache\n\n/cloud.js\n  Cache-Control: no-cache\n\n/craft-shell.js\n  Cache-Control: no-cache\n\n/assets/*\n  Cache-Control: no-cache\n\n/apps/*.wasm\n  Content-Type: application/wasm\n  Cache-Control: public, max-age=31536000, immutable\n\n/apps/*.js\n  Cache-Control: public, max-age=31536000, immutable\n\n/cloud/*.wasm\n  Content-Type: application/wasm\n  Cache-Control: public, max-age=31536000, immutable\n\n/cloud/*.js\n  Cache-Control: public, max-age=31536000, immutable\n\n/.well-known/ii-app-metadata\n  Content-Type: application/json\n  Access-Control-Allow-Origin: *\n"
         headers += "\n/craft-loading.js\n  Cache-Control: no-cache\n\n/craft-wasm.js\n  Cache-Control: no-cache\n"
+        headers += "\n/.well-known/ic-domains\n  Content-Type: text/plain\n  Cache-Control: no-cache\n\n/.well-known/ii-alternative-origins\n  Content-Type: application/json\n  Access-Control-Allow-Origin: *\n  Cache-Control: no-cache\n"
         (stage / "_headers").write_text(headers)
         well_known = stage / ".well-known"
         well_known.mkdir(exist_ok=True)

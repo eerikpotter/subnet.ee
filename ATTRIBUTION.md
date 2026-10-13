@@ -6,6 +6,10 @@ subnet.ee workspace and licensed under MIT OR Apache-2.0.
 The subnet.ee cloud mark in `portal/assets/brand/subnet.png` was supplied by the
 project owner and is used unchanged. It is not covered by the portal's code license.
 
+The EFTI mark in `portal/assets/brand/efti.png` identifies the institute in the
+portal footer and links to `https://efti.org/`. It is not covered by the portal's
+code license.
+
 The public landing page follows the owner's supplied reference, "Eesti suveräänse
 nutipilve avaleht.png". The hero uses the owner's "Golden Mist Over Estonian Lakes.png"
 and "cloud_of_estonia.png", copied unchanged to `portal/assets/landing/estonian-lakes.png`

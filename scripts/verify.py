@@ -20,6 +20,7 @@ def main():
     registered = json.loads((ROOT / "registry/apps.json").read_text())
     parser.add_argument("apps", nargs="*", default=["portal"], help="Targets to verify (default: portal); all downloads every editor's assets")
     parser.add_argument("--environment", choices=("local", "ic"), default="local", help="Deployment to verify; defaults to local")
+    parser.add_argument("--origin", help="Custom HTTPS origin to verify on mainnet")
     parser.add_argument("--timings", action="store_true", help="Report HTTP transfer sizes and timings (not browser startup times)")
     options = parser.parse_args()
     app_ids = {app['id'] for app in registered}
@@ -37,6 +38,11 @@ def main():
     ids = json.loads((ROOT / f".icp/{mapping_dir}/mappings/{options.environment}.ids.json").read_text())
     host = (f"{ids['frontend']}.localhost:{port}" if options.environment == "local"
             else f"{ids['frontend']}.{gateway.hostname}")
+    if options.origin:
+        custom = urlparse(options.origin)
+        if options.environment != "ic" or custom.scheme != "https" or not custom.hostname or custom.port or custom.username or custom.password or custom.path not in ("", "/") or custom.query or custom.fragment:
+            parser.error("--origin requires a mainnet HTTPS origin without a port, credentials, path, query or fragment")
+        host = custom.hostname
     timings = {}
     def get(path):
         connection = (http.client.HTTPConnection("127.0.0.1", port, timeout=120)
@@ -95,7 +101,11 @@ def main():
             env = dict(item.split("=", 1) for item in unquote(env_cookie.removeprefix("ic_env=")).split("&"))
             if env.get("PUBLIC_CANISTER_ID:cloud") != ids['cloud'] or env.get("ic_root_key") != network['root_key']:
                 raise RuntimeError("Runtime endpoint/trust does not match deployment network")
+            if options.environment == "ic" and (env.get("PUBLIC_SOVEREIGN_CLOUD_GATEWAY") != "https://icp-api.io" or env.get("PUBLIC_SOVEREIGN_CLOUD_DERIVATION_ORIGIN") != f"https://{ids['frontend']}.icp.net"):
+                raise RuntimeError("Missing custom-domain API or Internet Identity configuration")
             policy = headers.get("content-security-policy", "")
+            if "connect-src 'self' https://icp-api.io" not in policy:
+                raise RuntimeError("CSP blocks the mainnet API")
             parser = InlineScripts()
             parser.feed(data.decode())
             for script in parser.scripts:
@@ -111,6 +121,12 @@ def main():
     status, headers, body = get("/.well-known/ii-app-metadata")
     if status != 200 or json.loads(body)['name'] != "subnet.ee" or headers.get('access-control-allow-origin') != '*':
         raise RuntimeError("II app metadata unavailable")
+    status, headers, body = get("/.well-known/ic-domains")
+    if status != 200 or body.decode().splitlines() != ["www.subnet.ee"] or not headers.get("ic-certificate"):
+        raise RuntimeError("Custom domain ownership file unavailable")
+    status, headers, body = get("/.well-known/ii-alternative-origins")
+    if status != 200 or json.loads(body) != {"alternativeOrigins": ["https://www.subnet.ee"]} or not headers.get("content-type", "").startswith("application/json") or headers.get("access-control-allow-origin") != "*" or not headers.get("ic-certificate"):
+        raise RuntimeError("Internet Identity alternative origin is not available with JSON, CORS and certification")
     url = f"http://frontend.local.localhost:{port}/" if options.environment == "local" else f"https://{host}/"
     print(f"PASS shared site, {len(selected)} selected editors ({', '.join(sorted(selected)) or 'none'}), trust and missing-asset handling\n{options.environment}: {url}")
 

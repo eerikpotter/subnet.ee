@@ -115,6 +115,26 @@ h1 { font-size: clamp(47px, 4.55vw, 68px); line-height: 1.01; font-weight: 600; 
 .architecture-diagram { width: 100%; height: auto; display: block; overflow: visible; }
 .diagram-labels { fill: var(--landing-ink); stroke: none; font: 600 16px var(--font-ui); letter-spacing: -.3px; }
 .diagram-labels .diagram-note { fill: #4b6289; font-weight: 400; font-size: 13px; letter-spacing: -.15px; }
+.roadmap-panel { padding: 29px 30px 23px; margin-bottom: 16px; }
+.roadmap-heading h2 { font-size: clamp(27px, 2.6vw, 36px); line-height: 1.18; font-weight: 600; letter-spacing: -1.2px; margin-bottom: 10px; text-wrap: initial; }
+.roadmap-heading > p:last-child { color: var(--landing-muted); font-size: 15px; line-height: 1.5; margin-bottom: 23px; }
+.roadmap-stages { display: grid; grid-template-columns: repeat(3, minmax(0, 1fr)); list-style: none; padding: 0; margin: 0; gap: 14px; }
+.roadmap-stage { min-width: 0; padding: 20px; border: 1px solid #dfe9f5; border-radius: 12px; background: #ffffff9c; }
+.roadmap-stage.is-current { background: #e8f2ff; border-color: #bad5fc; }
+.stage-heading { display: flex; align-items: center; gap: 12px; margin-bottom: 19px; }
+.stage-number { font: 500 25px/1 var(--font-ui); color: #6284ae; letter-spacing: -1px; }
+.is-current .stage-number { color: var(--landing-blue); }
+.stage-status { color: #345982; font-size: 10px; font-weight: 600; line-height: 1.5; letter-spacing: 1.1px; }
+.roadmap-stage h3 { font-size: 18px; line-height: 1.3; letter-spacing: -.5px; margin-bottom: 10px; text-wrap: initial; }
+.roadmap-stage h3 a { text-decoration: underline; text-decoration-color: #aec6e7; text-underline-offset: 4px; }
+.roadmap-stage h3 a:hover { color: var(--landing-blue); }
+.roadmap-stage h3 a span { color: #6284ae; font-size: 15px; }
+.roadmap-stage > p { color: var(--landing-muted); font-size: 13px; line-height: 1.65; margin: 0; }
+.roadmap-source { margin-top: 14px; font-size: 12px; }
+.roadmap-timing { color: var(--landing-muted); font-size: 12px; line-height: 1.6; margin: 17px 0 14px; }
+.demo-note { color: #495c76; font-size: 12px; line-height: 1.6; border-top: 1px solid #dce7f3; padding-top: 13px; margin: 0; }
+.info-dialog .dialog-subtitle { font-size: 18px; line-height: 1.4; margin: 24px 0 8px; }
+.faq-list .text-link { margin-top: 12px; }
 .creative-banner { position: relative; isolation: isolate; min-height: 282px; overflow: hidden; background: #e9d8be; }
 .creative-banner > img { position: absolute; z-index: -2; width: 100%; height: 100%; object-fit: cover; object-position: center 52%; }
 .creative-banner::after { position: absolute; z-index: -1; inset: 0; content: ''; background: linear-gradient(90deg, #f6efded4 0%, #f9efdba6 23%, transparent 39%, transparent 79%, #fff4e894 93%, #fff6eacc 100%); }
@@ -131,7 +151,10 @@ h1 { font-size: clamp(47px, 4.55vw, 68px); line-height: 1.01; font-weight: 600; 
 .footer-brand > img { width: 46px; height: auto; }
 .footer-brand .subnet-wordmark { font-size: 22px; display: block; line-height: 1.1; }
 .footer-brand small { color: #5c7195; font-size: 9px; display: block; margin-top: 2px; }
-.site-footer nav { display: flex; gap: 30px; color: #455a80; font-size: 12px; }
+.site-footer nav { display: flex; align-items: center; gap: 30px; color: #455a80; font-size: 12px; }
+.footer-efti { display: inline-flex; align-items: center; gap: 8px; min-height: 44px; font-size: 11px; font-weight: 600; letter-spacing: .08em; opacity: .8; transition: opacity .18s, color .18s; }
+.footer-efti img { display: block; width: 32px; height: auto; border-radius: 50%; }
+.footer-efti:hover, .footer-efti:focus-visible { opacity: 1; }
 .footer-meta { display: flex; align-items: center; gap: 24px; }
 .language { display: inline-flex; align-items: center; gap: 8px; font-size: 11px; font-weight: 600; }
 .mini-flag { display: inline-block; width: 16px; height: 11px; border: 1px solid #dbe3ee; background: linear-gradient(#2879ed 0 33.333%, #111b2b 33.333% 66.666%, #fff 66.666%); }
@@ -316,3 +339,16 @@ html[lang="en"] .hero-copy h1 { font-size: clamp(40px, 3.9vw, 59px); }
 
 .main-nav .mobile-workspace { display: none; }
 @media (max-width: 540px) { .main-nav .mobile-workspace { display: block; color: var(--landing-blue); } }
+
+@media (max-width: 860px) {
+  .roadmap-panel { padding: 26px 24px 21px; }
+  .roadmap-stages { grid-template-columns: 1fr; gap: 12px; }
+  .roadmap-stage { padding: 19px 21px; }
+  .stage-heading { margin-bottom: 12px; }
+}
+@media (max-width: 580px) {
+  .roadmap-panel { padding: 25px 19px 20px; margin-bottom: 14px; }
+  .roadmap-heading h2 { font-size: 28px; letter-spacing: -1px; }
+  .roadmap-heading > p:last-child { font-size: 14px; }
+  .roadmap-stage { padding: 18px; }
+}

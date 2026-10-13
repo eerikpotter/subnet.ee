@@ -27,6 +27,18 @@ pub fn origin(value: &str) -> CloudResult<String> {
     Ok(parsed.origin().ascii_serialization())
 }
 
+// Internet Identity treats the official gateway aliases as one application.
+fn identity_origin(value: &str) -> String {
+    for suffix in [".icp.net", ".icp0.io", ".ic0.app"] {
+        if let Some(id) = value.strip_prefix("https://").and_then(|host| host.strip_suffix(suffix))
+            && let Ok(canister) = Principal::from_text(id)
+        {
+            return format!("https://{canister}.icp.net");
+        }
+    }
+    value.to_string()
+}
+
 pub fn environment(cookies: &str) -> CloudResult<BTreeMap<String, String>> {
     let mut found = None;
     for cookie in cookies.split(';').map(str::trim).filter_map(|c| c.strip_prefix("ic_env=")) {
@@ -51,6 +63,7 @@ pub fn environment(cookies: &str) -> CloudResult<BTreeMap<String, String>> {
 impl ServiceEndpoint {
     pub fn from_environment(cookies: &str, application_origin: &str) -> CloudResult<Self> {
         let env = environment(cookies)?;
+        let application_origin = origin(application_origin)?;
         let canister = Principal::from_text(env.get("PUBLIC_CANISTER_ID:cloud").ok_or("Cloud canister is not configured")?).map_err(|e| e.to_string())?;
         if canister == Principal::anonymous() || canister == Principal::management_canister() {
             return Err("Invalid cloud canister".into());
@@ -59,12 +72,16 @@ impl ServiceEndpoint {
         if root_key.len() != 133 {
             return Err("Invalid network trust key length".into());
         }
-        Ok(Self {
-            gateway: origin(env.get("SOVEREIGN_CLOUD_GATEWAY").map_or(application_origin, String::as_str))?,
-            canister,
-            root_key,
-            derivation_origin: env.get("SOVEREIGN_CLOUD_DERIVATION_ORIGIN").map(|s| origin(s)).transpose()?,
-        })
+        // Certified-assets exposes only PUBLIC_* settings in its certified cookie.
+        // Keep the old names readable for existing independently hosted clients.
+        let gateway = env.get("PUBLIC_SOVEREIGN_CLOUD_GATEWAY").or_else(|| env.get("SOVEREIGN_CLOUD_GATEWAY"));
+        let derivation_origin = env
+            .get("PUBLIC_SOVEREIGN_CLOUD_DERIVATION_ORIGIN")
+            .or_else(|| env.get("SOVEREIGN_CLOUD_DERIVATION_ORIGIN"))
+            .map(|s| origin(s))
+            .transpose()?
+            .filter(|value| identity_origin(value) != identity_origin(&application_origin));
+        Ok(Self { gateway: origin(gateway.map_or(application_origin.as_str(), String::as_str))?, canister, root_key, derivation_origin })
     }
 }
 
@@ -93,5 +110,37 @@ mod tests {
         assert_eq!(endpoint.derivation_origin, None);
         assert_eq!(endpoint.gateway, "https://subnet.ee");
         assert!(ServiceEndpoint::from_environment("ic_env=PUBLIC_CANISTER_ID:cloud=rn333-2qaaa-aaaas-amyfa-cai", "https://subnet.ee").is_err());
+    }
+
+    #[test]
+    fn custom_domain_uses_public_api_and_existing_canister_identity() {
+        let key = "11".repeat(133);
+        let primary = "https://vigkv-fqaaa-aaaac-bgeha-cai.icp.net";
+        let cookies = format!(
+            "ic_env=PUBLIC_CANISTER_ID:cloud=vbfbj-tyaaa-aaaac-bgegq-cai&ic_root_key={key}&PUBLIC_SOVEREIGN_CLOUD_GATEWAY=https://icp-api.io&PUBLIC_SOVEREIGN_CLOUD_DERIVATION_ORIGIN={primary}"
+        );
+        let endpoint = ServiceEndpoint::from_environment(&cookies, "https://www.subnet.ee").unwrap();
+        assert_eq!(endpoint.gateway, "https://icp-api.io");
+        assert_eq!(endpoint.derivation_origin.as_deref(), Some(primary));
+        for suffix in ["icp.net", "icp0.io", "ic0.app"] {
+            let origin = format!("https://vigkv-fqaaa-aaaac-bgeha-cai.{suffix}");
+            let endpoint = ServiceEndpoint::from_environment(&cookies, &origin).unwrap();
+            assert_eq!(endpoint.gateway, "https://icp-api.io");
+            assert_eq!(endpoint.derivation_origin, None);
+        }
+        let other = ServiceEndpoint::from_environment(&cookies, "https://vbfbj-tyaaa-aaaac-bgegq-cai.icp.net").unwrap();
+        assert_eq!(other.derivation_origin.as_deref(), Some(primary));
+    }
+
+    #[test]
+    fn public_endpoint_settings_are_validated_and_local_stays_local() {
+        let base = format!("ic_env=PUBLIC_CANISTER_ID:cloud=vbfbj-tyaaa-aaaac-bgegq-cai&ic_root_key={}", "11".repeat(133));
+        for setting in ["PUBLIC_SOVEREIGN_CLOUD_GATEWAY=http://remote.example", "PUBLIC_SOVEREIGN_CLOUD_DERIVATION_ORIGIN=https://example.com/path"] {
+            assert!(ServiceEndpoint::from_environment(&format!("{base}&{setting}"), "https://www.subnet.ee").is_err());
+        }
+        let local = "http://frontend.local.localhost:8000";
+        let endpoint = ServiceEndpoint::from_environment(&base, local).unwrap();
+        assert_eq!(endpoint.gateway, local);
+        assert_eq!(endpoint.derivation_origin, None);
     }
 }

@@ -152,6 +152,9 @@ for (const opener of document.querySelectorAll('[data-dialog]')) {
 }
 for (const dialog of document.querySelectorAll('dialog')) {
   dialog.querySelector('[data-close]').addEventListener('click', () => dialog.close());
+  for (const link of dialog.querySelectorAll('[data-close-anchor]')) {
+    link.addEventListener('click', () => dialog.close());
+  }
   dialog.addEventListener('click', (event) => {
     const box = dialog.getBoundingClientRect();
     if (event.target === dialog && (event.clientX < box.left || event.clientX > box.right || event.clientY < box.top || event.clientY > box.bottom)) dialog.close();

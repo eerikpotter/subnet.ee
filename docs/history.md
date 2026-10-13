@@ -2,6 +2,21 @@
 
 [Project overview](../README.md) · [Development](development.md) · [Deployment](deployment.md)
 
+## Public demo and custom-domain source publication — 13 October 2026
+
+Committed the deployed custom-domain configuration, canonical cloud SDK and its
+seven editor snapshots, public-demo copy and roadmap, workspace attribution and
+EFTI footer mark. The SDK preserves the canister identity on the custom domain
+and uses the certified public gateway settings.
+
+Publication checks passed: 32 portal JavaScript tests, 16 Python workflow tests,
+13 SDK tests, native SDK Clippy, the browser/Wasm SDK check, all seven snapshot
+integrity checks, and secret scanning of the changed files. The custom-domain
+HTTP verifier passed for the portal, shared assets, configuration and editor entry
+pages. This run did not download every editor's Wasm bundle or repeat sign-in.
+Full editor CI passed formatting but stopped at Clippy errors in unchanged
+upstream crates; it is not a fully green editor-wide CI result.
+
 ## Archive: 10–13 October 2026
 
 The notes below were moved from the project README on 13 October 2026.
