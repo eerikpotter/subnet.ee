@@ -1,0 +1,11 @@
+[workspace]
+members = ["probe", "runner"]
+resolver = "2"
+
+[workspace.dependencies]
+candid = "0.10"
+serde = { version = "1", features = ["derive"] }
+
+[profile.release]
+opt-level = "s"
+lto = true

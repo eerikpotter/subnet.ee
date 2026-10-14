@@ -78,6 +78,16 @@ pub fn style(ui: &mut egui::Ui) {
     }
 }
 
+/// Some hosts install their named styles one frame before egui applies the fonts.
+/// Even a window's title bar resolves those styles before its contents are drawn.
+pub fn host_fonts_ready(ctx: &egui::Context) -> bool {
+    let style = ctx.global_style();
+    ctx.fonts(|fonts| {
+        let families = fonts.families();
+        style.text_styles.values().chain(style.override_font_id.iter()).all(|font| families.contains(&font.family))
+    })
+}
+
 pub fn section(ui: &egui::Ui) -> egui::Frame {
     let t = palette(ui.ctx());
     egui::Frame::new().fill(t.card).stroke(egui::Stroke::new(1.0, t.card_border)).corner_radius(t.radius_lg).inner_margin(16.0)
@@ -271,6 +281,37 @@ pub fn file_row(ui: &mut egui::Ui, id: u64, name: &str, timestamp: &str, add_det
 mod tests {
     use super::*;
     use egui_kittest::{Harness, kittest::Queryable};
+
+    #[test]
+    fn cold_start_waits_for_host_fonts_without_changing_editor_style() {
+        let ctx = egui::Context::default();
+        let pending = egui::FontId::new(14.0, egui::FontFamily::Name("semibold".into()));
+        ctx.all_styles_mut(|style| {
+            for font in style.text_styles.values_mut() {
+                *font = pending.clone();
+            }
+            style.override_font_id = Some(pending.clone());
+        });
+        let mut output = ctx.run_ui(Default::default(), |root| {
+            assert!(!host_fonts_ready(root.ctx()));
+            let mut definitions = egui::FontDefinitions::default();
+            definitions.families.insert(pending.family.clone(), definitions.families[&egui::FontFamily::Proportional].clone());
+            root.ctx().set_fonts(definitions);
+            assert!(!host_fonts_ready(root.ctx()));
+        });
+        output.textures_delta.clear();
+        let mut output = ctx.run_ui(Default::default(), |root| {
+            assert!(host_fonts_ready(root.ctx()));
+            egui::Window::new("Cloud drive").show(root.ctx(), |ui| {
+                style(ui);
+                transfer(ui, "Connecting…", None);
+                notification(ui, "Opened read-only", false);
+            });
+        });
+        output.textures_delta.clear();
+        // Waiting for the next frame preserves the editor's fonts and theme.
+        assert_eq!(ctx.global_style().override_font_id.as_ref(), Some(&pending));
+    }
 
     #[test]
     fn naming_dialog_confirms_once_and_can_be_cancelled() {

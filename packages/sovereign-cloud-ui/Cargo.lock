@@ -4137,6 +4137,7 @@ name = "sovereign-cloud"
 version = "0.1.0"
 dependencies = [
  "candid",
+ "futures",
  "hex",
  "ic-agent",
  "ic-auth-client",

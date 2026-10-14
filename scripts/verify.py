@@ -60,13 +60,14 @@ def main():
     if [app['id'] for app in manifest['apps']] != [app['id'] for app in registered]:
         raise RuntimeError("Deployed bundle must include every registered app in order")
     portal = (ROOT / "dist/index.html").read_text()
-    workspace = (ROOT / "dist/tooruum/index.html").read_text()
+    workspace = (ROOT / "dist/pilveruum/index.html").read_text()
     if '__APP_COUNT' in portal + workspace or f"{len(registered)} tööriista" not in workspace:
         raise RuntimeError("Portal application count does not match the registry")
     checks = [("/", ROOT / "dist/index.html"), ("/style.css", ROOT / "dist/style.css"), ("/apps.json", ROOT / "dist/apps.json")]
     checks.extend((route, ROOT / "dist" / path) for route, path in [
-        ("/tooruum/", "tooruum/index.html"), ("/en/", "en/index.html"), ("/en/tooruum/", "en/tooruum/index.html")])
-    checks.extend(("/" + name, ROOT / "dist" / name) for name in ["landing.css", "landing.js", "tooruum/index.html", "assets/brand/subnet.png", "assets/landing/estonian-lakes.png", "assets/landing/cloud-of-estonia.png", "assets/landing/creative-workspace.jpg"])
+        ("/pilveruum/", "pilveruum/index.html"), ("/en/", "en/index.html"), ("/en/pilveruum/", "en/pilveruum/index.html")])
+    checks.extend(("/" + name, ROOT / "dist" / name) for name in ["landing.css", "landing.js", "pilveruum/index.html", "assets/brand/subnet.png", "assets/landing/estonian-lakes.png", "assets/landing/cloud-of-estonia.png", "assets/landing/creative-workspace.jpg"])
+    checks.extend(("/" + name, ROOT / "dist" / name) for name in ["agent-workflow.css", "agent-workflow.js", "assets/landing/sovereign-cloud.png"])
     checks.append(("/cloud.js", ROOT / "dist/cloud.js"))
     if "portal" in options.apps or "all" in options.apps:
         checks.extend(("/" + name, ROOT / "dist" / name) for name in manifest["portalAssets"])
@@ -80,7 +81,7 @@ def main():
         checks.append((app['path'], folder / "index.html"))
         shell = (folder / "index.html").read_text()
         if ('__APP_NAME__' in shell or 'id="craft-editor"' not in shell or 'data-leave' not in shell
-                or 'href="/tooruum/"' not in shell or 'href="/tooruum/#failid"' not in shell):
+                or 'href="/pilveruum/"' not in shell or 'href="/pilveruum/#failid"' not in shell):
             raise RuntimeError(f"Missing shared navigation: {app['id']}")
         checks.append((app['editorPath'], folder / "editor.html"))
         if app['id'] not in selected:
@@ -127,6 +128,23 @@ def main():
     status, headers, body = get("/.well-known/ii-alternative-origins")
     if status != 200 or json.loads(body) != {"alternativeOrigins": ["https://www.subnet.ee"]} or not headers.get("content-type", "").startswith("application/json") or headers.get("access-control-allow-origin") != "*" or not headers.get("ic-certificate"):
         raise RuntimeError("Internet Identity alternative origin is not available with JSON, CORS and certification")
+    status, headers, body = get("/.well-known/ic-architecture")
+    if (status != 200 or not headers.get("content-type", "").startswith("application/json")
+            or headers.get("access-control-allow-origin") != "*" or not headers.get("ic-certificate")
+            or "no-cache" not in headers.get("cache-control", "")):
+        raise RuntimeError("MCP manifest is not available with JSON, CORS, revalidation and certification")
+    discovery = json.loads(body)
+    if (discovery.get("version") != "1.0.0"
+            or [entry.get("id") for entry in discovery.get("canisters", [])] != [ids['cloud']]):
+        raise RuntimeError("MCP manifest must declare exactly this environment's cloud API")
+    status, headers, body = get("/.well-known/ii-derivation-origin")
+    if options.environment == "ic":
+        if (status != 200 or body.decode().strip() != f"https://{ids['frontend']}.icp.net"
+                or not headers.get("content-type", "").startswith("text/plain")
+                or not headers.get("ic-certificate") or "no-cache" not in headers.get("cache-control", "")):
+            raise RuntimeError("MCP and browser Internet Identity origins differ")
+    elif status != 404:
+        raise RuntimeError("Local MCP identity must default to the visible origin")
     url = f"http://frontend.local.localhost:{port}/" if options.environment == "local" else f"https://{host}/"
     print(f"PASS shared site, {len(selected)} selected editors ({', '.join(sorted(selected)) or 'none'}), trust and missing-asset handling\n{options.environment}: {url}")
 

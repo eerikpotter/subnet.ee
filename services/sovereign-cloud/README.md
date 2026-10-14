@@ -1,31 +1,58 @@
-# Sovereign Cloud account and file service
+# Sovereign Cloud file service
 
-Canonical backend for the subnet.ee workspace. Deploy it as the existing `cloud`
-canister, using the root `icp.yaml`. PhotoCraft's standalone backend is a checked
-source snapshot maintained by `scripts/sync-service.py`; its build remains independent.
+Canonical backend for subnet.ee. Deploy upgrades to the existing `cloud` canister
+using the root `icp.yaml`; never reinstall it to update code. PhotoCraft's standalone
+backend snapshot remains independent (`scripts/sync-service.py`).
 
-This milestone adds an idempotent account resolver and an owner-private file catalog.
-The authenticated IC caller is the authority; neither a space ID nor an app label is
-a credential. Account/personal-space IDs are stable within the logical service.
+The signed application principal is the authority. A space/file ID or app label is
+not a credential. Browser and hosted ICP MCP calls currently have the same account
+rights; separate agent credentials and proposal workflows are deferred. See
+[API reference](api.md) and [collaboration specification](../../docs/collaboration-spec.md).
 
-The old V1 Project, Upload and Revision encodings and Candid methods remain supported.
-Stable memory IDs 0–5 are unchanged; 6 stores accounts keyed by principal and 7 stores
-account/file index entries. On first account resolution, existing V1 files are indexed
-without moving their content. This bounded migration relies on the existing 1000-file
-service ceiling. Removing that ceiling requires a batched migration/index strategy.
+## Storage and access
 
-`list_files(space, cursor, limit)` returns only committed files, maximum 50 per page,
-with their latest revision. All current V1 files are PhotoCraft format version 1.
-`get_file` checks the same caller/space ownership and returns full version metadata.
-Both are update calls so catalog and ownership information comes through consensus.
-SDK downloads continue to verify query chunks against a consensus-backed manifest.
+Files retain their owner and space when moved or shared. Principals index owned
+objects/projects and received grants; parent IDs index folder children. File IDs
+resolve directly. `drive_home` returns the account and initial view in one
+consensus update. Folder navigation returns the folder, readable breadcrumbs,
+one page and, on its first page, a bounded metadata catalog of up to 200 entries
+in that subtree (including its root). The catalog explicitly identifies completely
+listed folders; partial folders are never represented as complete. File contents
+and revision history are not prefetched. Shared callers never receive private ancestors
+or siblings. Every operation checks current grants, expiry and the live hierarchy.
+Chunk queries are verified against consensus-backed manifests by the SDK.
 
-The next milestone can introduce a generic typed create operation, file metadata
-mutations, folders, typed errors and multi-blob revisions. Do not connect other file
-formats to the legacy create_project method. The original quotas and upload retention
-policy are still in force; this milestone does not implement shared spaces, grants,
-end-to-end encryption or user-controlled canister provisioning.
+Stable memory IDs are permanent:
 
-Tests include owner isolation, idempotent accounts, catalog pagination, incomplete
-upload exclusion, stable state reopening, full V1 upload/upgrade behavior and a real
-old-Wasm upgrade followed by catalog access and an additional revision of the same file.
+- 0–8: original counters, projects, uploads, immutable chunks, usage, accounts,
+  account/file catalog and native format metadata. Original encodings are retained.
+- 9: retired serialized access graph, used only for the one-time migration.
+- 10: reserved for a withdrawn prototype; never reused.
+- 11–13: attribution, mutation receipts and drive upload staging.
+- 14–20: authoritative objects, parent index, grants by root, grants by recipient,
+  objects by owner, tree version and migration marker.
+- 21–23: projects by owner, pending uploads by owner and by uploader.
+
+Upgrade initializes these indexes once from the bounded previous alpha state.
+Normal reads fetch the requested path/page; mutations load only the affected
+owner's bounded working set and persist changed records. They do not deserialize
+other accounts' files. No user files are kept solely in heap memory. Related
+records and indexes change synchronously in the same canister message.
+
+After migration, **do not downgrade to a pre-index binary**: memory 9 is frozen.
+Use a compatible forward fix. A snapshot restore requires reviewing every write
+since the snapshot because it rewinds user data as well as code.
+
+## Compatibility and checks
+
+Legacy Craft methods remain owner-only, reject trashed ancestors, and retain
+native bytes, IDs and history. New drive methods support folder organization,
+sharing, soft deletion/recovery, inline files and chunked create/replace. The
+current alpha storage, file count and revision limits remain in force. No
+per-user canister provisioning or end-to-end encryption is added here.
+
+Unit tests cover ACLs, scope isolation, moves, trash, retries and index persistence.
+SDK/PocketIC tests cover original V1 upgrades, all seven native formats and an
+upgrade from the pre-index shared-drive Wasm, including grants, lost commit
+responses and immutable bytes. Browser QA separately checks actual navigation,
+upload feedback, session changes and language switching.

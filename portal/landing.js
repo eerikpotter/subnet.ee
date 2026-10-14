@@ -1,8 +1,8 @@
 const { t } = window.SubnetI18n;
-/* The public page loads only lightweight navigation; account/Wasm lives in /tooruum/. */
+/* The public page loads only lightweight navigation; account/Wasm lives in /pilveruum/. */
 const oldWorkspaceHashes = new Set(['#failid', '#rakendused']);
 function followLegacyLink() {
-  if (oldWorkspaceHashes.has(location.hash)) location.replace(window.SubnetI18n.href(`/tooruum/${location.search}${location.hash}`));
+  if (oldWorkspaceHashes.has(location.hash)) location.replace(window.SubnetI18n.href(`/pilveruum/${location.search}${location.hash}`));
 }
 followLegacyLink();
 window.addEventListener('hashchange', followLegacyLink);

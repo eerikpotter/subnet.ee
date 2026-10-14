@@ -1920,6 +1920,7 @@ name = "sovereign-cloud"
 version = "0.1.0"
 dependencies = [
  "candid",
+ "futures",
  "hex",
  "percent-encoding",
  "serde",
@@ -1941,6 +1942,7 @@ dependencies = [
  "serde_json",
  "sha2",
  "sovereign-cloud",
+ "unicode-normalization",
 ]
 
 [[package]]
@@ -2366,6 +2368,15 @@ name = "unicode-ident"
 version = "1.0.26"
 source = "registry+https://github.com/rust-lang/crates.io-index"
 checksum = "d245f478577f809a851594d02313b640fb437e0bb33866753cff937863096954"
+
+[[package]]
+name = "unicode-normalization"
+version = "0.1.25"
+source = "registry+https://github.com/rust-lang/crates.io-index"
+checksum = "5fd4f6878c9cb28d874b009da9e8d183b5abc80117c40bbd187a1fde336be6e8"
+dependencies = [
+ "tinyvec",
+]
 
 [[package]]
 name = "unicode-width"

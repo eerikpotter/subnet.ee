@@ -1,0 +1,13 @@
+[package]
+name = "agent-provenance-probe"
+version = "0.0.0"
+edition = "2021"
+publish = false
+
+[lib]
+crate-type = ["cdylib"]
+
+[dependencies]
+candid.workspace = true
+serde.workspace = true
+ic-cdk = "=0.20.3"

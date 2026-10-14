@@ -162,19 +162,22 @@ def assemble(root=ROOT, selected=("portal",)):
             shutil.copy2(path, cloud / path.name)
         facade = (stage / "cloud.js").read_text().replace("__CLOUD_BINDINGS__", "/cloud/" + bindings[0].name).replace("__CLOUD_WASM__", "/cloud/" + wasm[0].name)
         (stage / "cloud.js").write_text(facade)
-        for page in [stage / "index.html", stage / "tooruum/index.html"]:
+        for page in [stage / "index.html", stage / "pilveruum/index.html"]:
             if page.is_file():
                 rendered = (page.read_text()
                             .replace("<!-- APP_CARDS -->", cards(apps))
                             .replace("<!-- LANDING_CARDS -->", landing_cards(apps))
                             .replace("__APP_COUNT_PADDED__", f"{len(apps):02d}")
                             .replace("__APP_COUNT__", str(len(apps))))
-                path = "/tooruum/" if page.parent.name == "tooruum" else "/"
+                path = "/pilveruum/" if page.parent.name == "pilveruum" else "/"
                 template = Page(rendered)
                 page.write_text(template.render(english, "et", path, origin))
                 english_page = stage / "en" / page.relative_to(stage)
                 english_page.parent.mkdir(parents=True, exist_ok=True)
                 english_page.write_text(template.render(english, "en", path, origin))
+        legacy_en = stage / "en/tooruum/index.html"
+        legacy_en.parent.mkdir(parents=True, exist_ok=True)
+        legacy_en.write_text((stage / "tooruum/index.html").read_text().replace('lang="et"', 'lang="en"').replace('/pilveruum/', '/en/pilveruum/'))
         hashes = []
         manifest = {"apps": [], "portalAssets": {"cloud/" + p.name: hashlib.sha256(p.read_bytes()).hexdigest() for p in [bindings[0], wasm[0]]},
                     "shellAssets": {name: hashlib.sha256((stage / name).read_bytes()).hexdigest() for name in ["tokens.css", "craft-shell.css", "craft-shell.js", "craft-loading.js", "craft-wasm.js", "i18n.js", "translations.js"]}}
@@ -221,8 +224,9 @@ def assemble(root=ROOT, selected=("portal",)):
         policy = "; ".join(["default-src 'self'", "script-src 'self' 'wasm-unsafe-eval' " + " ".join(sorted(set(hashes))),
             "style-src 'self' 'unsafe-inline'", "img-src 'self' data: blob:", "font-src 'self' data:", "connect-src 'self' https://icp-api.io", "worker-src 'self' blob:", "media-src 'self' blob:", "object-src 'none'", "base-uri 'self'", "frame-ancestors 'self'"])
         headers = f"/*\n  X-Content-Type-Options: nosniff\n  Referrer-Policy: no-referrer\n  Content-Security-Policy: {policy}\n\n/*.html\n  Cache-Control: no-cache\n\n/*.css\n  Cache-Control: no-cache\n\n/*.json\n  Cache-Control: no-cache\n\n/i18n.js\n  Cache-Control: no-cache\n\n/translations.js\n  Cache-Control: no-cache\n\n/landing.js\n  Cache-Control: no-cache\n\n/cloud.js\n  Cache-Control: no-cache\n\n/craft-shell.js\n  Cache-Control: no-cache\n\n/assets/*\n  Cache-Control: no-cache\n\n/apps/*.wasm\n  Content-Type: application/wasm\n  Cache-Control: public, max-age=31536000, immutable\n\n/apps/*.js\n  Cache-Control: public, max-age=31536000, immutable\n\n/cloud/*.wasm\n  Content-Type: application/wasm\n  Cache-Control: public, max-age=31536000, immutable\n\n/cloud/*.js\n  Cache-Control: public, max-age=31536000, immutable\n\n/.well-known/ii-app-metadata\n  Content-Type: application/json\n  Access-Control-Allow-Origin: *\n"
-        headers += "\n/craft-loading.js\n  Cache-Control: no-cache\n\n/craft-wasm.js\n  Cache-Control: no-cache\n"
+        headers += "\n/craft-loading.js\n  Cache-Control: no-cache\n\n/craft-wasm.js\n  Cache-Control: no-cache\n\n/agent-workflow.js\n  Cache-Control: no-cache\n"
         headers += "\n/.well-known/ic-domains\n  Content-Type: text/plain\n  Cache-Control: no-cache\n\n/.well-known/ii-alternative-origins\n  Content-Type: application/json\n  Access-Control-Allow-Origin: *\n  Cache-Control: no-cache\n"
+        headers += "\n/.well-known/ic-architecture\n  Content-Type: application/json\n  Access-Control-Allow-Origin: *\n  Cache-Control: no-cache\n\n/.well-known/ii-derivation-origin\n  Content-Type: text/plain\n  Access-Control-Allow-Origin: *\n  Cache-Control: no-cache\n"
         (stage / "_headers").write_text(headers)
         well_known = stage / ".well-known"
         well_known.mkdir(exist_ok=True)

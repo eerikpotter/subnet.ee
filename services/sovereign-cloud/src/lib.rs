@@ -1,9 +1,12 @@
 //! Shared accounts and file catalog, preserving the PhotoCraft V1 storage contract.
 #![forbid(unsafe_code)]
 #![deny(clippy::unwrap_used, clippy::expect_used, clippy::panic, clippy::unimplemented, clippy::todo, clippy::unreachable)]
+mod permissions;
 mod store;
 use ic_cdk::api::{msg_caller, time};
 use ic_stable_structures::DefaultMemoryImpl;
+use permissions::Actor;
+use sovereign_cloud::drive::*;
 use sovereign_cloud::protocol::*;
 use std::cell::RefCell;
 
@@ -15,6 +18,114 @@ fn init() {
 #[ic_cdk::post_upgrade]
 fn post_upgrade() {
     STORE.with(|_| {});
+}
+
+#[ic_cdk::query]
+fn get_api_doc() -> String {
+    include_str!("../api.md").to_string()
+}
+
+#[ic_cdk::update]
+fn drive_home() -> DriveResult<DriveHome> {
+    let caller = msg_caller();
+    let actor = Actor::user(caller)?;
+    let now = time();
+    STORE.with(|s| {
+        let mut store = s.borrow_mut();
+        let root = store.drive_initialize(caller, now)?;
+        let account = store.account(caller, now).map_err(|_| DriveError::Internal)?;
+        Ok(DriveHome { account, view: store.drive_browse(&actor, root.object.id, None, 50, now)? })
+    })
+}
+#[ic_cdk::update]
+fn drive_initialize() -> DriveResult<DriveEntry> {
+    STORE.with(|s| s.borrow_mut().drive_initialize(msg_caller(), time()))
+}
+#[ic_cdk::update]
+fn drive_get(id: u64) -> DriveResult<DriveEntry> {
+    let actor = Actor::user(msg_caller())?;
+    STORE.with(|s| s.borrow().drive_get(&actor, id, time()))
+}
+#[ic_cdk::update]
+fn drive_list(parent: Option<u64>, cursor: Option<DriveCursor>, limit: u32) -> DriveResult<DrivePage> {
+    let actor = Actor::user(msg_caller())?;
+    STORE.with(|s| s.borrow().drive_list(&actor, parent, cursor, limit, time()))
+}
+#[ic_cdk::update]
+fn drive_browse(parent: u64, cursor: Option<DriveCursor>, limit: u32) -> DriveResult<DriveBrowse> {
+    let actor = Actor::user(msg_caller())?;
+    STORE.with(|s| s.borrow().drive_browse(&actor, parent, cursor, limit, time()))
+}
+#[ic_cdk::update]
+fn drive_create_folder(request: CreateFolder) -> DriveResult<DriveEntry> {
+    let actor = Actor::user(msg_caller())?;
+    STORE.with(|s| s.borrow_mut().drive_create_folder(&actor, request, time()))
+}
+#[ic_cdk::update]
+fn drive_create_file(request: InlineFile) -> DriveResult<DriveEntry> {
+    let actor = Actor::user(msg_caller())?;
+    STORE.with(|s| s.borrow_mut().drive_write_inline(&actor, request, time()))
+}
+#[ic_cdk::update]
+fn drive_set_grant(request: GrantRequest) -> DriveResult<AccessGrant> {
+    let actor = Actor::user(msg_caller())?;
+    STORE.with(|s| s.borrow_mut().drive_grant(&actor, request, time()))
+}
+#[ic_cdk::update]
+fn drive_grants(object: u64) -> DriveResult<Vec<AccessGrant>> {
+    let actor = Actor::user(msg_caller())?;
+    STORE.with(|s| s.borrow().drive_grants(&actor, object))
+}
+#[ic_cdk::update]
+fn drive_organize(request: OrganizeRequest) -> DriveResult<MutationReceipt> {
+    let actor = Actor::user(msg_caller())?;
+    STORE.with(|s| s.borrow_mut().drive_organize(&actor, request, time()))
+}
+#[ic_cdk::query]
+fn drive_current_chunk(file: u64, revision: u64, index: u64) -> DriveResult<Vec<u8>> {
+    let actor = Actor::user(msg_caller())?;
+    STORE.with(|s| s.borrow().drive_current_chunk(&actor, file, revision, index, time()))
+}
+
+#[ic_cdk::update]
+fn drive_begin_upload(request: DriveUploadRequest) -> DriveResult<DriveUpload> {
+    let actor = Actor::user(msg_caller())?;
+    STORE.with(|s| s.borrow_mut().drive_begin(&actor, request, time()))
+}
+#[ic_cdk::update]
+fn drive_put_chunk(upload: u64, index: u64, bytes: Vec<u8>) -> DriveResult<()> {
+    let actor = Actor::user(msg_caller())?;
+    STORE.with(|s| s.borrow_mut().drive_put(&actor, upload, index, bytes, time()))
+}
+#[ic_cdk::update]
+fn drive_commit_upload(upload: u64) -> DriveResult<DriveUpload> {
+    let actor = Actor::user(msg_caller())?;
+    STORE.with(|s| s.borrow_mut().drive_commit(&actor, upload, time()))
+}
+#[ic_cdk::update]
+fn drive_abort_upload(upload: u64) -> DriveResult<()> {
+    let actor = Actor::user(msg_caller())?;
+    STORE.with(|s| s.borrow_mut().drive_abort(&actor, upload))
+}
+#[ic_cdk::update]
+fn drive_pending_uploads() -> DriveResult<Vec<DriveUpload>> {
+    let actor = Actor::user(msg_caller())?;
+    STORE.with(|s| s.borrow().drive_pending(&actor))
+}
+#[ic_cdk::update]
+fn drive_history(file: u64) -> DriveResult<Vec<Revision>> {
+    let actor = Actor::user(msg_caller())?;
+    STORE.with(|s| s.borrow().drive_history(&actor, file, time()))
+}
+#[ic_cdk::update]
+fn drive_trash(cursor: Option<DriveCursor>, limit: u32) -> DriveResult<DrivePage> {
+    let actor = Actor::user(msg_caller())?;
+    STORE.with(|s| s.borrow().drive_trash(&actor, cursor, limit, time()))
+}
+#[ic_cdk::query]
+fn drive_revision_chunk(file: u64, revision: u64, index: u64) -> DriveResult<Vec<u8>> {
+    let actor = Actor::user(msg_caller())?;
+    STORE.with(|s| s.borrow().drive_revision_chunk(&actor, file, revision, index, time()))
 }
 
 #[ic_cdk::update]
@@ -91,6 +202,6 @@ pub fn candid_interface() -> String {
 }
 
 #[test]
-fn candid_interface_matches_deployed_contract() {
+fn candid_interface_matches_canonical_contract() {
     assert_eq!(candid_interface().trim(), include_str!("../cloud.did").trim());
 }

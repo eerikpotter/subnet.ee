@@ -10,6 +10,7 @@ it with the current canonical source. Other forks may stay on their existing ver
 A future published crate/git release can replace vendoring.
 
 * `protocol`: the existing Candid/serde contract, unchanged for old data and clients.
+* `drive`: draft shared-drive capabilities and typed payloads; portal/Craft client adoption is in progress.
 * `config`: explicit gateway, canister and trusted root key; optional derivation origin.
 * `transfer`: create, chunked save/retry, consensus manifests and verified download.
 * `browser` feature: shared, storage-aware Internet Identity session adapter and guarded IC transport.

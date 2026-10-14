@@ -8,6 +8,11 @@ past test results and implementation milestones are recorded in the history.
 Keep the root README focused on the project and documentation entry points. Maintain
 working instructions in these guides and add dated validation results to the history.
 
+Read [AGENTS.md](../AGENTS.md) before designing or implementing changes. ICP skills
+are required at the architecture stage as well as during coding. Record why a
+supported ICP integration does or does not meet the requirements before adding
+custom infrastructure; see the architecture evidence rules in that file.
+
 ## Start locally
 
 Requirements: Rust 1.95.0 with `wasm32-unknown-unknown`, Trunk 0.21.14, Python 3,
@@ -48,6 +53,11 @@ After editing the portal Rust facade, use `python3 scripts/dev.py portal --build
 Backend changes use the separate command `icp deploy cloud -e local` after focused service checks.
 `all` must be explicit in build, assembly and verification commands. No command here
 automatically runs the Craft repositories' test suites.
+
+The frontend's presync hook generates the operator-approved MCP discovery files
+using that environment's deployed IDs. Assembly alone does not generate them.
+See [MCP setup](mcp.md) and the [isolated MCP smoke test](../experiments/mcp-smoke/README.md)
+for the account-authority alpha boundary and local protocol validation.
 `icp network stop` stops this project's local network. `icp network start local -d`
 restarts it. Keep `.icp/cache/` if you want the local data and network state to survive.
 
@@ -97,8 +107,8 @@ identity/data migration. `app_id` is not a credential.
 
 ## Languages
 
-The landing page and workspace are prerendered in Estonian at `/` and `/tooruum/`,
-and in English at `/en/` and `/en/tooruum/`. Each URL serves complete, indexable HTML
+The landing page and cloud drive are prerendered in Estonian at `/` and `/pilveruum/`,
+and in English at `/en/` and `/en/pilveruum/`. Each URL serves complete, indexable HTML
 with a canonical URL and reciprocal `hreflang` links. Canonical URLs use
 `https://www.subnet.ee` by default; set `SUBNET_PUBLIC_ORIGIN` to override it.
 
@@ -179,6 +189,16 @@ Cloud Save updates the linked file; Save As creates a new file. An upload may ma
 only its captured, unchanged document revision clean. Account changes must preserve
 unsaved documents, discard stale UI responses, and require Save As to copy a document
 to another account. All editors share one trusted browser origin.
+
+The shared Open/Save As dialog embeds the portal's selection mode, including
+`My files` and `Shared with me`; do not implement a separate folder tree or
+permission policy inside an editor. Selection messages contain IDs and a name,
+never document bytes or authority. The SDK verifies the selected file's format
+and current access, then uses the canonical drive transfer methods. Create permits
+a new file in the selected folder; Edit permits a new revision of an existing
+file. Read-only documents remain editable locally and can be copied with Save As.
+App-native serialization stays in each adapter. A shared UI change must be adopted
+and smoke-tested with a real save/reopen in all seven affected editors.
 
 The portal facade and editor clients share the Rust session adapter. A loaded session
 is checked against persisted credentials before each SDK request. Logout prevents

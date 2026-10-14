@@ -28,8 +28,9 @@ class ScopedWorkflowTest(unittest.TestCase):
                      for app in ("photocraft", "gridcraft")]
         self.put("registry/apps.json", json.dumps(self.apps))
         for name, content in {
-            "index.html": '<a href="/tooruum/">Ava tööruum</a><!-- LANDING_CARDS -->',
-            "tooruum/index.html": "<!-- APP_CARDS --> __APP_COUNT__ tööriista __APP_COUNT_PADDED__",
+            "index.html": '<a href="/pilveruum/">Ava tööruum</a><!-- LANDING_CARDS -->',
+            "tooruum/index.html": '<a href="/pilveruum/">Pilveruum</a>',
+            "pilveruum/index.html": "<!-- APP_CARDS --> __APP_COUNT__ tööriista __APP_COUNT_PADDED__",
             "craft-shell.html": '<iframe id="craft-editor" data-leave="guard">__APP_NAME__</iframe>',
             "cloud.js": "__CLOUD_BINDINGS__ __CLOUD_WASM__", "tokens.css": "tokens",
             "craft-shell.css": "shell", "craft-shell.js": "shell", "craft-loading.js": "loader", "craft-wasm.js": "wasm-loader", "style.css": "style", "i18n.js": "locale", "translations.js": 'window.SubnetEnglish = {"Ava tööruum":"Open workspace"};' ,
@@ -67,8 +68,8 @@ class ScopedWorkflowTest(unittest.TestCase):
             self.assemble()
         self.assertEqual((self.root / "dist/style.css").read_text(), "new style")
         landing = (self.root / "dist/index.html").read_text()
-        workspace = (self.root / "dist/tooruum/index.html").read_text()
-        self.assertIn('href="/tooruum/"', landing)
+        workspace = (self.root / "dist/pilveruum/index.html").read_text()
+        self.assertIn('href="/pilveruum/"', landing)
         self.assertIn('href="/apps/photocraft/"', landing)
         self.assertNotIn('<!-- LANDING_CARDS -->', landing)
         self.assertNotIn('<!-- APP_CARDS -->', workspace)
@@ -78,6 +79,16 @@ class ScopedWorkflowTest(unittest.TestCase):
             self.assertIn(f'href="/apps/{app["id"]}/"', workspace)
         self.assertEqual(self.manifest()['apps'], original)
         self.assertEqual((self.root / "dist/apps/gridcraft/editor.wasm").read_text(), "gridcraft")
+
+    def test_assembly_leaves_mcp_activation_to_presync(self):
+        self.put("dist/.well-known/ic-architecture", '{"canisters": [{"id": "stale"}]}')
+        self.put("dist/.well-known/ii-derivation-origin", "https://stale.example")
+        self.assemble()
+        for name in ("ic-architecture", "ii-derivation-origin"):
+            self.assertFalse((self.root / "dist/.well-known" / name).exists())
+        headers = (self.root / "dist/_headers").read_text()
+        self.assertIn("/.well-known/ic-architecture\n  Content-Type: application/json", headers)
+        self.assertIn("/.well-known/ii-derivation-origin\n  Content-Type: text/plain", headers)
 
     def test_one_app_replaces_only_its_artifact_and_keeps_portal_runtime(self):
         old_grid = self.manifest()['apps'][1]

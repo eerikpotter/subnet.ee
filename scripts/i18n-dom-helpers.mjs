@@ -18,6 +18,7 @@ export class Element extends EventTarget {
   set textContent(value) { this.childNodes = [{ nodeType: 3, textContent: value }]; }
   append(...nodes) { this.childNodes.push(...nodes); }
   replaceChildren(...nodes) { this.childNodes = nodes; }
+  contains(node) { return node===this || this.children.some(child=>child.contains(node)); }
   matches(selector) {
     const tag = selector.match(/^\w+/)?.[0];
     if (tag && this.tagName.toLowerCase() !== tag) return false;

@@ -1,0 +1,8 @@
+---
+description: Start every subnet-cloud architecture and implementation task with current ICP skills and evidence for departures from supported integrations.
+alwaysApply: true
+---
+
+Read and follow the repository's `AGENTS.md`, including its ICP skills and
+architecture evidence requirements, before designing or implementing changes.
+The canonical policy is in `AGENTS.md`; do not substitute a remembered summary.

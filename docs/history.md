@@ -2,6 +2,76 @@
 
 [Project overview](../README.md) · [Development](development.md) · [Deployment](deployment.md)
 
+## Homepage AI workflow illustration — 14 October 2026
+
+Requirement: adapt the supplied `subnet_agent_workflow_et_v2/index.html` and
+campaign image into the homepage between the tools and technology sections.
+The tools heading now refers to the cloud drive; the new section demonstrates
+reading a brief, understanding it, creating an image, saving it and opening it.
+
+Guidance retrieved on 14 October 2026:
+[static-site](https://skills.internetcomputer.org/.well-known/skills/static-site/SKILL.md)
+and [icp-cli](https://skills.internetcomputer.org/.well-known/skills/icp-cli/SKILL.md),
+selected from the current skill index. The existing `@dfinity/static-site@v0.4.0`
+recipe and portal assembly already support the required HTML, CSS, JavaScript
+and local image assets. No platform gap was observed. The smallest extension is
+a scoped, dependency-free browser illustration using the existing translation
+pipeline and brand mark. A separate iframe would complicate language switching
+and responsive sizing; a live agent integration is outside this visual task.
+
+The workflow has an accessible animation label and makes no backend or AI calls. It
+supports pause/play, selecting steps, opening/closing the image preview, and
+stops advancing outside the viewport or in a hidden tab. Reduced motion starts
+with the finished image; the static HTML also shows that outcome without scripts.
+Copy is provisional. The image retains the supplied artwork and English lettering.
+Proof checks cover localized assembly, existing language tests and browser flows;
+this illustration makes no claims about real agent authorization or persistence.
+
+Validation: 45 existing JavaScript tests passed with `node --test
+scripts/i18n.test.mjs scripts/cloud-i18n.test.mjs scripts/craft-shell.test.mjs
+scripts/craft-loading.test.mjs`; the 3 localization and 9 scoped-workflow Python
+checks passed. A disposable Node/VM smoke check covered elapsed playback, pause,
+manual preview, reduced motion and viewport/tab suspension. Browser checks at
+1280, 390 and 320 px covered layout, image loading, preview open/back, step
+selection and a language switch preserving the selected stage; no console errors
+were observed. Small viewports use a single seekable progress bar. Assembly
+keeps all seven existing editor bundles and includes both localized homepages.
+
+The attempted local `scripts/dev.py` sync was stopped during a long-running asset
+sync; final certified-canister HTTP verification was not completed. Final visual
+QA used the assembled static site. No mainnet publication was performed.
+
+Copy refinement: the heading is followed by one sentence about MCP access and
+collaboration in the user's sovereign cloud drive. The agent subtitle identifies
+the MCP connection without listing a fixed set of capabilities. Removed the
+eyebrow, example badge, duplicate cloud badge, preview caption and image footer;
+the image uses the freed space. Updated both languages, removed unused styles
+and translations, rebuilt both locales, passed the three localization checks and
+verified the heading and open image in the local browser preview.
+
+The demo file list now follows the existing drive's rows: filename, size/date,
+`Ava` and the `···` menu. Removed the invented folder heading and table labels.
+Open/Enter/double-click and the read actions in the menu work on the two local
+sample files. The cursor follows the actual filename bounds, including wrapped
+names, and shows a double-click before opening the image. Its motion uses the
+same playback clock, so pause and resizing preserve the click target. The real
+drive and its authenticated operations are unchanged.
+Validated filename targeting at 1280 and 320 px (including a wrapped name),
+double-click, Enter, both previews, menu opening/Escape and English metadata/actions.
+All 27 existing i18n/drive JavaScript tests and 3 localization checks passed;
+the assembled preview reported no browser errors.
+
+Responsive layout: tablet windows remain side by side, with shorter prompt copy
+and secondary descriptions/checklists hidden. On phones the compact agent panel
+sits above a 260 px cloud panel, keeping both visible within a 478–495 px demo.
+A single accessible seek slider replaces the six stage controls below 1100 px;
+the current activity stays in the agent window. The slider pauses on seeking and
+clamps its final position so the finished preview remains valid. Desktop retains
+its original copy and stage buttons. Checked 320×568, 390×844, 768×1024,
+1024×768 and 1280×960 layouts, both languages, slider endpoints/intermediate
+steps, preview/back and cursor targeting; no horizontal overflow or browser
+errors were observed. Localized assembly and the three localization tests pass.
+
 ## Public demo and custom-domain source publication — 13 October 2026
 
 Committed the deployed custom-domain configuration, canonical cloud SDK and its
@@ -326,3 +396,58 @@ The first extraction remains on `codex/subnet-cloud-base`.
 All seven editors shared cloud storage and compatible format metadata. Shared
 spaces, per-app grants, user-owned canisters, encrypted storage, alternate blob
 stores and Cloud Engine migration remained later work.
+
+## Homepage AI indicator — 14 October 2026
+
+Published the approved `+ AI` badge and person-with-spark icon beside “Sinu
+pilvefailid” using `icp sync frontend -e ic --identity efti-nns`. The release reused
+the tested preview bundle: the Estonian and English homepages and `landing.css`
+differed from production only by this visual change. The backend was not deployed.
+The frontend reported 169 assets and state hash
+`c3d736b903f96024ceeb0a9da608c26e5c9ba7b19e3d09cb8786b19cfc17263b`.
+
+`python3 scripts/verify.py portal --environment ic --origin https://www.subnet.ee`
+passed exact payload, certification, runtime identity, MCP discovery, cache/CSP
+and missing-path checks. The badge was also verified visually at the public origin.
+
+
+## 2026-10-14 — Shared cloud folders in all seven Craft apps
+
+Open and Save As now embed the same portal drive, with personal/shared folders and
+editor-appropriate light/dark styling. Save uses the canonical drive revision;
+Create and Edit remain independent permissions. Read-only files open normally and
+can be copied where Create is granted. Account changes, permission failures and
+version conflicts preserve drafts. Native formats and editor engines are unchanged.
+A WordCraft cold-start font race found during direct-file testing was fixed in the
+shared UI, with a regression test.
+
+Scoped SDK/UI/API checks and all seven release builds passed. Disposable local
+accounts exercised shared native save/reopen in WordCraft, PhotoCraft, PdfCraft,
+DeckCraft, SoundCraft (63.1 MB with audio), CADCraft and GridCraft, plus shared edits,
+read-only Save rejection, Save As, account switching and quota-error recovery.
+Mainnet frontend state is
+`c1547dc5c8725b8decb7526eb06bfe59e4568deb26012b434e7286b15f15c99f`.
+All seven published bundles passed exact-payload and deployment-configuration
+verification. WordCraft startup and signed-out Open were also checked in the
+production browser. Existing published landing pages were preserved; another
+chat's homepage demo was excluded. No backend deployment or storage migration.
+See the full evidence in [collaboration progress](collaboration-progress.md).
+
+## Shared cloud MVP publication — 15 October 2026
+
+Prepared all accumulated shared-drive/backend/SDK/Craft changes and the illustrative
+landing-page agent workflow for publication together. The narrowed demo scope and
+known limits are recorded in collaboration-spec.md and collaboration-progress.md.
+Unfinished-upload administration was removed from the ordinary drive; automatic
+background cleanup remains deferred.
+
+The review's 126 checks passed, including seven actual-canister persistence/migration
+tests; final portal edits passed 27 JavaScript and three localization checks. Before
+publication, all 50 portal/shell JavaScript tests and 19 Python tooling tests passed
+again, as did strict cloud UI/backend Wasm Clippy and all seven SDK snapshot checks.
+The editor JS/Wasm bytes match the seven-app native browser-tested release.
+
+The six app-wide `xtask ci` runs stop at the same documented unchanged upstream
+Clippy warnings (Word proof, Deck codecs, Sound video, CAD geometry, Grid XLSX, PDF
+forms). Their fmt stages pass; PhotoCraft's layering check passes. This release
+does not claim fully green editor-wide CI or suppress those upstream lints.

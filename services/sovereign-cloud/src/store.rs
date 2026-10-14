@@ -7,6 +7,9 @@ use ic_stable_structures::{
 use serde::{Serialize, de::DeserializeOwned};
 use sha2::{Digest, Sha256};
 use sovereign_cloud::protocol::*;
+mod collaboration;
+mod drive_transfer;
+mod read_index;
 
 type Vm<M> = VirtualMemory<M>;
 pub struct Store<M: Memory> {
@@ -19,6 +22,20 @@ pub struct Store<M: Memory> {
     accounts: StableBTreeMap<Principal, Vec<u8>, Vm<M>>,
     account_files: StableBTreeMap<(u64, u64), u8, Vm<M>>,
     file_kinds: StableBTreeMap<u64, Vec<u8>, Vm<M>>,
+    access_graph: StableCell<Vec<u8>, Vm<M>>,
+    read_objects: StableBTreeMap<u64, Vec<u8>, Vm<M>>,
+    read_children: StableBTreeMap<(u64, u64), u8, Vm<M>>,
+    read_grants: StableBTreeMap<(u64, u64), Vec<u8>, Vm<M>>,
+    read_subjects: StableBTreeMap<(Principal, u64), Vec<u8>, Vm<M>>,
+    read_owners: StableBTreeMap<(Principal, u64), u8, Vm<M>>,
+    read_version: StableCell<u64, Vm<M>>,
+    read_ready: StableCell<u8, Vm<M>>,
+    project_owners: StableBTreeMap<(Principal, u64), u8, Vm<M>>,
+    pending_owners: StableBTreeMap<(Principal, u64), u8, Vm<M>>,
+    pending_uploaders: StableBTreeMap<(Principal, u64), u8, Vm<M>>,
+    attributions: StableBTreeMap<u64, Vec<u8>, Vm<M>>,
+    drive_retries: StableBTreeMap<String, Vec<u8>, Vm<M>>,
+    drive_uploads: StableBTreeMap<u64, Vec<u8>, Vm<M>>,
 }
 
 fn encode<T: Serialize>(v: &T) -> CloudResult<Vec<u8>> {
@@ -34,7 +51,7 @@ fn authenticated(caller: Principal) -> CloudResult<()> {
 impl<M: Memory> Store<M> {
     pub fn new(memory: M) -> Self {
         let m = MemoryManager::init(memory);
-        Self {
+        let mut store = Self {
             next: StableCell::init(m.get(MemoryId::new(0)), 1),
             total: StableCell::init(m.get(MemoryId::new(1)), 0),
             projects: StableBTreeMap::init(m.get(MemoryId::new(2))),
@@ -44,7 +61,28 @@ impl<M: Memory> Store<M> {
             accounts: StableBTreeMap::init(m.get(MemoryId::new(6))),
             account_files: StableBTreeMap::init(m.get(MemoryId::new(7))),
             file_kinds: StableBTreeMap::init(m.get(MemoryId::new(8))),
+            access_graph: StableCell::init(m.get(MemoryId::new(9)), b"{}".to_vec()),
+            // ID 10 reserved for the withdrawn, never deployed OAuth prototype.
+            attributions: StableBTreeMap::init(m.get(MemoryId::new(11))),
+            drive_retries: StableBTreeMap::init(m.get(MemoryId::new(12))),
+            drive_uploads: StableBTreeMap::init(m.get(MemoryId::new(13))),
+            read_objects: StableBTreeMap::init(m.get(MemoryId::new(14))),
+            read_children: StableBTreeMap::init(m.get(MemoryId::new(15))),
+            read_grants: StableBTreeMap::init(m.get(MemoryId::new(16))),
+            read_subjects: StableBTreeMap::init(m.get(MemoryId::new(17))),
+            read_owners: StableBTreeMap::init(m.get(MemoryId::new(18))),
+            read_version: StableCell::init(m.get(MemoryId::new(19)), 0),
+            read_ready: StableCell::init(m.get(MemoryId::new(20)), 0),
+            project_owners: StableBTreeMap::init(m.get(MemoryId::new(21))),
+            pending_owners: StableBTreeMap::init(m.get(MemoryId::new(22))),
+            pending_uploaders: StableBTreeMap::init(m.get(MemoryId::new(23))),
+        };
+        if *store.read_ready.get() == 0 {
+            // One-time, bounded migration of the existing alpha graph (<=10,000
+            // objects). A trap rolls back the entire upgrade on invalid state.
+            store.migrate_graph().unwrap_or_else(|_| ic_cdk::trap("Drive index migration failed"));
         }
+        store
     }
     fn next_id(&self) -> CloudResult<(u64, u64)> {
         let id = *self.next.get();
@@ -89,6 +127,9 @@ impl<M: Memory> Store<M> {
         let mut more = false;
         for entry in self.account_files.range((Excluded((account.id, after.unwrap_or(0))), Included((account.id, u64::MAX)))) {
             let (_, id) = *entry.key();
+            if !self.legacy_visible(id)? {
+                continue;
+            }
             let project = self.project(caller, id)?;
             let Some(latest) = project.revisions.last().cloned() else { continue };
             if files.len() == limit {
@@ -126,7 +167,7 @@ impl<M: Memory> Store<M> {
     fn project(&self, caller: Principal, id: u64) -> CloudResult<Project> {
         authenticated(caller)?;
         let p: Project = decode(&self.projects.get(&id).ok_or("Project not found or not permitted")?)?;
-        if p.owner != caller {
+        if p.owner != caller || !self.legacy_visible(id)? {
             return Err("Project not found or not permitted".into());
         }
         Ok(p)
@@ -139,17 +180,16 @@ impl<M: Memory> Store<M> {
     }
     pub fn list(&self, caller: Principal) -> CloudResult<Vec<Project>> {
         authenticated(caller)?;
-        // Globally bounded to MAX_PROJECTS; a future schema can add an owner index.
-        self.projects
-            .iter()
-            .map(|entry| decode::<Project>(&entry.value()))
-            .filter_map(|r| match r {
-                Ok(p) if p.owner == caller => Some(Ok(p)),
-                Ok(_) => None,
-                Err(e) => Some(Err(e)),
+        let ids: Vec<u64> = self.project_owners.range((caller, 0)..=(caller, u64::MAX)).map(|e| e.key().1).collect();
+        ids.into_iter()
+            .filter_map(|id| match self.project(caller, id) {
+                Ok(project) => Some(Ok(project)),
+                Err(_) if self.legacy_visible(id).is_ok_and(|visible| !visible) => None,
+                Err(error) => Some(Err(error)),
             })
             .collect()
     }
+
     pub fn create(&mut self, caller: Principal, name: String, now: u64) -> CloudResult<Project> {
         self.create_typed(caller, name, FileKind::photocraft(), now)
     }
@@ -162,13 +202,19 @@ impl<M: Memory> Store<M> {
         if name.is_empty() || name.len() > 160 {
             return Err("Project names must contain 1–160 UTF-8 bytes".into());
         }
-        if self.projects.len() >= MAX_PROJECTS || self.list(caller)?.len() >= MAX_USER_PROJECTS {
+        if self.projects.len() >= MAX_PROJECTS || self.owned_project_count(caller)? >= MAX_USER_PROJECTS {
             return Err("Project quota reached".into());
+        }
+        let graph = self.graph_for_owner(caller).map_err(|e| e.to_string())?;
+        let root_needed = usize::from(!graph.objects.contains_key(&account.id));
+        if self.drive_space_count(&graph, caller).map_err(|e| e.to_string())? + root_needed >= 200 {
+            return Err("Drive object limit reached".into());
         }
         let (id, next) = self.next_id()?;
         let p = Project { id, owner: caller, name, created_at: now, revisions: vec![], pending_upload: None };
         let bytes = encode(&p)?;
         self.projects.insert(id, bytes);
+        self.project_owners.insert((caller, id), 0);
         self.file_kinds.insert(id, kind);
         self.account_files.insert((account.id, id), 0);
         self.next.set(next);
@@ -297,12 +343,31 @@ impl<M: Memory> Store<M> {
             return Err("Delete revisions and discard uploads before deleting this project".into());
         }
         let account = self.accounts.get(&caller).map(|bytes| decode::<Account>(&bytes)).transpose()?;
+        let mut graph = self.graph_for_owner(caller).map_err(|e| e.to_string())?;
+        graph.objects.remove(&id);
+        graph.grants.retain(|_, grant| grant.root != id);
+        graph.tree_version = graph.tree_version.checked_add(1).ok_or("Tree version exhausted")?;
+        self.persist_graph(&graph).map_err(|e| e.to_string())?;
         self.projects.remove(&id);
+        self.project_owners.remove(&(caller, id));
         self.file_kinds.remove(&id);
         if let Some(account) = account {
             self.account_files.remove(&(account.id, id));
         }
         Ok(())
+    }
+
+    fn legacy_visible(&self, id: u64) -> CloudResult<bool> {
+        if !self.read_objects.contains_key(&id) {
+            return Ok(true);
+        }
+        let graph = self.indexed_graph(id).map_err(|e| e.to_string())?;
+        Ok(graph.ancestry(id, false).is_ok())
+    }
+
+    fn owned_project_count(&self, caller: Principal) -> CloudResult<usize> {
+        // Trash still consumes both storage and the file count quota.
+        Ok(self.project_owners.range((caller, 0)..=(caller, u64::MAX)).count())
     }
 }
 

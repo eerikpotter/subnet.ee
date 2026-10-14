@@ -7,6 +7,8 @@ canisters:
         dir: dist
         build:
           - python3 scripts/assemble.py
+        presync:
+          - python3 scripts/mcp-discovery.py
 
 networks:
   - name: local

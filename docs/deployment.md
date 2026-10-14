@@ -12,12 +12,29 @@ Local development uses its own canisters and data. Production configuration is i
 [`.icp/data/mappings/ic.ids.json`](../.icp/data/mappings/ic.ids.json).
 Retain the mapping file so updates reuse the existing canisters.
 
+The 2026-10-14 drive upgrade migrated the old serialized access graph into
+authoritative stable indexes. Do not downgrade to a pre-index backend: its old
+graph is retained only as a migration source and no longer receives writes.
+Prefer a compatible forward fix. Restoring a snapshot also rewinds user data;
+review writes since the snapshot before considering that recovery path. Release
+hashes, snapshots and validation are recorded in
+[collaboration progress](collaboration-progress.md).
+
 The production canisters are controlled using the locally configured `efti-nns`
 identity. This is an identity name, not a credential. Signing credentials stay
 outside the repository.
 
 Standalone Craft deployments have separate accounts and files. Changing a domain
 or deploying this workspace does not migrate their data.
+
+## MCP participation
+
+The shared-drive branch includes an operator-approved ICP MCP opt-in. The frontend
+presync hook generates discovery using the target environment's real cloud ID;
+the next frontend sync publishes it. Deploy the reviewed backend first so public
+Candid and `get_api_doc` describe the same implemented API. This source change has
+been deployed to production on 2026-10-14. See [MCP setup and alpha permissions](mcp.md) and
+[validation status](collaboration-progress.md).
 
 ## Custom domain: `www.subnet.ee`
 

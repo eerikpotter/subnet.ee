@@ -1,0 +1,109 @@
+<!doctype html>
+<html lang="et">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <meta name="color-scheme" content="light">
+  <script src="/translations.js" defer></script>
+  <script src="/i18n.js" defer></script>
+  <meta name="description" content="Sinu failid ja kaustad. Loo, jaga ja tööta koos pilveruumis.">
+  <title>subnet.ee — Pilveruum</title>
+  <script type="module" src="/cloud.js"></script>
+  <link rel="icon" type="image/png" href="/assets/brand/subnet.png">
+  <link rel="stylesheet" href="/tokens.css">
+  <link rel="stylesheet" href="/style.css">
+</head>
+<body>
+  <a class="skip" href="#failid">Liigu failideni</a>
+  <div class="workspace">
+    <aside class="sidebar">
+      <a class="brand" href="/" aria-label="subnet.ee avaleht"><img class="brand-mark" src="/assets/brand/subnet.png" width="542" height="394" alt=""><span class="subnet-wordmark">subnet<span>.ee</span></span></a>
+      <div class="space-label">SINU PILVERUUM</div>
+      <nav aria-label="Peamenüü">
+        <a id="files-nav" class="nav-active" href="#failid" aria-current="page"><span aria-hidden="true">▱</span> Minu failid</a>
+        <a id="shared-nav" href="#jagatud"><span aria-hidden="true">♧</span> Minuga jagatud</a>
+        <a id="trash-nav" href="#prugikast"><span aria-hidden="true">⌫</span> Prügikast</a>
+        <a id="apps-nav" href="#rakendused"><span aria-hidden="true">⊞</span> Rakendused <span class="nav-count">__APP_COUNT_PADDED__</span></a>
+      </nav>
+      <div class="sidebar-bottom"><span class="status-dot"></span> ICP-pilv<p>Sinu ideed. Sinu tööriistad.</p></div>
+    </aside>
+    <main>
+      <header class="topbar"><span>Pilveruum <span class="breadcrumb">/</span> <span id="page-name">Rakendused</span></span><div class="account-controls"><div class="language-switch" role="group" aria-label="Keel"><a href="/pilveruum/" data-language="et" lang="et" aria-label="Eesti keeles">ET</a><a href="/en/pilveruum/" data-language="en" lang="en" aria-label="In English">EN</a></div><span id="account-status">Ühendan kontoga…</span><button id="sign-in" class="button button-primary" disabled>Logi sisse</button><button id="sign-out" class="button" hidden>Logi välja</button></div></header>
+      <p id="account-message" class="account-message" role="status" hidden></p>
+      <div id="apps-view" hidden>
+      <section class="intro" aria-labelledby="intro-title">
+        <div class="eyebrow"><span></span> RUUM SINU IDEEDELE</div>
+        <h1 id="intro-title">Mida sa täna <em>lood?</em></h1>
+        <p>ArtCrafti avatud lähtekoodiga loometööriistad, millele oleme lisanud ICP-pilvetoe.</p>
+        <div class="craft-context">
+          <span class="alpha-badge">Alpha</span>
+          <span>Varajased versioonid, mida kogukond pidevalt täiustab.</span>
+          <a href="https://getartcraft.com/apps" target="_blank" rel="noopener noreferrer">ArtCrafti projekt <span aria-hidden="true">↗</span></a>
+        </div>
+      </section>
+      <section id="rakendused" class="applications" aria-labelledby="apps-title">
+        <div class="section-heading"><h2 id="apps-title">Sinu rakendused</h2><span>__APP_COUNT__ tööriista · üks loomeruum</span></div>
+        <div class="app-grid"><!-- APP_CARDS --></div>
+      </section>
+      <section class="cloud-note" aria-labelledby="cloud-title">
+        <img class="cloud-symbol" src="/assets/brand/subnet.png" width="542" height="394" alt="">
+        <div><h2 id="cloud-title">Sinu tööle oma koht</h2><p>Salvesta oma tööd pilve ja jätka hiljem samast kohast.<br>Üks konto ja sinu failid kõigis Crafti rakendustes.</p></div>
+        <span class="cloud-label">Sovereign Cloud <span>Kõigis rakendustes</span></span>
+      </section>
+      </div>
+      <section id="failid" class="files-view" aria-labelledby="files-title">
+        <div class="files-heading"><div><h1 id="files-title">Minu failid</h1><p id="drive-description">Sinu failid. Sinu inimesed. Sinu AI.</p></div>
+          <div class="drive-actions"><button id="new-folder" class="button" disabled>Uus kaust</button><button id="upload-file" class="button button-primary" disabled>Laadi fail üles</button><input id="upload-input" type="file" multiple hidden><input id="replace-input" type="file" hidden></div>
+        </div>
+        <div class="files-toolbar"><nav id="breadcrumbs" aria-label="Kausta asukoht"></nav><span id="view-status" role="status"></span><button id="refresh-files" class="button" disabled>Värskenda</button></div>
+        <div id="file-status" class="file-status" role="status">Logi sisse, et näha oma salvestatud faile.</div>
+        <div data-no-translate id="file-list" class="file-list" aria-label="Salvestatud failid"></div>
+        <button id="more-files" class="button" hidden>Näita rohkem</button>
+        <div class="drive-footer"><span id="storage-usage">Sinu failid on seotud sinu kontoga.</span><button id="copy-account" class="button" hidden>Kopeeri konto ID</button></div>
+
+        <details class="ai-access">
+          <summary><span>Tööta AI-ga</span> <span class="alpha-badge">Alpha</span></summary>
+          <div class="ai-access-body">
+            <p>Ühenda oma MCP-toega assistent ja tööta pilvefailidega vestluse kaudu.</p>
+            <ol>
+              <li>Lisa assistendi seadetes MCP-ühendus selle aadressiga:<code data-no-translate>https://mcp.internetcomputer.org/mcp</code></li>
+              <li>Logi sisse sama Internet Identity kontoga ja vali „Actions &amp; questions“.</li>
+              <li>Anna assistendile aadress https://www.subnet.ee ja kirjelda oma ülesannet.</li>
+            </ol>
+            <div class="ai-access-scope"><strong>Praegune ligipääs</strong><p>Alfas on assistendil samad õigused kui sinu kontol. Ta saab faile kustutada ja jagamist muuta seal, kus sinagi. Eraldi õigusi assistendile veel määrata ei saa. Ajalugu näitab kontot, mitte seda, kas tegutses inimene või AI.</p></div>
+            <a href="https://internetcomputer.org/icp-mcp/" target="_blank" rel="noopener noreferrer">ICP MCP ühendamise juhend ↗</a>
+          </div>
+        </details>
+      </section>
+      <footer><span>Avatud tööriistad. Iseseisev looming.</span><span>Craft-rakendused · ArtCrafti avatud lähtekoodil</span></footer>
+    </main>
+  </div>
+<section id="picker-footer" hidden aria-labelledby="picker-heading">
+  <form id="picker-form">
+    <h2 id="picker-heading"></h2>
+    <label id="picker-name-field" for="picker-name">Faili nimi<input id="picker-name" name="name" maxlength="160" autocomplete="off"></label>
+    <p id="picker-hint"></p>
+    <div class="picker-buttons"><button id="picker-cancel" class="button" type="button">Tühista</button><button id="picker-submit" class="button button-primary" type="submit" disabled>Ava</button></div>
+  </form>
+</section>
+<aside id="transfer-status" aria-label="Üleslaadimine" hidden>
+  <p id="transfer-label" role="status" aria-live="polite"></p>
+  <progress id="transfer-progress" max="1" aria-label="Üleslaadimise edenemine"></progress>
+  <p id="transfer-detail"></p>
+</aside>
+<dialog id="drive-dialog" aria-labelledby="dialog-title">
+  <form id="dialog-form"><div class="dialog-heading"><h2 id="dialog-title"></h2><button id="dialog-close" type="button" class="button" aria-label="Sulge">×</button></div>
+    <div id="dialog-body" data-no-translate></div><p id="dialog-error" class="is-error" role="alert" hidden></p>
+    <div class="dialog-actions"><button id="dialog-cancel" type="button" class="button">Tühista</button><button id="dialog-submit" type="submit" class="button button-primary">Salvesta</button></div>
+  </form>
+</dialog>
+<dialog id="preview-dialog" aria-labelledby="preview-name">
+  <header class="preview-heading">
+    <div><p class="preview-eyebrow">Eelvaade</p><h2 id="preview-name" data-no-translate></h2><p id="preview-meta"></p></div>
+    <button id="preview-close" class="button preview-close" type="button" aria-label="Sulge" autofocus>×</button>
+  </header>
+  <div id="preview-content" aria-busy="false" data-no-translate></div>
+  <footer class="preview-footer"><span>Faili vaatamine ei muuda selle sisu.</span><button id="preview-download" class="button" type="button">Laadi alla</button></footer>
+</dialog>
+</body>
+</html>

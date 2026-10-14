@@ -44,6 +44,113 @@ impl<T: Transport> FileClient<T> {
         let bytes = self.transport.update(method, args).await?;
         decode_one::<CloudResult<R>>(&bytes).map_err(|e| e.to_string())?
     }
+    /// Drive failures remain typed on the wire; the UI receives their readable description.
+    pub async fn drive_call<R: CandidType + DeserializeOwned>(&self, method: &str, args: Vec<u8>) -> CloudResult<R> {
+        let bytes = self.transport.update(method, args).await?;
+        decode_one::<crate::drive::DriveResult<R>>(&bytes).map_err(|e| e.to_string())?.map_err(|e| e.to_string())
+    }
+    pub async fn drive_save(
+        &self,
+        target: crate::drive::UploadTarget,
+        bytes: &[u8],
+        request_id: String,
+        mut progress: impl FnMut(usize, usize),
+    ) -> CloudResult<crate::drive::DriveUpload> {
+        use crate::drive::*;
+        if bytes.len() as u64 > MAX_DOCUMENT_BYTES {
+            return Err("Files must be at most 64 MiB".into());
+        }
+        let total = bytes.len().div_ceil(CHUNK_BYTES);
+        progress(0, total);
+        let request = DriveUploadRequest { target, bytes: bytes.len() as u64, sha256: Sha256::digest(bytes).to_vec(), request_id };
+        let stage: DriveUpload = self.drive_call("drive_begin_upload", args((request,))?).await?;
+        if stage.committed.is_some() {
+            return Ok(stage);
+        }
+        // Drain each bounded batch even after an error: no earlier upload request
+        // remains in flight when the caller retries the identical snapshot.
+        let mut completed = 0;
+        for (batch, chunks) in bytes.chunks(CHUNK_BYTES * 4).enumerate() {
+            let mut pending = futures::stream::FuturesUnordered::new();
+            for (offset, chunk) in chunks.chunks(CHUNK_BYTES).enumerate() {
+                pending.push(self.drive_call::<()>("drive_put_chunk", args((stage.id, (batch * 4 + offset) as u64, chunk.to_vec()))?));
+            }
+            let mut error = None;
+            use futures::StreamExt;
+            while let Some(result) = pending.next().await {
+                match result {
+                    Ok(()) => {
+                        completed += 1;
+                        progress(completed, total);
+                    }
+                    Err(e) => {
+                        error.get_or_insert(e);
+                    }
+                }
+            }
+            if let Some(error) = error {
+                return Err(error);
+            }
+        }
+        self.drive_call("drive_commit_upload", args((stage.id,))?).await
+    }
+    pub async fn drive_download(&self, file: u64, revision: u64) -> CloudResult<Vec<u8>> {
+        let entry: crate::drive::DriveEntry = self.drive_call("drive_get", args((file,))?).await?;
+        let current = entry.latest.ok_or("File unavailable")?;
+        let manifest = if current.id == revision {
+            current
+        } else {
+            let history: Vec<Revision> = self.drive_call("drive_history", args((file,))?).await?;
+            history.into_iter().find(|r| r.id == revision).ok_or("Revision unavailable")?
+        };
+        if manifest.bytes > MAX_DOCUMENT_BYTES || manifest.sha256.len() != 32 || manifest.chunk_count != manifest.bytes.div_ceil(CHUNK_BYTES as u64) {
+            return Err("Invalid file manifest".into());
+        }
+        let mut bytes = Vec::new();
+        for index in 0..manifest.chunk_count {
+            let response = self.transport.query("drive_revision_chunk", args((file, revision, index))?).await?;
+            let chunk = decode_one::<crate::drive::DriveResult<Vec<u8>>>(&response).map_err(|e| e.to_string())?.map_err(|e| e.to_string())?;
+            let expected = (manifest.bytes - index * CHUNK_BYTES as u64).min(CHUNK_BYTES as u64) as usize;
+            if chunk.len() != expected {
+                return Err("Invalid file chunk".into());
+            }
+            bytes.extend(chunk);
+        }
+        if Sha256::digest(&bytes).to_vec() != manifest.sha256 {
+            return Err("File integrity check failed".into());
+        }
+        Ok(bytes)
+    }
+    /// A Craft host validates the authenticated drive reference, never personal ownership.
+    pub async fn drive_craft_file(&self, space: u64, file: u64, kind: &FileKind) -> CloudResult<crate::drive::DriveEntry> {
+        let entry: crate::drive::DriveEntry = self.drive_call("drive_get", args((file,))?).await?;
+        validate_craft_entry(&entry, space, kind)?;
+        Ok(entry)
+    }
+    pub async fn drive_save_craft(
+        &self,
+        target: crate::drive::UploadTarget,
+        bytes: &[u8],
+        request_id: String,
+        kind: &FileKind,
+        progress: impl FnMut(usize, usize),
+    ) -> CloudResult<crate::drive::DriveUpload> {
+        use crate::drive::*;
+        kind.validate()?;
+        match &target {
+            UploadTarget::New { format, .. } if format.craft.as_ref() == Some(kind) => {}
+            UploadTarget::Replace { file, .. } => {
+                let entry: DriveEntry = self.drive_call("drive_get", args((*file,))?).await?;
+                validate_craft_entry(&entry, entry.object.space, kind)?;
+                if !entry.capabilities.edit {
+                    return Err("This file is read-only. Use Save As to save a copy.".into());
+                }
+            }
+            _ => return Err("This file format is not supported by this editor".into()),
+        }
+        // The server rechecks Create/Edit, revocation and expected revision at commit.
+        self.drive_save(target, bytes, request_id, progress).await
+    }
     pub async fn projects(&self) -> CloudResult<Vec<Project>> {
         self.update("list_projects", args(())?).await
     }
@@ -143,4 +250,15 @@ impl<T: Transport> FileClient<T> {
         }
         Ok((manifest, bytes))
     }
+}
+
+fn validate_craft_entry(entry: &crate::drive::DriveEntry, space: u64, kind: &FileKind) -> CloudResult<()> {
+    kind.validate()?;
+    if entry.object.space != space || !entry.capabilities.read || entry.object.trashed_at.is_some() {
+        return Err("This file is not available to the signed-in account".into());
+    }
+    if !matches!(&entry.object.kind, crate::drive::ObjectKind::File(format) if format.craft.as_ref() == Some(kind)) {
+        return Err("This file format is not supported by this editor".into());
+    }
+    Ok(())
 }

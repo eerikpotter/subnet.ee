@@ -38,7 +38,7 @@ def localized_link(value, language):
     if url.scheme or url.netloc or not value.startswith("/"):
         return value
     path = re.sub(r"^/en/", "/", url.path)
-    if path not in ("/", "/tooruum/") and not re.fullmatch(r"/apps/[a-z]+/", path):
+    if path not in ("/", "/tooruum/", "/pilveruum/") and not re.fullmatch(r"/apps/[a-z]+/", path):
         return value
     params = [(k, v) for k, v in parse_qsl(url.query, keep_blank_values=True) if k != "lang"]
     if path.startswith("/apps/"):
