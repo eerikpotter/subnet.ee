@@ -451,3 +451,12 @@ The six app-wide `xtask ci` runs stop at the same documented unchanged upstream
 Clippy warnings (Word proof, Deck codecs, Sound video, CAD geometry, Grid XLSX, PDF
 forms). Their fmt stages pass; PhotoCraft's layering check passes. This release
 does not claim fully green editor-wide CI or suppress those upstream lints.
+
+Publication completed: source commit `210bcbf8f1c474917db5ecff63a8f186c66e5d5a`
+and all seven Craft commits are on their GitHub `main` branches. The complete
+172-asset site is live at `https://www.subnet.ee/`, frontend state
+`06871feaac2acb1839a6451a8b38da6ef361267e295d3300ca8ba7e601499000`.
+The existing backend module matches the tested build; no backend upgrade was needed.
+Full mainnet verification of the portal and all seven editors passed, as did the
+homepage demonstration and signed-out drive browser checks. See
+[publication evidence](collaboration-progress.md#complete-github-and-mainnet-publication--15-october-2026).

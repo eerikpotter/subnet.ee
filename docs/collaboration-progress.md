@@ -1,11 +1,44 @@
 # Collaboration implementation evidence
 
-Implementation branch: `feat/shared-cloud-drive`. The root drive and seven Craft
-shared-folder integrations have been deployed to mainnet. The current demo MVP's
+Published branch: `main` (implementation originated on `feat/shared-cloud-drive`).
+The root drive and seven Craft shared-folder integrations are on GitHub and mainnet.
+The current demo MVP's
 scope is closed; the broader original product vision remains future work.
 The current reconciliation below supersedes historical status
 statements in the chronological implementation notes; those notes retain the
 evidence and limitations of each earlier step. No independent security audit is claimed.
+
+## Complete GitHub and mainnet publication — 15 October 2026
+
+The user authorized publishing all accumulated changes, including the previously
+separate illustrative homepage agent workflow. Source release:
+[`210bcbf`](https://github.com/eerikpotter/subnet.ee/commit/210bcbf8f1c474917db5ecff63a8f186c66e5d5a).
+All seven Craft fork commits were pushed to their `origin/main` before the parent
+submodule pointers; all eight remote branches matched their clean local checkouts.
+The assembled app manifest records those exact commits with `sourceDirty: false`.
+Editor JS/Wasm bytes match the earlier native-browser-tested seven-app release.
+
+The full site is published at <https://www.subnet.ee/>: 172 assets, including the
+new homepage demonstration and the simplified drive without upload-administration UI.
+Frontend state hash:
+`06871feaac2acb1839a6451a8b38da6ef361267e295d3300ca8ba7e601499000`.
+The live backend module already matches the tested local artifact:
+`34a26aad2ef9a21edfc0fcf00f9a61d6bdb67c5ad0bc611e4d63e751404b27eb`.
+No backend upgrade, storage migration or user-file mutation was needed for this publication.
+
+Validation: `python3 scripts/verify.py all --environment ic --origin https://www.subnet.ee`
+passes for the portal and all seven editors, including exact downloaded payloads,
+certification headers, runtime identity settings, MCP discovery, CSP, cache policy
+and missing-asset handling. The finalized asset state was separately read back.
+Local ET/EN homepage checks exercised the workflow, image/text previews and return
+to the file list; the mainnet demonstration and signed-out drive startup also pass
+with no observed browser console errors. All 50 JavaScript and 19 Python tooling
+checks, strict cloud UI/backend Wasm Clippy and canonical/vendor snapshot checks pass.
+
+The six editor-wide CI attempts still stop on previously documented Clippy findings
+in unchanged upstream code; their formatting stages pass. PhotoCraft's layer check
+passes. These are recorded limitations, not a claim that editor-wide CI is green.
+The MVP scope and deferred functionality below remain unchanged.
 
 ## MVP scope closure — 15 October 2026
 
