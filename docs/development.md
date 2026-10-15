@@ -142,7 +142,12 @@ identity/data migration. `app_id` is not a credential.
 
 ## Languages
 
-The landing page and cloud drive are prerendered in Estonian at `/` and `/pilveruum/`,
+Use **cloud space** in English product copy and **pilveruum** in Estonian. Use
+**your own sovereign cloud space** for the fuller positioning, with **cloud space**
+in navigation and controls. The editors' existing **Sovereign Cloud** menu label
+remains literal in instructions that refer to it.
+
+The landing page and cloud space are prerendered in Estonian at `/` and `/pilveruum/`,
 and in English at `/en/` and `/en/pilveruum/`. Each URL serves complete, indexable HTML
 with a canonical URL and reciprocal `hreflang` links. Canonical URLs use
 `https://www.subnet.ee` by default; set `SUBNET_PUBLIC_ORIGIN` to override it.

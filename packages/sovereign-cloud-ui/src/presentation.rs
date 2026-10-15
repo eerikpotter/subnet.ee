@@ -302,7 +302,7 @@ mod tests {
         output.textures_delta.clear();
         let mut output = ctx.run_ui(Default::default(), |root| {
             assert!(host_fonts_ready(root.ctx()));
-            egui::Window::new("Cloud drive").show(root.ctx(), |ui| {
+            egui::Window::new("Cloud space").show(root.ctx(), |ui| {
                 style(ui);
                 transfer(ui, "Connecting…", None);
                 notification(ui, "Opened read-only", false);

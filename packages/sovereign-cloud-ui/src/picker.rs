@@ -52,7 +52,7 @@ impl Picker {
         let language = current.get("lang").unwrap_or_else(|| "en".into());
         let path = if language == "et" { "/pilveruum/" } else { "/en/pilveruum/" };
         let dialog = document.create_element("dialog").map_err(error)?.dyn_into::<web_sys::HtmlDialogElement>().map_err(error)?;
-        dialog.set_attribute("aria-label", if language == "et" { "Pilveruum" } else { "Cloud drive" }).map_err(error)?;
+        dialog.set_attribute("aria-label", if language == "et" { "Pilveruum" } else { "Cloud space" }).map_err(error)?;
         let background = if dark { "#24272d" } else { "#f4f7fb" };
         dialog.set_attribute("style", &format!("background:{background};padding:0;border:1px solid #64748b;border-radius:16px;width:min(1080px,calc(100vw - 24px));height:min(780px,calc(100dvh - 24px));max-width:none;max-height:none;overflow:hidden;box-shadow:0 24px 100px #0008")).map_err(error)?;
         let close = document.create_element("button").map_err(error)?.dyn_into::<web_sys::HtmlElement>().map_err(error)?;
@@ -61,7 +61,7 @@ impl Picker {
         close.set_attribute("aria-label", if language == "et" { "Sulge" } else { "Close" }).map_err(error)?;
         close.set_attribute("style", "position:absolute;right:12px;top:8px;z-index:2;padding:6px 12px;border:1px solid #64748b;border-radius:8px;background:#f4f7fb;color:#0f2747;cursor:pointer;font:13px system-ui").map_err(error)?;
         let frame = document.create_element("iframe").map_err(error)?.dyn_into::<web_sys::HtmlIFrameElement>().map_err(error)?;
-        frame.set_title("subnet.ee cloud drive");
+        frame.set_title("subnet.ee cloud space");
         frame.set_attribute("style", "display:block;width:100%;height:calc(100% - 44px);margin-top:44px;border:0;background:#f4f7fb").map_err(error)?;
         if dark {
             close.set_attribute("style","position:absolute;right:12px;top:8px;z-index:2;padding:6px 12px;border:1px solid #454b56;border-radius:8px;background:#24272d;color:#f0f2f6;cursor:pointer;font:13px system-ui").map_err(error)?;

@@ -83,19 +83,22 @@ function updateAccount() {
   $('new-folder').disabled = $('upload-file').disabled = !signed || !folder?.capabilities.create || loading || busy || currentView === 'trash';
   $('new-folder').hidden = $('upload-file').hidden = ['shared', 'trash'].includes(currentView) && !folder;
   $('copy-account').hidden = !signed;
+  $('ai-account').hidden = !signed;
+  $('ai-principal').textContent = signed ? account.principal : '';
+  $('ai-copy-account').disabled = !signed || restoring || !!cloud?.needs_refresh();
   text($('account-status'), signed ? 'Minu konto' : 'Sinu pilveruum');
   $('account-status').title = signed ? account.principal : '';
   updatePicker();
   bind($('storage-usage'), () => { $('storage-usage').textContent = signed ? t('{used} / {quota} kasutusel', { used: size(account.usedBytes), quota: size(account.quotaBytes) }) : t('Sinu failid on seotud sinu kontoga.'); });
 }
 function heading() {
-  const label = currentView === 'apps' ? 'Rakendused' : currentView === 'trash' ? 'Prügikast' : currentView === 'shared' ? 'Minuga jagatud' : 'Minu failid';
+  const label = currentView === 'ai' ? 'Tööta AI-ga' : currentView === 'apps' ? 'Rakendused' : currentView === 'trash' ? 'Prügikast' : currentView === 'shared' ? 'Minuga jagatud' : 'Minu failid';
   text($('page-name'), label);
   if (folder && folder.id !== root?.id) { $('files-title').textContent = folder.name; $('files-title').removeAttribute('data-i18n-dynamic'); }
   else text($('files-title'), label);
   text($('drive-description'), currentView === 'trash' ? 'Kustutatud failid ja kaustad. Taasta need algsesse asukohta.' : currentView === 'shared' ? 'Failid ja kaustad, mille teised on sinuga jaganud.' : 'Sinu failid. Sinu inimesed. Sinu AI.');
-  $('apps-view').hidden = currentView !== 'apps'; $('failid').hidden = currentView === 'apps';
-  for (const [id, view] of [['files-nav','files'],['shared-nav','shared'],['trash-nav','trash'],['apps-nav','apps']]) {
+  $('apps-view').hidden = currentView !== 'apps'; $('ai-view').hidden = currentView !== 'ai'; $('failid').hidden = ['apps','ai'].includes(currentView);
+  for (const [id, view] of [['files-nav','files'],['shared-nav','shared'],['trash-nav','trash'],['apps-nav','apps'],['ai-nav','ai']]) {
     $(id).classList.toggle('nav-active', currentView === view);
     if (currentView === view) $(id).setAttribute('aria-current','page'); else $(id).removeAttribute('aria-current');
   }
@@ -242,13 +245,13 @@ async function route(initialPage = null) {
   const epoch = ++generation;
   pickerSelection=null;
   text($('view-status'),'');
-  const hash = picker && ['#rakendused','#prugikast'].includes(location.hash) ? '#failid' : location.hash;
-  currentView = hash === '#rakendused' ? 'apps' : hash === '#jagatud' ? 'shared' : hash === '#prugikast' ? 'trash' : 'files';
+  const hash = picker && ['#rakendused','#prugikast','#ai'].includes(location.hash) ? '#failid' : location.hash;
+  currentView = hash === '#ai' ? 'ai' : hash === '#rakendused' ? 'apps' : hash === '#jagatud' ? 'shared' : hash === '#prugikast' ? 'trash' : 'files';
   const parent = hash.startsWith('#folder/') ? hash.slice(8) : currentView === 'files' ? root?.id : null;
   const key = parent ? `folder/${parent}` : currentView;
   folder = null; trail = [];
   if (!account?.authenticated || !cloud) { loading=false; clearFiles('Logi sisse, et näha oma salvestatud faile.'); heading(); updateAccount(); return; }
-  if (currentView === 'apps') { loading=false; heading(); updateAccount(); return; }
+  if (['apps','ai'].includes(currentView)) { loading=false; heading(); updateAccount(); return; }
   if(initialPage?.folder?.id === parent && !cloud.needs_refresh()) {
     applyPage(initialPage,false); remember(key,initialPage); loading=false; updateAccount(); return;
   }
@@ -508,7 +511,13 @@ $('new-folder').addEventListener('click',newFolder);
 $('upload-file').addEventListener('click',()=> $('upload-input').click());
 $('upload-input').addEventListener('change',event=>{const files=[...event.target.files];event.target.value='';uploadFiles(files);});
 $('replace-input').addEventListener('change',event=>{const files=[...event.target.files];event.target.value='';uploadFiles(files,replaceFile);});
-$('copy-account').addEventListener('click',async()=>{try {await navigator.clipboard.writeText(account.principal);message('Konto ID kopeeritud.');}catch {message(account.principal);}});
+async function copyAccount() {
+  if(!account?.authenticated || restoring || cloud?.needs_refresh()) return;
+  const principal=account.principal;
+  try {await navigator.clipboard.writeText(principal);message('Konto ID kopeeritud.');}catch {message(principal);}
+}
+$('copy-account').addEventListener('click',copyAccount);
+$('ai-copy-account').addEventListener('click',copyAccount);
 $('sign-in').addEventListener('click',async()=>{
   if(!cloud)return; const attempt=++loginAttempt;
   try {message('Lõpeta sisselogimine Internet Identity aknas.');text($('sign-in'),'Ava sisselogimine uuesti');await cloud.sign_in();if(attempt===loginAttempt)await refresh();}
@@ -530,7 +539,7 @@ document.addEventListener('visibilitychange',()=>{if(!document.hidden)refresh();
 setInterval(()=>{if(!document.hidden && cloud?.needs_refresh())refresh();},1000);
 setInterval(()=>{if(!document.hidden && !loading && account?.authenticated)refresh();},30000);
 window.addEventListener('beforeunload',event=>{if(busy){event.preventDefault();event.returnValue='';}});
-heading(); updateAccount();
+route();
 try {
   const response=await fetch('/apps.json'); if(!response.ok)throw new Error(t('Rakenduste register ei ole kättesaadav.'));
   registry=(await response.json()).apps; setupPicker(); await init({module_or_path:'__CLOUD_WASM__'});cloud=new CloudPortal();await refresh();

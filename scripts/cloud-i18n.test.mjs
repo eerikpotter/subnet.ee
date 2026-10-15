@@ -18,9 +18,10 @@ function fixture(options={}) {
   const file=id=>({id,spaceId:'1',owner:'alice',name:'Ideed',folder:false,format:{craft:{format_id:'grid',format_version:1}},bytes:1572864,updatedMs:1700000000000,revision:'44',version:'1',capabilities:{read:true,edit:true,create:true,delete:true},...options.file});
   const urls=[];class PreviewURL extends URL {static createObjectURL(blob){urls.push(['create',blob]);return 'blob:preview';}static revokeObjectURL(url){urls.push(['revoke',url]);}}
   Object.assign(host.context,{URL:PreviewURL,Blob,TextDecoder,TextEncoder,location:host.window.location,crypto:{randomUUID:()=> 'test-request-id-0001'},setInterval(){},async init(){},
-    async fetch(){return {ok:true,json:async()=>({apps:[{id:'gridcraft',name:'GridCraft',cloud:true,cloudExtension:'scjson',openFormats:[{id:'grid',version:1}]}]})};},
+    navigator:{clipboard:{writeText:async value=>{if(options.copy)return options.copy(value);}}},
+    async fetch(){if(options.unavailable)throw new Error('Unavailable');return {ok:true,json:async()=>({apps:[{id:'gridcraft',name:'GridCraft',cloud:true,cloudExtension:'scjson',openFormats:[{id:'grid',version:1}]}]})};},
     CloudPortal:class {
-      async restore(){calls.push(['restore']);return {authenticated:true,principal:'alice',spaceId:'1',usedBytes:100,quotaBytes:10000,...(options.home ? {home:{folder:root,breadcrumbs:[root],entries:[file('first')],cursor:null,catalog:options.catalog}} : {})};}
+      async restore(){calls.push(['restore']);return {authenticated:true,principal:'alice',spaceId:'1',usedBytes:100,quotaBytes:10000,...options.account,...(options.home ? {home:{folder:root,breadcrumbs:[root],entries:[file('first')],cursor:null,catalog:options.catalog}} : {})};}
       needs_refresh(){return options.stale || false;}
       async upload(payload,bytes,progress){calls.push(['upload',JSON.parse(payload)]);if(options.upload)return options.upload(payload,bytes,progress);}
       async download(id,revision){calls.push(['download',id,revision]);return options.download ? options.download(id,revision) : new TextEncoder().encode('Example text');}
@@ -49,6 +50,60 @@ test('drive language switches preserve session, loaded pages, cursor, file names
   assert.equal(rows[0].children[2].href,'/apps/gridcraft/?cloud_service=cloud&cloud_space=1&cloud_file=first&lang=en');
   document.getElementById('more-files').dispatchEvent(new Event('click'));await tick();
   assert.equal(calls.at(-1)[1].cursor,'third-page');
+});
+
+test('AI setup has its own route, survives language changes and stays out of file views',async()=>{
+  const {host,document,calls}=fixture({search:'#ai',drive(method){if(method==='trash')return {entries:[],cursor:null};}});
+  await vm.runInContext(`(async()=>{${source}})()`,host.context);
+  assert.equal(document.getElementById('ai-view').hidden,false);
+  assert.equal(document.getElementById('failid').hidden,true);
+  assert.equal(document.getElementById('ai-nav').getAttribute('aria-current'),'page');
+  assert.equal(calls.some(([method])=>['browse','list','trash'].includes(method)),false);
+  const before=JSON.stringify(calls);host.i18n.setLanguage('en');
+  assert.equal(document.getElementById('page-name').textContent,'Work with AI');
+  assert.equal(JSON.stringify(calls),before);
+  for(const hash of ['#failid','#jagatud','#prugikast','#rakendused']) {
+    host.context.location.hash=hash;host.window.dispatchEvent(new Event('hashchange'));await tick();
+    assert.equal(document.getElementById('ai-view').hidden,true);
+    assert.notEqual(document.getElementById('ai-nav').getAttribute('aria-current'),'page');
+  }
+});
+
+test('AI setup deep link is readable before sign-in and if cloud startup fails',async()=>{
+  for(const options of [{account:{authenticated:false}},{unavailable:true}]) {
+    const {host,document,calls}=fixture({search:'#ai',...options});
+    await vm.runInContext(`(async()=>{${source}})()`,host.context);
+    assert.equal(document.getElementById('ai-view').hidden,false);
+    assert.equal(document.getElementById('ai-account').hidden,true);
+    assert.equal(document.getElementById('ai-principal').textContent,'');
+    assert.equal(calls.some(([method])=>['initialize','browse','list'].includes(method)),false);
+  }
+});
+
+test('a pending file listing cannot replace AI setup after navigation',async()=>{
+  let finish;
+  const {host,document}=fixture({drive(method){if(method==='browse')return new Promise(resolve=>{finish=resolve;});}});
+  const startup=vm.runInContext(`(async()=>{${source}})()`,host.context);await tick();
+  host.context.location.hash='#ai';host.window.dispatchEvent(new Event('hashchange'));await tick();
+  finish({folder:{id:'1',owner:'alice',name:'My files'},breadcrumbs:[],entries:[],cursor:null});await startup;
+  assert.equal(document.getElementById('ai-view').hidden,false);
+  assert.equal(document.getElementById('failid').hidden,true);
+  assert.equal(document.getElementById('page-name').textContent,'Tööta AI-ga');
+});
+
+test('AI principal copy follows the current account and clears on sign-out',async()=>{
+  const copied=[], options={search:'#ai',copy:value=>copied.push(value)};
+  const {host,document}=fixture(options);await vm.runInContext(`(async()=>{${source}})()`,host.context);
+  const copy=document.getElementById('ai-copy-account');
+  copy.dispatchEvent(new Event('click'));await tick();assert.deepEqual(copied,['alice']);
+  options.account={principal:'agent'};host.window.dispatchEvent(new Event('storage'));await tick();
+  assert.equal(document.getElementById('ai-principal').textContent,'agent');
+  copy.dispatchEvent(new Event('click'));await tick();assert.deepEqual(copied,['alice','agent']);
+  options.stale=true;copy.dispatchEvent(new Event('click'));await tick();assert.equal(copied.length,2);
+  options.stale=false;options.account={authenticated:false};host.window.dispatchEvent(new Event('storage'));await tick();
+  assert.equal(document.getElementById('ai-account').hidden,true);
+  assert.equal(document.getElementById('ai-principal').textContent,'');
+  copy.dispatchEvent(new Event('click'));await tick();assert.equal(copied.length,2);
 });
 
 test('new folder submits the selected parent and navigates through the canonical drive API',async()=>{
@@ -214,6 +269,13 @@ test('file menus close on another menu, outside click and Escape',async()=>{
 });
 
 const pickerSearch=mode=>'?picker='+mode+'&app=gridcraft&channel=01234567-0123-0123-0123-0123456789ab&name=Shared';
+test('editor pickers cannot navigate into AI setup',async()=>{
+  const {host,document,calls}=fixture({search:pickerSearch('open')+'#ai'});
+  await vm.runInContext(`(async()=>{${source}})()`,host.context);
+  assert.equal(document.getElementById('ai-view').hidden,true);
+  assert.equal(document.getElementById('failid').hidden,false);
+  assert.equal(calls.some(([method])=>method==='browse'),true);
+});
 test('shared Craft links open the same editor without requiring file ownership',async()=>{
   const {host,document}=fixture({file:{owner:'bob'}});await vm.runInContext(`(async()=>{${source}})()`,host.context);
   assert.match(document.getElementById('file-list').children[0].children[2].href,/cloud_file=first/);

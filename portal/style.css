@@ -346,20 +346,32 @@ footer { border-top: 1px solid var(--line); padding: 24px 0; display: flex; flex
 .file-size { flex-shrink: 0; color: var(--muted); font-size: 12px; font-variant-numeric: tabular-nums; }
 .file-row .button { font-size: 12px; min-height: 38px; padding: 8px 12px; }
 .files-footnote { margin: 24px 0 40px; color: var(--muted); font-size: 12px; line-height: 1.7; }
-.ai-access { max-width: 720px; margin: 0 0 40px; border: 1px solid var(--line); border-radius: var(--radius-card); background: var(--surface); font-size: 13px; line-height: 1.7; }
-.ai-access summary { padding: 18px 22px; cursor: pointer; font-weight: 600; }
-.ai-access summary > span:first-child { margin-left: 6px; }
-.ai-access summary .alpha-badge { margin-left: 10px; vertical-align: 1px; }
-.ai-access summary:focus-visible { outline: 2px solid var(--action); outline-offset: 4px; border-radius: var(--radius-card); }
-.ai-access-body { padding: 0 22px 22px; }
-.ai-access-body > p { margin: 0 0 18px; color: var(--muted); }
-.ai-access ol { margin: 0 0 20px; padding-left: 20px; }
-.ai-access li { padding-left: 4px; margin: 12px 0; }
-.ai-access code { display: block; margin-top: 8px; padding: 10px 12px; border-radius: 8px; background: var(--surface-secondary); font-size: 12px; overflow-wrap: anywhere; user-select: all; }
+.ai-view { max-width: 1080px; padding-top: var(--space-12); min-height: 70vh; font-size: 14px; line-height: 1.7; }
+.ai-options { display: grid; grid-template-columns: repeat(2, minmax(0, 1fr)); gap: 20px; align-items: start; }
+.ai-option, .ai-connection { padding: 28px; border: 1px solid var(--line); border-radius: var(--radius-card); background: var(--surface); }
+.ai-option-recommended { border-color: var(--sky-blue); }
+.ai-option-label { display: block; margin-bottom: 12px; color: var(--muted); font-size: 12px; font-weight: 600; }
+.ai-option-recommended .ai-option-label { color: var(--action); }
+.ai-view h2 { margin: 0 0 12px; font-size: 20px; line-height: 1.4; letter-spacing: -.4px; }
+.ai-view p { color: var(--muted); margin: 0 0 20px; }
+.ai-view ol { margin: 20px 0; padding-left: 20px; }
+.ai-view li { padding-left: 4px; margin: 12px 0; }
+.ai-view li > span { display: block; }
+.ai-view a { color: var(--action); text-underline-offset: 3px; }
+.ai-view code { display: block; margin: 8px 0 12px; padding: 10px 12px; border-radius: 8px; background: var(--surface-secondary); font-size: 12px; overflow-wrap: anywhere; user-select: all; }
+.ai-view .ai-permission-note, .ai-view .ai-footnote { font-size: 12px; }
+.ai-option > :last-child { margin-bottom: 0; }
+.ai-setup-steps summary { cursor: pointer; color: var(--action); font-weight: 600; }
+.ai-setup-steps summary:focus-visible { outline: 2px solid var(--action); outline-offset: 4px; border-radius: 2px; }
+.ai-setup-steps > :last-child { margin-bottom: 0; }
+.ai-account { border-top: 1px solid var(--line); padding-top: 18px; margin: 20px 0; font-size: 12px; }
+.ai-account p { margin: 10px 0 0; }
+.ai-connection { margin: 24px 0; }
 .ai-access-scope { margin-bottom: 18px; padding: 14px 16px; border-left: 2px solid var(--sky-blue); background: var(--surface-secondary); border-radius: 0 8px 8px 0; font-size: 12px; }
 .ai-access-scope strong { font-weight: 600; }
 .ai-access-scope p { margin: 4px 0 0; color: var(--muted); }
-.ai-access-body > a { color: var(--action); text-underline-offset: 3px; }
+@media(max-width:1000px) { .ai-options { grid-template-columns: 1fr; } }
+@media(max-width:700px) { .ai-view { padding-top: 32px; } .ai-option, .ai-connection { padding: 20px; } }
 #more-files { margin-top: 20px; }
 @media(min-width:1600px) { main { padding: 0 64px; } .art { height: 190px; } }
 @media(max-width:1150px) {
@@ -539,7 +551,7 @@ footer { border-top: 1px solid var(--line); padding: 24px 0; display: flex; flex
 .cloud-picker .workspace { min-height:calc(100dvh - var(--picker-footer-height)); grid-template-columns:180px minmax(0,1fr); padding-bottom:var(--picker-footer-height); }
 .cloud-picker .sidebar { padding:24px 12px; }
 .cloud-picker .sidebar .brand,.cloud-picker .sidebar-bottom,.cloud-picker .space-label,
-.cloud-picker #trash-nav,.cloud-picker #apps-nav,.cloud-picker .ai-access,.cloud-picker main>footer,
+.cloud-picker #trash-nav,.cloud-picker #apps-nav,.cloud-picker #ai-nav,.cloud-picker #ai-view,.cloud-picker main>footer,
 .cloud-picker #upload-file,.cloud-picker #sign-out,.cloud-picker #copy-account,
 .cloud-picker #drive-description,.cloud-picker .topbar>span { display:none!important; }
 .cloud-picker main { padding:0 24px; }

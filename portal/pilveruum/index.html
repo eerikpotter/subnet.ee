@@ -24,6 +24,7 @@
         <a id="shared-nav" href="#jagatud"><span aria-hidden="true">♧</span> Minuga jagatud</a>
         <a id="trash-nav" href="#prugikast"><span aria-hidden="true">⌫</span> Prügikast</a>
         <a id="apps-nav" href="#rakendused"><span aria-hidden="true">⊞</span> Rakendused <span class="nav-count">__APP_COUNT_PADDED__</span></a>
+        <a id="ai-nav" href="#ai"><span aria-hidden="true">✧</span> Tööta AI-ga</a>
       </nav>
       <div class="sidebar-bottom"><span class="status-dot"></span> ICP-pilv<p>Sinu ideed. Sinu tööriistad.</p></div>
     </aside>
@@ -61,19 +62,50 @@
         <button id="more-files" class="button" hidden>Näita rohkem</button>
         <div class="drive-footer"><span id="storage-usage">Sinu failid on seotud sinu kontoga.</span><button id="copy-account" class="button" hidden>Kopeeri konto ID</button></div>
 
-        <details class="ai-access">
-          <summary><span>Tööta AI-ga</span> <span class="alpha-badge">Alpha</span></summary>
-          <div class="ai-access-body">
-            <p>Ühenda oma MCP-toega assistent ja tööta pilvefailidega vestluse kaudu.</p>
+      </section>
+      <section id="ai-view" class="ai-view" aria-labelledby="ai-title" hidden>
+        <div class="files-heading"><div><h1 id="ai-title">Tööta AI-ga</h1><p>Ühenda oma MCP-toega assistent ja tööta pilvefailidega vestluse kaudu.</p></div><span class="alpha-badge">Alpha</span></div>
+        <div class="ai-options">
+          <section class="ai-option ai-option-recommended" aria-labelledby="ai-separate-title">
+            <span class="ai-option-label">Soovitatav · valitud kaustad</span>
+            <h2 id="ai-separate-title">Eraldi identiteet agendile</h2>
+            <p>Loo agendile eraldi Internet Identity. Sinu failidest pääseb ta ligi ainult neile, mille selle kontoga jagad, ja ainult antud õigustega.</p>
+            <details class="ai-setup-steps">
+            <summary>Eraldi identiteedi seadistamine</summary>
             <ol>
-              <li>Lisa assistendi seadetes MCP-ühendus selle aadressiga:<code data-no-translate>https://mcp.internetcomputer.org/mcp</code></li>
-              <li>Logi sisse sama Internet Identity kontoga ja vali „Actions &amp; questions“.</li>
-              <li>Anna assistendile aadress https://www.subnet.ee ja kirjelda oma ülesannet.</li>
+              <li><a href="https://id.ai" target="_blank" rel="noopener noreferrer">Loo eraldi Internet Identity ↗</a><span>Logi sellega siin pilveruumi sisse.</span></li>
+              <li>Kopeeri selle Subneti konto ID (principal). See on rakendusepõhine, mitte sinu Internet Identity number.</li>
+              <li>Logi välja ja oma tavakontoga uuesti sisse. Ava soovitud kausta menüüs „Jaga“, kleebi agendi konto ID ja vali õigused.</li>
+              <li>Ühenda allolevate juhiste järgi ICP MCP, logides sisse agendi Internet Identityga.</li>
             </ol>
-            <div class="ai-access-scope"><strong>Praegune ligipääs</strong><p>Alfas on assistendil samad õigused kui sinu kontol. Ta saab faile kustutada ja jagamist muuta seal, kus sinagi. Eraldi õigusi assistendile veel määrata ei saa. Ajalugu näitab kontot, mitte seda, kas tegutses inimene või AI.</p></div>
-            <a href="https://internetcomputer.org/icp-mcp/" target="_blank" rel="noopener noreferrer">ICP MCP ühendamise juhend ↗</a>
-          </div>
-        </details>
+            <p class="ai-permission-note">Lugemine on alati lubatud. Lisa loomise, muutmise või kustutamise õigus ainult vajadusel. Kausta õigused kehtivad ka selle sisule.</p>
+            <div id="ai-account" class="ai-account" hidden>
+              <strong>Sisselogitud Subneti konto ID</strong>
+              <code id="ai-principal" data-no-translate></code>
+              <button id="ai-copy-account" class="button" type="button">Kopeeri konto ID</button>
+              <p>Veendu enne kopeerimist, et oled sisse loginud agendi identiteediga.</p>
+            </div>
+            <p class="ai-permission-note">Ligipääsu lõpetamiseks eemalda jagamine kaustalt, kus selle andsid. Kontrolli ka ülemkausta kaudu päritud ja eraldi antud õigusi.</p>
+            </details>
+          </section>
+          <section class="ai-option" aria-labelledby="ai-own-title">
+            <span class="ai-option-label">Lihtsam · sinu konto õigused</span>
+            <h2 id="ai-own-title">Kasuta oma Internet Identityt</h2>
+            <p>Eraldi identiteeti ega kaustade jagamist pole vaja. Ühenda ICP MCP sama Internet Identity ja Subneti kontoga, mida ise kasutad.</p>
+            <div class="ai-access-scope"><strong>Agendil on samad õigused mis sinul</strong><p>Ta pääseb ligi samadele failidele, saab neid kustutada ja jagamist muuta kõikjal, kus sinagi. See valik ei piira agenti kindlate kaustadega.</p></div>
+          </section>
+        </div>
+        <section class="ai-connection" aria-labelledby="ai-connect-title">
+          <h2 id="ai-connect-title">Ühenda ICP MCP</h2>
+          <ol>
+            <li>Lisa assistendi seadetes MCP-ühendus selle aadressiga:<code data-no-translate>https://mcp.internetcomputer.org/mcp</code></li>
+            <li>Logi sisse valitud Internet Identityga ja vali „Actions &amp; questions“.</li>
+            <li>Anna assistendile aadress https://www.subnet.ee ja kirjelda oma ülesannet.</li>
+          </ol>
+          <p>Praegu vajab ka failide loendi lugemine valikut „Actions &amp; questions“. Kausta jagamisõigused määravad endiselt, mida agent teha saab.</p>
+          <a href="https://internetcomputer.org/icp-mcp/" target="_blank" rel="noopener noreferrer">ICP MCP ühendamise juhend ↗</a>
+        </section>
+        <p class="ai-footnote">Ajalugu näitab tegutsenud kontot. Eraldi identiteet eristab kontosid, kuid ei tõenda, kas toimingu tegi inimene või AI.</p>
       </section>
       <footer><span>Avatud tööriistad. Iseseisev looming.</span><span>Craft-rakendused · ArtCrafti avatud lähtekoodil</span></footer>
     </main>

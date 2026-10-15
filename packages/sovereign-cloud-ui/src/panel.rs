@@ -16,7 +16,7 @@ impl Cloud {
             }
         }
         let mut visible = self.visible && self.picker.is_none();
-        egui::Window::new("Cloud drive").id(egui::Id::new("sovereign.cloud.status")).open(&mut visible).default_width(440.0).resizable(false).show(ctx, |ui| {
+        egui::Window::new("Cloud space").id(egui::Id::new("sovereign.cloud.status")).open(&mut visible).default_width(440.0).resizable(false).show(ctx, |ui| {
             presentation::style(ui);
             presentation::header(ui);
             ui.add_space(12.0);

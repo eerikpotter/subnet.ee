@@ -592,3 +592,69 @@ no console errors. Local checks additionally covered Escape, the close button an
 clicks inside popup padding. These checks do not repeat the prior authenticated
 collaboration matrix because this release changes neither app engines nor the cloud
 backend.
+
+## 2026-10-15 — Optional AI setup in the cloud drive menu (local)
+
+Moved Work with AI from the footer of every drive listing to its own `#ai` view
+in the left menu. The page presents a recommended separate Internet Identity with
+ordinary folder sharing and an alternative using the owner's existing identity
+with its full account permissions. Expandable instructions explain signing in as
+the agent, copying its Subnet principal, switching back to the owner and granting
+Read/Create/Edit/Delete as needed. The current account's principal can be copied
+directly from setup. Copy is disabled during session restoration or stale identity
+state. Both languages include inheritance, revocation and account-attribution
+boundaries. See [MCP setup](mcp.md) for the skill evidence and decision.
+
+Validation: `node --test scripts/cloud-i18n.test.mjs scripts/i18n.test.mjs
+scripts/craft-shell.test.mjs scripts/craft-loading.test.mjs` passed 50 tests;
+`python3 -m unittest discover -s scripts -p test_localize.py` passed 3 tests.
+`python3 scripts/assemble.py` passed, reusing all seven editor packages;
+`git diff --check` passed. Browser checks on the assembled localhost site confirmed
+the separate menu view, exclusion from Shared and Trash, expandable steps, language
+switching with the route and expansion preserved, and responsive layouts at desktop,
+768px and 390px widths without horizontal overflow. The browser reported no console
+errors. Screenshots are under `.local/ai-setup-qa/`.
+
+No backend or authentication protocol was changed, and no mainnet deployment or
+Git push was performed. Hosted MCP acceptance with two real Internet Identities,
+principal comparison and shared access/revocation remains an interactive check;
+the automated account-change checks use fixtures.
+
+## 2026-10-15 — Cloud space terminology (local)
+
+English product copy now uses **cloud space**, with **your own sovereign cloud
+space** in the fuller positioning. Estonian remains **pilveruum**. Updated portal
+navigation, titles, metadata, homepage copy, AI setup and shared picker text, plus
+the canonical Rust dialog labels and the terminology guidance in development.md.
+Existing Sovereign Cloud menu references still match the editors' actual menu.
+Canonical Rust label changes await deliberate SDK adoption and editor rebuilds;
+this portal assembly reuses the existing seven editor packages.
+
+Validation: the 50 JavaScript checks and 3 static localization checks passed,
+assembly and `git diff --check` passed, and the local browser confirmed the new
+English sidebar, breadcrumb, account label, title and description. No Cloud drive
+wording remains in portal or canonical shared UI source. Preview:
+`.local/ai-setup-qa/cloud-space-en.jpg`. No deployment or Git push was performed.
+
+## 2026-10-15 — Complete AI setup and cloud space release preparation
+
+Adopted the canonical cloud UI snapshot in all seven editor forks and rebuilt
+every production web bundle. The landing page, its animated workflow, buttons,
+instructions and FAQ use cloud space; a refreshed browser check and a scan of
+portal source and assembled text found no remaining cloud drive wording. Each
+compiled editor contains Cloud space and no Cloud drive string. Estonian remains
+pilveruum. Editor source commits are pinned by this repository's submodules.
+
+The shared UI's 10 library tests and strict Wasm Clippy check passed, alongside
+the 50 portal JavaScript tests and 3 localization tests recorded above. All seven
+release builds passed and all SDK snapshots match canonical sources. Each app's
+`cargo xtask ci` passed formatting but stopped at existing Rust 1.95 Clippy
+warnings in unchanged engine code: PhotoCraft affinity, PdfCraft forms, WordCraft
+proof/docbin, DeckCraft matroska/isobmff, SoundCraft video, CADCraft geom and
+GridCraft xlsx. The complete editor CI suites are therefore not green; these
+snapshot commits change only dialog strings and their integrity manifests.
+Logs and commit receipts are under `.local/ai-cloud-space-*`.
+
+The mainnet preflight state matches the previously published frontend:
+`ecf088800f24b6bc77e003287e5a03ecfa1439b91d43d279917fb489fe569c17`.
+Publication and production verification are recorded below when complete.
