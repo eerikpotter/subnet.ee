@@ -52,7 +52,7 @@ current alpha storage, file count and revision limits remain in force. No
 per-user canister provisioning or end-to-end encryption is added here.
 
 Unit tests cover ACLs, scope isolation, moves, trash, retries and index persistence.
-SDK/PocketIC tests cover original V1 upgrades, all seven native formats and an
+SDK/PocketIC tests cover original V1 upgrades, all eight native formats and an
 upgrade from the pre-index shared-drive Wasm, including grants, lost commit
 responses and immutable bytes. Browser QA separately checks actual navigation,
 upload feedback, session changes and language switching.

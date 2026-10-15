@@ -29,7 +29,7 @@ Inter files come from the existing PhotoCraft font assets; Sora files come from
 [Google Fonts](https://fonts.google.com/specimen/Sora), with the license from
 the [Google Fonts repository](https://github.com/google/fonts/tree/main/ofl/sora).
 
-PhotoCraft, PdfCraft, WordCraft, DeckCraft, SoundCraft, CADCraft and GridCraft are independent Crafting Apps by the
+PhotoCraft, PdfCraft, WordCraft, DeckCraft, SoundCraft, CADCraft, GridCraft and FigCraft are independent Crafting Apps by the
 ArtCraft team and contributors. The checked-in submodule revisions are the source of
 truth. Each application's license, NOTICE and asset attribution are copied into its
 own directory in the assembled site. This portal is an independent integration.

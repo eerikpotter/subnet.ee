@@ -330,7 +330,7 @@ and current access, then uses the canonical drive transfer methods. Create permi
 a new file in the selected folder; Edit permits a new revision of an existing
 file. Read-only documents remain editable locally and can be copied with Save As.
 App-native serialization stays in each adapter. A shared UI change must be adopted
-and smoke-tested with a real save/reopen in all seven affected editors.
+and smoke-tested with a real save/reopen in all affected editors.
 
 The portal facade and editor clients share the Rust session adapter. A loaded session
 is checked against persisted credentials before each SDK request. Logout prevents

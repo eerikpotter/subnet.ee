@@ -80,7 +80,7 @@ python3 scripts/verify.py portal --environment ic
 ```
 
 `python3 scripts/verify.py all --environment ic --timings` also downloads and verifies
-all seven editor bundles, reporting compressed HTTP transfer sizes and durations.
+all registered editor bundles, reporting compressed HTTP transfer sizes and durations.
 These durations measure individual HTTP requests, not browser startup or cache hits.
 The landing page does not preload editor bundles. Each editor is fetched when opened;
 its fingerprinted JavaScript/Wasm uses a one-year immutable cache. HTML and unversioned

@@ -110,5 +110,21 @@
       }
     ],
     "cloudExtension": "scjson"
+  },
+  {
+    "id": "figcraft",
+    "name": "FigCraft",
+    "kind": "Disain",
+    "description": "Kujunda kasutajaliideseid, loo komponente ja prototüüpe.",
+    "formats": "FigCraft · SVG · PNG · PDF",
+    "cloud": true,
+    "symbol": "F",
+    "openFormats": [
+      {
+        "id": "figcraft.figcraft",
+        "version": 1
+      }
+    ],
+    "cloudExtension": "figcraft"
   }
 ]

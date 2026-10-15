@@ -95,6 +95,7 @@ impl FileKind {
             "soundcraft" => "soundcraft.scraft-bundle",
             "cadcraft" => "cadcraft.dxf",
             "gridcraft" => "gridcraft.scjson",
+            "figcraft" => "figcraft.figcraft",
             _ => return None,
         };
         Some(Self { format_id: format.into(), format_version: 1, created_by_app: app.into() })

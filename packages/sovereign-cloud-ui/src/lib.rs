@@ -30,6 +30,7 @@ impl AppSpec {
     pub const SOUND: Self = Self { id: "soundcraft", name: "SoundCraft", extension: "scraft.zip" };
     pub const CAD: Self = Self { id: "cadcraft", name: "CADCraft", extension: "dxf" };
     pub const GRID: Self = Self { id: "gridcraft", name: "GridCraft", extension: "scjson" };
+    pub const FIG: Self = Self { id: "figcraft", name: "FigCraft", extension: "figcraft" };
     pub fn kind(self) -> CloudResult<FileKind> {
         FileKind::for_app(self.id).ok_or_else(|| "This editor is not registered for cloud files".into())
     }
@@ -151,7 +152,7 @@ mod tests {
     #[allow(clippy::unwrap_used)]
     fn every_registered_editor_has_a_distinct_kind_and_native_file_name() {
         let mut kinds = std::collections::BTreeSet::new();
-        for app in [AppSpec::PHOTO, AppSpec::PDF, AppSpec::WORD, AppSpec::DECK, AppSpec::SOUND, AppSpec::CAD, AppSpec::GRID] {
+        for app in [AppSpec::PHOTO, AppSpec::PDF, AppSpec::WORD, AppSpec::DECK, AppSpec::SOUND, AppSpec::CAD, AppSpec::GRID, AppSpec::FIG] {
             let kind = app.kind().unwrap();
             assert!(kinds.insert(kind.format_id));
             let file = app.file_name("Test");

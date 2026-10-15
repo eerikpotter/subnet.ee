@@ -76,6 +76,8 @@ def instrument_editor(folder):
     page.write_text(source)
 
 def art(app):
+    if app == "figcraft":
+        return '<div class="fig-board"><div class="fig-sidebar"><i></i><i></i><i></i></div><div class="fig-screen"><span></span><b></b><i></i><i></i></div><div class="fig-screen second"><span></span><b></b><i></i><i></i></div><div class="fig-connector"></div></div>'
     if app == "photocraft":
         return '<div class="art-work"><div class="photo-sky"><span class="photo-sun"></span><span class="photo-hill"></span><span class="photo-hill second"></span></div></div><div class="photo-tools">+<br>◌<br>⌁</div>'
     if app == "pdfcraft":
@@ -95,7 +97,7 @@ def art(app):
     return '<div class="sound-tracks">' + f'<div class="track">{waves}</div>' * 3 + '</div>'
 
 def cards(apps):
-    colors = {"photocraft":"photo", "pdfcraft":"pdf", "wordcraft":"word", "deckcraft":"deck", "soundcraft":"sound", "cadcraft":"cad", "gridcraft":"grid"}
+    colors = {"photocraft":"photo", "pdfcraft":"pdf", "wordcraft":"word", "deckcraft":"deck", "soundcraft":"sound", "cadcraft":"cad", "gridcraft":"grid", "figcraft":"fig"}
     result = []
     for app in apps:
         e = {key: html.escape(str(value), quote=True) for key, value in app.items()}
@@ -110,7 +112,7 @@ def landing_cards(apps):
     captions = {"photocraft": "Pildid ja visuaalid", "pdfcraft": "PDF-id ja dokumendid",
                 "wordcraft": "Tekstid ja märkmed", "deckcraft": "Esitlused ja ideed",
                 "soundcraft": "Heli ja muusika", "cadcraft": "Joonised ja kavandid",
-                "gridcraft": "Tabelid ja andmed"}
+                "gridcraft": "Tabelid ja andmed", "figcraft": "Disain ja prototüübid"}
     result = []
     for app in apps:
         name = html.escape(app['name'], quote=True)

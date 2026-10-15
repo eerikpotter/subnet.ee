@@ -4,9 +4,14 @@ import test from "node:test";
 import assert from "node:assert/strict";
 
 const code = readFileSync(new URL("../portal/craft-cache.js", import.meta.url), "utf8");
-const { createPackageStore, launchURL, packageName, parsePackageURL, validateRelease } = await import(`data:text/javascript;base64,${Buffer.from(code).toString("base64")}`);
+const { APPS, createPackageStore, launchURL, packageName, parsePackageURL, validateRelease } = await import(`data:text/javascript;base64,${Buffer.from(code).toString("base64")}`);
 const origin = "https://cloud.test";
 const sha = bytes => createHash("sha256").update(bytes).digest("hex");
+
+test("every registered editor has an isolated package cache", () => {
+  const registered = JSON.parse(readFileSync(new URL("../registry/apps.json", import.meta.url), "utf8"));
+  assert.deepEqual([...APPS].sort(), registered.map(app => app.id).sort());
+});
 
 function fixture() {
   const caches = new Map();
@@ -111,9 +116,9 @@ test("cloud/private URLs and unknown cached assets are never served or fetched b
   assert.deepEqual(f.requests, []);
 });
 
-test("packages and cleanup are isolated between all seven applications", async () => {
+test("packages and cleanup are isolated between all registered applications", async () => {
   const f = fixture();
-  const apps = ["photocraft", "wordcraft", "pdfcraft", "deckcraft", "gridcraft", "soundcraft", "cadcraft"];
+  const apps = APPS;
   for (const app of apps) await f.store.install(f.publish("1.0", app));
   await f.store.install(f.publish("2.0", "wordcraft"));
   await f.store.prune("wordcraft", []);

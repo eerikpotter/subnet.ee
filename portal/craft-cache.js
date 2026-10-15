@@ -1,5 +1,5 @@
 // Cache only public editor packages. Cloud requests and credentials never enter here.
-export const APPS = ["photocraft", "wordcraft", "pdfcraft", "deckcraft", "gridcraft", "soundcraft", "cadcraft"];
+export const APPS = ["photocraft", "wordcraft", "pdfcraft", "deckcraft", "gridcraft", "soundcraft", "cadcraft", "figcraft"];
 export const PREFIX = "subnet-craft-v1-";
 const SETTINGS = "subnet-craft-settings-v1";
 const HASH = /^[a-f0-9]{64}$/;

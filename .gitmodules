@@ -19,3 +19,6 @@
 [submodule "apps/gridcraft"]
 	path = apps/gridcraft
 	url = https://github.com/eerikpotter/gridcraft.git
+[submodule "apps/figcraft"]
+	path = apps/figcraft
+	url = https://github.com/eerikpotter/figcraft.git

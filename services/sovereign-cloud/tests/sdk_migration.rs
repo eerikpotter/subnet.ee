@@ -88,7 +88,7 @@ fn all_app_formats_round_trip_and_survive_upgrade_without_cross_app_listing() {
     let owner = Principal::self_authenticating([71; 32]);
     let client = FileClient::with_transport(PocketTransport { pic: &pic, canister, caller: owner, lose_commit_reply: Cell::new(false) });
     let mut saved = vec![];
-    for app in ["photocraft", "pdfcraft", "wordcraft", "deckcraft", "soundcraft", "cadcraft", "gridcraft"] {
+    for app in ["photocraft", "pdfcraft", "wordcraft", "deckcraft", "soundcraft", "cadcraft", "gridcraft", "figcraft"] {
         let kind = FileKind::for_app(app).unwrap();
         let mut state = UploadState { file: None, upload: None, expected_revision: None, name: app.into(), request_id: format!("typed-upgrade-{app}") };
         let revision = block_on(client.save_typed(&mut state, app.as_bytes(), &kind, |_| {})).unwrap();
@@ -97,7 +97,7 @@ fn all_app_formats_round_trip_and_survive_upgrade_without_cross_app_listing() {
     pic.upgrade_canister(canister, wasm, encode_args(()).unwrap(), None).unwrap();
     let account = block_on(client.account()).unwrap();
     let files = block_on(client.files(account.account.personal_space, None, 20)).unwrap();
-    assert_eq!(files.files.len(), 7);
+    assert_eq!(files.files.len(), 8);
     assert_eq!(block_on(client.projects()).unwrap().len(), 1); // Legacy PhotoCraft picker.
     for (kind, id, revision, bytes) in saved {
         let projects = block_on(client.projects_for(&kind)).unwrap();
@@ -271,7 +271,7 @@ fn craft_shared_folder_permissions_and_conflicts_use_the_same_drive_contract() {
     )
     .unwrap();
     let mut files = Vec::new();
-    for app in ["photocraft", "wordcraft", "pdfcraft", "deckcraft", "gridcraft", "soundcraft", "cadcraft"] {
+    for app in ["photocraft", "wordcraft", "pdfcraft", "deckcraft", "gridcraft", "soundcraft", "cadcraft", "figcraft"] {
         let kind = FileKind::for_app(app).unwrap();
         let bytes = format!("synthetic {app} adapter payload").into_bytes();
         let target = UploadTarget::New {

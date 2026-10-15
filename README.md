@@ -8,8 +8,8 @@ portal and cloud integration: shared sign-in, file storage, versions and opening
 files across the workspace.
 
 The demo brings together PhotoCraft, PdfCraft, WordCraft, DeckCraft, SoundCraft,
-CADCraft and GridCraft for images, PDFs, documents, slides, audio, drawings and
-spreadsheets. The portal is available in Estonian and English.
+CADCraft, GridCraft and FigCraft for images, PDFs, documents, slides, audio, drawings,
+spreadsheets and interface design. The portal is available in Estonian and English.
 
 ## How it works
 
@@ -23,7 +23,7 @@ are a direction for future development.
 ## Repository
 
 - `portal/` — the public site, workspace and shared editor navigation.
-- `apps/` — the seven editor forks, pinned as Git submodules.
+- `apps/` — the eight editor forks, pinned as Git submodules.
 - `packages/` — the shared Sovereign Cloud SDK, UI and portal Wasm facade.
 - `services/sovereign-cloud/` — the account and file backend.
 - `registry/apps.json` — editor metadata and supported cloud formats.

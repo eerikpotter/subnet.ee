@@ -106,6 +106,7 @@ h1 { font-size: clamp(47px, 4.55vw, 68px); line-height: 1.01; font-weight: 600; 
 .tool-soundcraft { --tool-bg: linear-gradient(125deg, #efeafe, #f4f2ff); --tool-color: #8022ff; --tool-border: #e8e3ff; }
 .tool-cadcraft { --tool-bg: linear-gradient(125deg, #e6f6f8, #f0fbfb); --tool-color: #168b9b; --tool-border: #d6edf1; }
 .tool-gridcraft { --tool-bg: linear-gradient(125deg, #eaf6ed, #f3faf2); --tool-color: #31935f; --tool-border: #dbefdf; }
+.tool-figcraft { --tool-bg: linear-gradient(125deg, #fcecf5, #fff5fa); --tool-color: #bc4c91; --tool-border: #f3ddea; }
 .technology-panel { display: grid; grid-template-columns: .95fr 1.12fr; gap: 14px; align-items: center; padding: 24px 30px 22px; margin-top: 15px; margin-bottom: 16px; overflow: hidden; }
 .technology-copy .eyebrow { margin-bottom: 5px; }
 .technology-copy h2 { font-size: clamp(28px, 2.85vw, 39px); margin-bottom: 14px; }

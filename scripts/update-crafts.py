@@ -10,7 +10,7 @@ import subprocess
 import sys
 
 ROOT = Path(__file__).resolve().parents[1]
-APPS = ("photocraft", "pdfcraft", "wordcraft", "deckcraft", "soundcraft", "cadcraft", "gridcraft")
+APPS = ("photocraft", "pdfcraft", "wordcraft", "deckcraft", "soundcraft", "cadcraft", "gridcraft", "figcraft")
 SHA = re.compile(r"[0-9a-f]{40}\Z")
 
 

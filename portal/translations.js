@@ -1,5 +1,8 @@
 // English copy. Estonian source text is the key and fallback.
 window.SubnetEnglish = {
+  "Disain": "Design",
+  "Disain ja prototüübid": "Design and prototypes",
+  "Kujunda kasutajaliideseid, loo komponente ja prototüüpe.": "Design interfaces, build components and create prototypes.",
   "Pilveruumi tööriistad": "Tools for your cloud space",
   "Pilveruumis loomine koos AI-ga": "Create with AI in your cloud space",
   "Anna AI-agendile MCP kaudu ligipääs ja töötage koos sinu suveräänses pilveruumis.": "Give your AI agent access through MCP and work together in your own sovereign cloud space.",
@@ -127,7 +130,7 @@ window.SubnetEnglish = {
   "HEA TEADA": "GOOD TO KNOW",
   "Mida tähendab suveräänne pilv?": "What does sovereign cloud mean?",
   "Millised tööriistad on olemas?": "Which tools are available?",
-  "PhotoCraft piltidele, PdfCraft PDF-idele, WordCraft tekstidele, DeckCraft esitlustele, SoundCraft helile, CADCraft joonistele ja GridCraft tabelitele.": "PhotoCraft for images, PdfCraft for PDFs, WordCraft for documents, DeckCraft for slides, SoundCraft for audio, CADCraft for drawings and GridCraft for spreadsheets.",
+  "PhotoCraft piltidele, PdfCraft PDF-idele, WordCraft tekstidele, DeckCraft esitlustele, SoundCraft helile, CADCraft joonistele, GridCraft tabelitele ja FigCraft disainile.": "PhotoCraft for images, PdfCraft for PDFs, WordCraft for documents, DeckCraft for slides, SoundCraft for audio, CADCraft for drawings, GridCraft for spreadsheets and FigCraft for design.",
   "Kas pean midagi paigaldama?": "Do I need to install anything?",
   "Rakendused töötavad otse sinu brauseris. Vali tööruumist sobiv tööriist ja ava see.": "The applications run directly in your browser. Choose a tool in the workspace and open it.",
   "Kuidas saan oma failidega hiljem jätkata?": "How can I return to my saved work?",

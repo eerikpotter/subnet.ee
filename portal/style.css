@@ -446,6 +446,15 @@ footer { border-top: 1px solid var(--line); padding: 24px 0; display: flex; flex
 .cad-plan .cad-wall { stroke-width: 3; }
 .cad-plan .cad-door, .cad-plan .cad-measure { stroke-width: 1; }
 .cad-plan text { stroke: none; fill: #6987a6; font: 8px var(--font-ui); }
+.art-fig { background: #f3e6ef; }
+.fig-board { position: absolute; width: 252px; height: 152px; left: 28%; top: 26px; transform: rotate(-5deg); background: #fffafd; border: 1px solid #dfc7d8; border-radius: 6px; }
+.fig-sidebar { position: absolute; inset: 0 auto 0 0; width: 42px; border-right: 1px solid #ecdce6; padding: 20px 8px; }
+.fig-sidebar i { display: block; height: 5px; margin-bottom: 10px; background: #dbc5d4; border-radius: 2px; }
+.fig-screen { position: absolute; left: 60px; top: 23px; width: 70px; height: 108px; padding: 10px 8px; background: #fff; border: 1px solid #d9bdce; border-radius: 5px; box-shadow: 0 3px 8px #b57c9b12; }
+.fig-screen.second { left: 157px; top: 12px; }
+.fig-screen span, .fig-screen b, .fig-screen i { display: block; border-radius: 3px; background: #e8d4e1; }
+.fig-screen span { height: 5px; width: 30px; margin-bottom: 9px; }.fig-screen b { height: 34px; background: #bc80a5; margin-bottom: 10px; }.fig-screen i { height: 5px; margin-top: 6px; }.fig-screen i:last-child { width: 30px; }
+.fig-connector { position: absolute; width: 28px; height: 30px; left: 130px; top: 65px; border: solid #bd689c; border-width: 2px 0 0 2px; border-radius: 5px 0 0; }
 .art-grid { background: #e5eee9; }
 .grid-sheet { position: absolute; width: 250px; height: 152px; top: 27px; left: 28%; transform: rotate(-5deg); background: #fcfffd; border: 1px solid #c4d8cd; border-radius: 5px; overflow: hidden; font-size: 10px; color: #547967; }
 .grid-columns, .grid-cells { display: grid; grid-template-columns: repeat(3,1fr); }

@@ -684,3 +684,34 @@ The full editor CI limitations recorded above remain. This release does not repe
 authenticated sharing or two-identity hosted MCP acceptance; it changes frontend
 guidance, navigation and dialog wording. Cached editor versions remain under user
 control and can adopt the new packages through the existing version menu.
+
+## 2026-10-15 — Add FigCraft with the shared cloud integration
+
+Added the `eerikpotter/figcraft` fork as the eighth Craft, with Estonian/English
+catalog copy, original interface-design artwork, shared navigation and package
+caching. Registered `figcraft.figcraft` version 1 in the shared SDK and backend.
+The new optional web adapter saves native archives including images, versions
+and branches, preserves existing tabs on open, and keeps later edits dirty when
+an earlier upload finishes. The editor engine and native format remain unchanged;
+the only general editor UI extension is a small File-menu host callback.
+
+The decision and detailed validation record is [FigCraft integration](figcraft-integration.md).
+Native adapter/menu tests, SDK/UI/service tests, four PocketIC migration and
+permission tests, portal tests and release builds passed. FigCraft formatting,
+layers, assets and standalone Wasm/plugin checks passed. Full upstream CI stops
+on existing Clippy errors in the unchanged `.fig` exporter. The cloud service was
+upgraded only in the local environment to accept the added format.
+
+Browser checks verified cloud save/reopen of a synthetic design, clean saved
+state, preserved tabs, account isolation, both catalog languages and the native
+File menu in light mode. A scoped use of FigCraft's existing dark-popover styling
+keeps the cloud menu readable. The standard version updater adopted the final
+bundle, and `verify.py figcraft portal --timings` passed against the local canister.
+Temporary login fixtures were removed and the disposable session was signed out.
+Proof and logs are under `.local/figcraft-qa/` and `.local/figcraft-*.log`.
+
+The fork commit `c49c108f09dec11d2223b15347e95fd81673432d` was pushed to
+`eerikpotter/figcraft` on `main` after the user authorized continuation; the remote
+SHA was verified. The other seven editor commits and binaries were reused.
+The subnet integration is committed locally. No production deployment was
+performed. Existing unrelated workspace changes remain untouched.
