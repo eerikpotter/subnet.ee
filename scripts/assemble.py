@@ -12,9 +12,12 @@ import re
 import shutil
 import subprocess
 import tempfile
+import tomllib
 from urllib.parse import urlsplit
 
 from localize import Page, dictionary
+from craft_release import write_release
+from images import prepare_images
 
 ROOT = Path(__file__).resolve().parents[1]
 
@@ -51,7 +54,7 @@ def instrument_editor(folder):
     data = wasm.read_bytes()
     integrity = "sha384-" + base64.b64encode(hashlib.sha384(data).digest()).decode()
     generated = ('// subnet-wasm-progress:start\n'
-                 'import { loadCraftWasm } from "/craft-wasm.js";\n'
+                 'import { loadCraftWasm } from "./craft-wasm.js";\n'
                  'const wasm = await init({ module_or_path: await loadCraftWasm('
                  f'new URL({json.dumps("./" + wasm.name)}, window.location.href), {len(data)}, {json.dumps(integrity)})'
                  ' });\n// subnet-wasm-progress:end')
@@ -121,6 +124,7 @@ def landing_cards(apps):
 
 def assemble(root=ROOT, selected=("portal",)):
     apps = json.loads((root / "registry/apps.json").read_text())
+    release_notes = json.loads((root / "registry/craft-releases.json").read_text())
     english = dictionary(root / "portal/translations.js")
     origin = os.environ.get("SUBNET_PUBLIC_ORIGIN", "https://www.subnet.ee").rstrip("/")
     parsed_origin = urlsplit(origin)
@@ -154,6 +158,7 @@ def assemble(root=ROOT, selected=("portal",)):
     stage = Path(tempfile.mkdtemp(prefix="subnet-site-", dir=root / ".local"))
     try:
         shutil.copytree(root / "portal", stage, dirs_exist_ok=True)
+        prepare_images(stage, root)
         shell = (stage / "craft-shell.html").read_text()
         (stage / "craft-shell.html").unlink()
         cloud = stage / "cloud"
@@ -180,7 +185,7 @@ def assemble(root=ROOT, selected=("portal",)):
         legacy_en.write_text((stage / "tooruum/index.html").read_text().replace('lang="et"', 'lang="en"').replace('/pilveruum/', '/en/pilveruum/'))
         hashes = []
         manifest = {"apps": [], "portalAssets": {"cloud/" + p.name: hashlib.sha256(p.read_bytes()).hexdigest() for p in [bindings[0], wasm[0]]},
-                    "shellAssets": {name: hashlib.sha256((stage / name).read_bytes()).hexdigest() for name in ["tokens.css", "craft-shell.css", "craft-shell.js", "craft-loading.js", "craft-wasm.js", "i18n.js", "translations.js"]}}
+                    "shellAssets": {name: hashlib.sha256((stage / name).read_bytes()).hexdigest() for name in ["tokens.css", "craft-shell.css", "craft-shell.js", "craft-loading.js", "craft-wasm.js", "craft-cache.js", "craft-updates.js", "apps/craft-cache-sw.js", "i18n.js", "translations.js"]}}
         for app in apps:
             repo = root / "apps" / app['id']
             destination = stage / "apps" / app['id']
@@ -212,12 +217,18 @@ def assemble(root=ROOT, selected=("portal",)):
                             target = licenses / path.relative_to(repo)
                             target.parent.mkdir(parents=True, exist_ok=True)
                             shutil.copy2(path, target)
-            manifest['apps'].append({**app, "path": f"/apps/{app['id']}/", "editorPath": f"/apps/{app['id']}/editor.html", "sourceCommit": subprocess.check_output(["git", "rev-parse", "HEAD"], cwd=repo, text=True).strip(),
+            version = tomllib.loads((repo / "Cargo.toml").read_text())["workspace"]["package"]["version"]
+            manifest['apps'].append({**app, "appVersion": version, "path": f"/apps/{app['id']}/", "editorPath": f"/apps/{app['id']}/editor.html", "sourceCommit": subprocess.check_output(["git", "rev-parse", "HEAD"], cwd=repo, text=True).strip(),
                 "sourceDirty": bool(subprocess.check_output(["git", "status", "--porcelain"], cwd=repo, text=True).strip()),
                 "assets": {f.name: hashlib.sha256(f.read_bytes()).hexdigest() for f in sorted(destination.glob("*")) if f.suffix in (".wasm", ".js")}})
         for app in apps:
             folder = stage / "apps" / app['id']
+            shutil.copy2(stage / "craft-wasm.js", folder / "craft-wasm.js")
             instrument_editor(folder)
+            packaged = next(entry for entry in manifest['apps'] if entry['id'] == app['id'])
+            if "appVersion" not in packaged:
+                raise RuntimeError("Adopt release metadata once with scripts/assemble.py all")
+            write_release(folder, packaged, release_notes)
             parser = InlineScripts()
             parser.feed((folder / "editor.html").read_text())
             hashes.extend("'sha256-" + base64.b64encode(hashlib.sha256(s.encode()).digest()).decode() + "'" for s in parser.scripts)
@@ -225,6 +236,15 @@ def assemble(root=ROOT, selected=("portal",)):
             "style-src 'self' 'unsafe-inline'", "img-src 'self' data: blob:", "font-src 'self' data:", "connect-src 'self' https://icp-api.io", "worker-src 'self' blob:", "media-src 'self' blob:", "object-src 'none'", "base-uri 'self'", "frame-ancestors 'self'"])
         headers = f"/*\n  X-Content-Type-Options: nosniff\n  Referrer-Policy: no-referrer\n  Content-Security-Policy: {policy}\n\n/*.html\n  Cache-Control: no-cache\n\n/*.css\n  Cache-Control: no-cache\n\n/*.json\n  Cache-Control: no-cache\n\n/i18n.js\n  Cache-Control: no-cache\n\n/translations.js\n  Cache-Control: no-cache\n\n/landing.js\n  Cache-Control: no-cache\n\n/cloud.js\n  Cache-Control: no-cache\n\n/craft-shell.js\n  Cache-Control: no-cache\n\n/assets/*\n  Cache-Control: no-cache\n\n/apps/*.wasm\n  Content-Type: application/wasm\n  Cache-Control: public, max-age=31536000, immutable\n\n/apps/*.js\n  Cache-Control: public, max-age=31536000, immutable\n\n/cloud/*.wasm\n  Content-Type: application/wasm\n  Cache-Control: public, max-age=31536000, immutable\n\n/cloud/*.js\n  Cache-Control: public, max-age=31536000, immutable\n\n/.well-known/ii-app-metadata\n  Content-Type: application/json\n  Access-Control-Allow-Origin: *\n"
         headers += "\n/craft-loading.js\n  Cache-Control: no-cache\n\n/craft-wasm.js\n  Cache-Control: no-cache\n\n/agent-workflow.js\n  Cache-Control: no-cache\n"
+        headers += "\n/images/*\n  Cache-Control: public, max-age=31536000, immutable\n"
+        # Shared worker/runtime URLs are mutable; fingerprinted editor files keep
+        # their existing immutable policy. Avoid overlapping conflicting rules.
+        headers = headers.replace("/apps/*.js\n  Cache-Control: public, max-age=31536000, immutable\n", "")
+        for app in manifest['apps']:
+            for filename in app['assets']:
+                if filename.endswith('.js') and filename != 'craft-wasm.js':
+                    headers += f"\n/apps/{app['id']}/{filename}\n  Cache-Control: public, max-age=31536000, immutable\n"
+        headers += "\n/craft-cache.js\n  Cache-Control: no-cache\n\n/craft-updates.js\n  Cache-Control: no-cache\n\n/apps/craft-cache-sw.js\n  Cache-Control: no-cache\n\n/apps/*/craft-wasm.js\n  Cache-Control: no-cache\n"
         headers += "\n/.well-known/ic-domains\n  Content-Type: text/plain\n  Cache-Control: no-cache\n\n/.well-known/ii-alternative-origins\n  Content-Type: application/json\n  Access-Control-Allow-Origin: *\n  Cache-Control: no-cache\n"
         headers += "\n/.well-known/ic-architecture\n  Content-Type: application/json\n  Access-Control-Allow-Origin: *\n  Cache-Control: no-cache\n\n/.well-known/ii-derivation-origin\n  Content-Type: text/plain\n  Access-Control-Allow-Origin: *\n  Cache-Control: no-cache\n"
         (stage / "_headers").write_text(headers)

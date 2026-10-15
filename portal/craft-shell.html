@@ -12,6 +12,7 @@
   <link rel="stylesheet" href="/craft-shell.css">
   <script type="module" src="/craft-loading.js"></script>
   <script type="module" src="/craft-shell.js"></script>
+  <script type="module" src="/craft-updates.js"></script>
 </head>
 <body>
   <header class="craft-bar">
@@ -19,6 +20,7 @@
       <a class="home-link" href="/pilveruum/" data-leave aria-label="Tagasi subnet.ee pilveruumi"><svg class="icon back-icon" viewBox="0 0 24 24" aria-hidden="true"><path d="m12 5-7 7 7 7M5 12h14"/></svg><img src="/assets/brand/subnet.png" width="542" height="394" alt=""><span class="subnet-wordmark">subnet<span>.ee</span></span></a>
       <span class="divider" aria-hidden="true"></span>
       <h1>__APP_NAME__</h1>
+      <button id="app-version" class="app-version" type="button" aria-haspopup="dialog" disabled>Versioon</button>
       <a class="files-link" href="/pilveruum/#failid" data-leave><svg class="icon" viewBox="0 0 24 24" aria-hidden="true"><path d="M20 20H4a2 2 0 0 1-2-2V6a2 2 0 0 1 2-2h5l2 3h9a2 2 0 0 1 2 2v9a2 2 0 0 1-2 2Z"/></svg>Minu failid</a>
     </nav>
   </header>
@@ -49,6 +51,27 @@
       <div class="dialog-actions">
         <button value="cancel" autofocus>Jätka tööd</button>
         <button class="leave-button" value="leave">Lahku salvestamata</button>
+      </div>
+    </form>
+  </dialog>
+  <dialog id="update-dialog" aria-labelledby="update-title">
+    <form method="dialog">
+      <button id="update-close" class="dialog-close" value="cancel" aria-label="Sulge" autofocus>×</button>
+      <p class="dialog-eyebrow">__APP_NAME__</p>
+      <h2 id="update-title">Rakenduse versioon</h2>
+      <div class="release-versions">
+        <div><p>Sinu versioon</p><strong id="current-version">—</strong><small id="current-build"></small></div>
+        <div id="available-release" hidden><p>Saadaval</p><strong id="available-version">—</strong><small id="available-build"></small></div>
+      </div>
+      <p id="release-details" class="release-details"></p>
+      <h3>ArtCrafti väljalaskemärkmed</h3>
+      <div id="release-notes"></div>
+      <a id="release-source" target="_blank" rel="noopener noreferrer" hidden>Vaata kõiki väljalaskemärkmeid</a>
+      <p id="update-status" class="update-status" role="status" aria-live="polite"></p>
+      <progress id="update-progress" max="100" value="0" hidden aria-label="Uuenduse allalaadimine"></progress>
+      <div id="update-actions" class="dialog-actions" hidden>
+        <button id="update-install" type="button" hidden>Uuenda</button>
+        <button id="update-open" type="button" hidden>Ava uus versioon</button>
       </div>
     </form>
   </dialog>

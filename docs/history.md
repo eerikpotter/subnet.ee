@@ -2,6 +2,63 @@
 
 [Project overview](../README.md) · [Development](development.md) · [Deployment](deployment.md)
 
+## Responsive landing images — 15 October 2026
+
+Requirement: keep originals in Git and generate a few image sizes during the build,
+especially to reduce the mobile hero download. The old page preloaded the same
+2.8 MiB landscape PNG and 276 KiB transparent cloud for every viewport; a 32-pixel
+footer logo referenced an 812 KiB PNG.
+
+Architecture evidence, retrieved 15 October 2026:
+[static-site](https://skills.internetcomputer.org/.well-known/skills/static-site/SKILL.md)
+and [icp-cli](https://skills.internetcomputer.org/.well-known/skills/icp-cli/SKILL.md).
+The supported approach is already in use: `@dfinity/static-site@v0.4.0` runs the
+Python assembly build and serves certified static files. No hosting gap was found.
+The observed gap is in our assembly: it copied originals without encoding variants
+or adding responsive markup. The smallest extension is Pillow in that existing
+build, native `srcset`/`sizes`, matching responsive preloads and content-hashed
+WebP URLs. Generated images use a separate `/images/` cache rule so the mutable
+`/assets/*` rule cannot conflict. No new canister, runtime image API or CDN is needed.
+
+Three widths balance payload and build complexity; the browser also considers
+pixel density. A single 96-pixel footer mark covers its 32-pixel display size up
+to 3x density. WebP preserves the cloud's alpha channel. Extra AVIF/fallback sets
+are deferred: the site's modern browser baseline supports WebP. Originals remain
+unchanged and the campaign's explicit download still returns its original PNG.
+References: [responsive images](https://developer.mozilla.org/en-US/docs/Web/HTML/Guides/Responsive_images)
+and [Pillow's WebP encoder](https://pillow.readthedocs.io/en/stable/handbook/image-file-formats.html#webp).
+
+Proven locally: four image-build tests cover dimensions, preserved transparency,
+no upscaling, deterministic URLs/cache invalidation, matching preloads in both
+locales, original bytes, missing inputs and required layout hints. Three existing
+localization tests and ten scoped-workflow tests also pass. `python3
+scripts/assemble.py` succeeds, reusing all seven packaged editors. `git diff
+--check` passes and Git originals are unchanged.
+
+Browser QA at 390, 768 and 1440 CSS pixels loaded the 640-, 1280- and 1672-pixel
+landscapes respectively, with no horizontal overflow or console errors. Both
+languages and the lower banner/footer were visually checked. A 390-pixel iframe
+at the browser's native 2x density loaded the 1280-pixel landscape (315,788 bytes)
+and 640-pixel cloud (24,966 bytes), each exactly once via the matching preload.
+At 1x the landscape is 88,472 bytes versus the original 2,885,880: about 97% less;
+at 2x it is about 89% less. The 32-pixel footer logo uses a 96-pixel WebP of 5,008
+bytes versus 831,844 (99.4% less). The shared subnet PNG falls to 24,070 bytes.
+
+Review: the build uses one encoder dependency and the existing assembly/hosting;
+there is no runtime sizing code or new service to maintain. Original campaign
+downloads are preserved. Local static-preview tests establish selection and byte
+savings, not production load time or live certified cache headers. The extended
+`verify.py` checks those headers after deployment. No canister sync or mainnet
+publication was performed for this change.
+
+Local rollout on 15 October 2026: ran `python3 scripts/dev.py` at the user's
+request, followed by `python3 scripts/verify.py`. The local canister serves all
+13 generated WebP files with correct payloads, media types, certification and
+non-conflicting immutable cache headers. Portal routes, shared assets, runtime
+trust and missing-asset checks passed. The deployed landing page also loaded its
+generated hero images in the browser without console errors. Local URL:
+`http://frontend.local.localhost:61304/`. Mainnet publication remains deferred.
+
 ## Homepage AI workflow illustration — 14 October 2026
 
 Requirement: adapt the supplied `subnet_agent_workflow_et_v2/index.html` and
@@ -460,3 +517,62 @@ The existing backend module matches the tested build; no backend upgrade was nee
 Full mainnet verification of the portal and all seven editors passed, as did the
 homepage demonstration and signed-out drive browser checks. See
 [publication evidence](collaboration-progress.md#complete-github-and-mainnet-publication--15-october-2026).
+
+
+## 2026-10-15 — User-controlled cached Craft versions (local)
+
+All seven editors share a browser package cache and explicit update dialog. Each
+package has verified asset sizes/hashes and a content-derived build ID. Cached A
+continues to open after A is removed from the server; downloading B selects it for
+future launches without replacing the current editor. Restart checks the live
+draft state, including again after asynchronous cache reads. Live-tab leases
+protect older packages during cleanup. Missing/evicted caches fetch the current
+server package. The server retains only one package per app.
+
+Release notes come only from matching published ArtCraft GitHub releases, with an
+inert-text excerpt and source link. The refresh command checked all seven current
+versions and found no exact published tag matches, so the initial snapshot is empty.
+No subnet-authored notes or unadopted upstream changes are shown. Notes-only changes
+do not change the package identity.
+
+Validation: 66 JavaScript tests and 25 Python tooling tests passed (Python via the
+existing `.tools/images/bin/python` environment). Assembly passed without rebuilding
+any native editor. Native browser smoke checks reached ready for all seven apps
+from virtual cached URLs with no console errors; the English and Estonian version
+dialogs were checked. WordCraft exercised A-to-B switching after physical A asset
+removal, preservation of a second tab's unsaved document, rejection of a restart
+with a dirty document, and latest-package recovery after clearing Cache Storage.
+The A/B/C versions used for these scenarios are disposable test fixtures, not new
+ArtCraft releases. Proof is under `.local/craft-cache-qa/`.
+
+The regular local Wasm sync plugin was stopped after over six minutes without
+progress output. The existing native adapter around DFINITY v0.4.0 sync-core
+completed the local frontend sync: 202 assets, state
+`4cc8bf2707dcdea3664839f69897a0aec88dd88b0ea0bfa6c5b9e0476d3cdfc0`.
+Full local `python3 scripts/verify.py all` passed exact asset bytes, certification,
+CSP, runtime identity configuration, immutable/mutable cache rules and missing-path
+checks. WordCraft also reached ready from a cached URL on the actual local ICP
+origin and opened its normal signed-out cloud dialog. This does not repeat the
+previous release's authenticated seven-app collaboration matrix or establish
+compatibility with future upstream format changes.
+
+No new deployment tool or dependency was added. Backend data/schema and app engines
+are unchanged. Mainnet and GitHub have not been updated for this feature.
+
+
+## 2026-10-15 — Version popup refinement and combined publication
+
+Removed the misleading Keep current footer action. The shared version popup now
+closes on a click outside its bounds, Escape, or the accessible corner close button.
+Clicks on the popup's own padding keep it open. Only available-update actions remain
+in the footer. Verified all three dismissal paths in native GridCraft on the local
+ICP frontend; the popup opens without footer controls when the app is current.
+
+The combined release includes responsive landing images, the shared cached-version
+launcher, ArtCraft-only release notes and this popup refinement. All 66 JavaScript
+tests and 25 Python tooling tests passed again. The seven pinned app source commits
+and editor engine binaries remain unchanged. No backend upgrade is required.
+Local frontend state after the popup change:
+`79cf05b79c6b219e85ac1bc97ce45076e8cda60b2098ed09184962e9139d3b56`.
+
+GitHub/mainnet publication is authorized; final rollout evidence will follow here.

@@ -27,6 +27,7 @@ class ScopedWorkflowTest(unittest.TestCase):
         self.apps = [dict(id=app, name=app, symbol=app[0], kind="Test", description="Test", formats="Test")
                      for app in ("photocraft", "gridcraft")]
         self.put("registry/apps.json", json.dumps(self.apps))
+        self.put("registry/craft-releases.json", json.dumps({"apps": {}}))
         for name, content in {
             "index.html": '<a href="/pilveruum/">Ava tööruum</a><!-- LANDING_CARDS -->',
             "tooruum/index.html": '<a href="/pilveruum/">Pilveruum</a>',
@@ -36,10 +37,13 @@ class ScopedWorkflowTest(unittest.TestCase):
             "craft-shell.css": "shell", "craft-shell.js": "shell", "craft-loading.js": "loader", "craft-wasm.js": "wasm-loader", "style.css": "style", "i18n.js": "locale", "translations.js": 'window.SubnetEnglish = {"Ava tööruum":"Open workspace"};' ,
         }.items():
             self.put("portal/" + name, content)
+        for name in ("craft-cache.js", "craft-updates.js", "apps/craft-cache-sw.js"):
+            self.put("portal/" + name, "cache-manager")
         for extension in ("js", "wasm"):
             suffix = "_bg.wasm" if extension == "wasm" else ".js"
             self.put(".local/portal-runtime/sovereign-cloud-web-old" + suffix, "portal")
         for app in self.apps:
+            self.put(f"apps/{app['id']}/Cargo.toml", '[workspace.package]\nversion = "1.0.0"\n')
             self.put(f"apps/{app['id']}/dist/web/index.html", "<script>const wasm = await init({ module_or_path: './editor.wasm' });</script><link rel=\"preload\" as=\"fetch\" href=\"./editor.wasm\">")
             self.put(f"apps/{app['id']}/dist/web/editor.js", app['id'])
             self.put(f"apps/{app['id']}/dist/web/editor.wasm", app['id'])
@@ -115,7 +119,7 @@ class ScopedWorkflowTest(unittest.TestCase):
     def test_bootstrap_progress_is_idempotent_and_preserves_editor_payloads(self):
         folder = self.root / "dist/apps/photocraft"
         original = (folder / "editor.html").read_text()
-        self.assertIn('import { loadCraftWasm } from "/craft-wasm.js";', original)
+        self.assertIn('import { loadCraftWasm } from "./craft-wasm.js";', original)
         self.assertIn('"./editor.wasm"', original)
         self.assertIn("sha384-", original)
         self.assertNotIn('rel="preload"', original)
@@ -123,6 +127,23 @@ class ScopedWorkflowTest(unittest.TestCase):
         self.assertEqual((folder / "editor.html").read_text(), original)
         self.assertEqual((folder / "editor.wasm").read_text(), "photocraft")
         self.assertEqual((folder / "editor.js").read_text(), "photocraft")
+
+    def test_latest_release_describes_complete_package_and_does_not_archive_old_builds(self):
+        folder = self.root / "dist/apps/photocraft"
+        release = json.loads((folder / "release.json").read_text())
+        self.assertEqual(release['version'], '1.0.0')
+        self.assertIn('editor.html', release['assets'])
+        self.assertIn('craft-wasm.js', release['assets'])
+        self.assertNotIn('index.html', release['assets'])
+        for name, asset in release['assets'].items():
+            self.assertEqual(hashlib.sha256((folder / name).read_bytes()).hexdigest(), asset['sha256'])
+        self.put("apps/photocraft/dist/web/editor.wasm", "replacement")
+        with patch.object(assemble.subprocess, "check_output", return_value="next\n"):
+            self.assemble("photocraft")
+        latest = json.loads((folder / "release.json").read_text())
+        self.assertNotEqual(latest['build'], release['build'])
+        self.assertFalse((folder / '_cached').exists())
+        self.assertEqual((folder / "editor.wasm").read_text(), "replacement")
 
     def test_unknown_bootstrap_fails_without_replacing_the_deployed_bundle(self):
         before = (self.root / "dist/apps.json").read_bytes()

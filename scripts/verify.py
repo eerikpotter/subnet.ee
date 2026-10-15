@@ -68,6 +68,8 @@ def main():
         ("/pilveruum/", "pilveruum/index.html"), ("/en/", "en/index.html"), ("/en/pilveruum/", "en/pilveruum/index.html")])
     checks.extend(("/" + name, ROOT / "dist" / name) for name in ["landing.css", "landing.js", "pilveruum/index.html", "assets/brand/subnet.png", "assets/landing/estonian-lakes.png", "assets/landing/cloud-of-estonia.png", "assets/landing/creative-workspace.jpg"])
     checks.extend(("/" + name, ROOT / "dist" / name) for name in ["agent-workflow.css", "agent-workflow.js", "assets/landing/sovereign-cloud.png"])
+    image_assets = json.loads((ROOT / "dist/image-assets.json").read_text())
+    checks.extend((url, ROOT / "dist" / url.lstrip('/')) for url in image_assets)
     checks.append(("/cloud.js", ROOT / "dist/cloud.js"))
     if "portal" in options.apps or "all" in options.apps:
         checks.extend(("/" + name, ROOT / "dist" / name) for name in manifest["portalAssets"])
@@ -87,12 +89,29 @@ def main():
         if app['id'] not in selected:
             continue
         checks.extend((app['path'] + name, folder / name) for name in app['assets'])
+        release = json.loads((folder / "release.json").read_text())
+        if release['app'] != app['id'] or release['version'] != app['appVersion']:
+            raise RuntimeError(f"App release metadata mismatch: {app['id']}")
+        checks.append((app['path'] + "release.json", folder / "release.json"))
+        for name, asset in release['assets'].items():
+            file = folder / name
+            if len(file.read_bytes()) != asset['bytes'] or hashlib.sha256(file.read_bytes()).hexdigest() != asset['sha256']:
+                raise RuntimeError(f"App release asset mismatch: {app['id']}/{name}")
+            if name not in app['assets'] and name != "editor.html":
+                checks.append((app['path'] + name, file))
+    checks = list(dict.fromkeys(checks))
     for route, file in checks:
         status, headers, data = get(route)
         if status != 200 or data != file.read_bytes(): raise RuntimeError(f"Wrong payload/status: {route} ({status})")
         if not headers.get("ic-certificate"): raise RuntimeError(f"Missing certification header: {route}")
         if file.suffix == ".wasm" and headers.get("content-type") != "application/wasm": raise RuntimeError(f"Wrong Wasm MIME: {route}")
-        if file.suffix in (".js", ".wasm") and file.parent != ROOT / "dist":
+        if route in image_assets:
+            if not headers.get("content-type", "").startswith("image/webp"):
+                raise RuntimeError(f"Wrong image MIME: {route}")
+            directives = {value.strip() for value in headers.get("cache-control", "").split(",")}
+            if not {"immutable", "max-age=31536000"} <= directives or directives & {"no-cache", "no-store", "max-age=0"}:
+                raise RuntimeError(f"Wrong image cache policy: {route}")
+        if file.suffix in (".js", ".wasm") and file.parent != ROOT / "dist" and file.name not in ("craft-wasm.js", "craft-cache-sw.js"):
             directives = {value.strip().lower() for value in headers.get("cache-control", "").split(",")}
             if not {"immutable", "max-age=31536000"} <= directives or directives & {"no-cache", "no-store", "max-age=0"}:
                 raise RuntimeError(f"Missing or conflicting versioned cache rule: {route}")
@@ -117,7 +136,7 @@ def main():
         if options.timings:
             seconds, transferred = timings[route]
             print(f"  HTTP {seconds:.3f}s; {transferred:,} transferred bytes; encoding={headers.get('content-encoding', 'identity')}; cache={headers.get('cache-control', 'none')}", flush=True)
-    for route in ["/apps/photocraft/missing.wasm", "/apps/unknown/", "/missing.js", "/browser-session-test.html", "/browser-session-test.js"]:
+    for route in ["/apps/photocraft/missing.wasm", "/apps/unknown/", "/missing.js", "/browser-session-test.html", "/browser-session-test.js", "/apps/wordcraft/_cached/" + "0" * 64 + "/editor.html"]:
         if get(route)[0] != 404: raise RuntimeError(f"Missing file must return 404: {route}")
     status, headers, body = get("/.well-known/ii-app-metadata")
     if status != 200 or json.loads(body)['name'] != "subnet.ee" or headers.get('access-control-allow-origin') != '*':

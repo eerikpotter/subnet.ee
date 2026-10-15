@@ -58,4 +58,6 @@ dialog.addEventListener("close", () => {
 
 // Keep launch references (cloud files, ?file=, renderer flags) and fragments.
 // The editor stays beside its original assets, with its own complete viewport.
-editor.src = `./editor.html${window.location.search}${window.location.hash}`;
+window.SubnetCraftHost = { dirtyState };
+// The version manager owns launching/restarting; navigation keeps its existing
+// synchronous draft guard regardless of which cached editor is running.

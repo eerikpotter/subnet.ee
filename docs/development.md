@@ -15,7 +15,7 @@ custom infrastructure; see the architecture evidence rules in that file.
 
 ## Start locally
 
-Requirements: Rust 1.95.0 with `wasm32-unknown-unknown`, Trunk 0.21.14, Python 3,
+Requirements: Rust 1.95.0 with `wasm32-unknown-unknown`, Trunk 0.21.14, Python 3.11+,
 Node.js/npm, ICP CLI 1.5+ and `ic-wasm`. Toolchain setup, if needed:
 
 ```sh
@@ -23,6 +23,8 @@ rustup toolchain install 1.95.0 --profile minimal --target wasm32-unknown-unknow
 cargo +1.95.0 install trunk --version 0.21.14 --locked
 npm install -g @icp-sdk/icp-cli @icp-sdk/ic-wasm
 python3 scripts/setup.py
+python3 -m venv .tools/images
+.tools/images/bin/python -m pip install -r scripts/image-requirements.txt
 python3 scripts/dev.py all --build --bootstrap
 python3 scripts/verify.py all
 ```
@@ -70,6 +72,39 @@ canister IDs remain there. The local workflow does not deploy to mainnet or push
 Edit portal HTML/CSS/JavaScript in `portal/`, editor metadata in
 `registry/apps.json`, shared cloud behavior in `packages/`, and the backend in
 `services/sovereign-cloud/`. `dist/` is assembled output.
+
+### Landing-page images
+
+Keep full-resolution originals in `portal/assets/`; never overwrite them with web
+exports. Assembly runs `scripts/images.py` before localization, using the pinned
+Pillow environment installed above (or the active Python environment when it has
+the dependency). Builds require no image service or network after installation.
+
+Add `data-image-widths="640,1280,1920"` and an accurate `sizes` attribute to a
+template's `<img>` to generate up to three WebP candidates. Widths are capped at
+the original, never upscaled. Choose widths for the image's rendered size: the
+hero cloud uses 320/640/960 and the campaign preview 320/500/750. A phone with a
+high-density screen can choose the middle size; these are pixel-width candidates,
+not fixed device labels. `data-image-preload` generates an exactly matching
+responsive preload; use it only for above-the-fold imagery. Keep lower images lazy.
+
+The EFTI footer logo is displayed at 32 CSS pixels and gets one 96-pixel WebP for
+all devices. The shared subnet PNG is capped at 192 pixels in the assembled output
+for its small icon/brand uses. The original campaign PNG remains downloadable.
+Generated WebP filenames contain content hashes and receive immutable caching at
+`/images/`; `image-assets.json` records dimensions and byte sizes for verification.
+Everything generated stays in ignored `dist/`. For image changes, run:
+
+```sh
+.tools/images/bin/python -m unittest discover -s scripts -p test_images.py
+python3 -m unittest discover -s scripts -p test_localize.py
+python3 -m unittest discover -s scripts -p test_scoped_workflow.py
+python3 scripts/assemble.py
+```
+
+Check the rendered result and network requests at mobile, tablet and desktop widths,
+including a high-density phone. After a local sync, `python3 scripts/verify.py`
+checks generated images, their WebP media types and immutable cache headers.
 
 Editor forks own their document formats and editing behavior. Cloud adapters
 connect those formats to the shared SDK and UI; preserve the editors' local
@@ -142,6 +177,96 @@ Create/select a branch in a submodule before editing: initialized submodules nor
 have detached HEAD. Review and test upstream merges inside the fork, commit there,
 then commit the changed submodule pointer in this root. Push app commits before
 pushing root pointers when sharing; local-only commits are not available on GitHub.
+
+## User-controlled Craft updates
+
+The shared launcher serves a complete cached app by default and checks only the
+small current-release manifest for updates. The version button shows the current
+and available app versions, a short build ID (versions alone can be identical),
+and ArtCraft release notes when there is a matching published release. Downloading
+an update selects it for future launches; the current editor keeps running until
+**Open updated version** is selected. That action requires a known clean document.
+Other open tabs retain their version and their work.
+The version popup closes on an outside click, Escape or its corner close button.
+When the app is current, it has no footer action; update actions appear only when
+a different server package is available.
+
+The server contains **only the latest package** for each app, never old app binaries.
+Each `apps/<app>/release.json` describes that package's files, sizes and SHA-256 hashes.
+The browser stores verified complete packages in Cache Storage and a selected-build
+pointer. The pointer changes only after all files have verified successfully. A
+partial/failed download leaves the previous selection intact. The worker serves
+virtual `/apps/<app>/_cached/<build>/` URLs exclusively from local storage; those URLs
+return 404 on the server. A missing old asset never falls back to a newer asset.
+Web Locks serialize installs and keep packages used by open tabs from being cleaned
+up. Obsolete packages are removed after they are no longer selected or in use.
+
+Clearing site/app Cache Storage (or browser eviction) causes the next launch to use
+the latest server package. Clearing only the ordinary HTTP cache may leave Cache
+Storage intact; browser controls differ. The first launch after adopting this feature
+also downloads the latest package: a pre-existing HTTP cache is not a verified complete
+app package. Browsers without service workers, Cache Storage or Web Locks use the
+latest server editor and show that version retention is unavailable.
+
+Only public editor assets are cached. The shared launcher, release checks, identity
+configuration, cloud API and picker stay live. Cached HTML retains its CSP, while
+the uncached launcher receives the current `ic_env` cookie. Backend authorization
+still decides cloud access on every request. This is version choice, not offline
+cloud synchronization or permanent browser storage. An older editor may not support
+a document format introduced later; adopting an upstream release still requires the
+normal application/format/cloud compatibility review.
+
+### Release notes
+
+Notes come **only from ArtCraft's published GitHub release for the exact app version**.
+There are no subnet-authored release notes and no changelog generated from arbitrary
+commits. `registry/craft-releases.json` is a snapshot, fetched explicitly after
+assembling the adopted app versions:
+
+```sh
+python3 scripts/craft_release.py --refresh
+python3 scripts/assemble.py
+```
+
+The refresh reads public `storytold/<app>/releases/tags/v<version>` metadata, rejects
+drafts or mismatched tags/URLs, and leaves the previous snapshot intact on a network
+failure. A missing release yields no notes. Assembly never contacts GitHub and never
+attaches another version's notes. The dialog shows a short inert-text excerpt and a
+link to the full publisher notes in their original language. Notes are for the target
+release, not an invented comparison across all skipped versions. Editing notes does
+not change a package's build ID or trigger an app update.
+
+On 2026-10-15 the packaged versions were Photo 0.8.0, Word/Deck/Grid/Sound 0.6.0,
+PDF 0.7.0 and CAD 0.6.1. GitHub had no exact published releases for these versions
+(the next published patch versions were newer). The initial snapshot is therefore
+empty and the dialog says that notes are unavailable. Do not substitute newer notes.
+
+### Architecture evidence and validation
+
+Status: implemented and locally tested; production deployment is a separate step.
+The session's ICP [static-site skill](https://skills.internetcomputer.org/.well-known/skills/static-site/SKILL.md)
+was consulted on 2026-10-15 before implementation. Its existing certified-assets
+recipe remains the supported hosting solution. Its revalidated HTML/metadata and
+immutable fingerprinted files are retained. The gap is selecting a *complete older
+browser package* when the server only has the latest: ordinary HTTP caching cannot
+inventory or select that package reliably. The smallest extension is one shared
+browser package store, one narrow service worker and one update controller, plus
+assembly-time metadata. No new canister, authentication layer, app fork dependency
+or server archive was added. Version-specific bootstrap helpers live inside each
+package; the shared launcher stays current.
+
+Focused tests cover whole-package integrity, failed/corrupt/truncated updates,
+incomplete/cleared caches, app isolation, live-tab retention, cloud-request exclusion,
+launch parameters, explicit switching, dirty/unknown documents and edits made during
+an asynchronous cache read. Browser QA uses real native Craft engines: remove A's
+binaries from a local test server after caching A, publish B, reopen A, choose B,
+retain an unsaved older tab, then clear the app cache and verify a fresh launch uses
+latest. Local proof artifacts are in `.local/craft-cache-qa/`. See the dated history
+for executed checks and their limits.
+
+Browser references: [MDN Cache API](https://developer.mozilla.org/en-US/docs/Web/API/Cache),
+[Web Locks](https://developer.mozilla.org/en-US/docs/Web/API/Web_Locks_API),
+and [storage quotas/eviction](https://developer.mozilla.org/en-US/docs/Web/API/Storage_API/Storage_quotas_and_eviction_criteria).
 
 ## Checks
 

@@ -58,6 +58,10 @@ function showDownload(doc) {
   if (!raw) return;
   let download;
   try { download = JSON.parse(raw); } catch { return; }
+  showProgress(download);
+}
+
+function showProgress(download) {
   const { phase, loaded, total } = download;
   if (!Number.isSafeInteger(total) || total <= 0 || !Number.isSafeInteger(loaded) || loaded < 0 || loaded > total) return;
   if (phase === "error") { failed(); return; }
@@ -132,10 +136,19 @@ function startWatching() {
 retry.addEventListener("click", () => {
   // A first frame may have arrived just before this click.
   try { if (hasStarted()) { ready(); return; } } catch { /* failed frame */ }
+  if (window.SubnetCraftLaunch) { window.SubnetCraftLaunch.retry(); return; }
   replacedDocument = frame.contentDocument;
   frame.src = `./editor.html${window.location.search}${window.location.hash}`;
   startWatching();
 });
+window.addEventListener("craft-launch", () => {
+  replacedDocument = frame.contentDocument;
+  startWatching();
+});
+window.addEventListener("craft-package-progress", event => {
+  if (frame.dataset.loadState === "loading") showProgress({ ...event.detail, phase: "download" });
+});
+window.addEventListener("craft-launch-error", failed);
 frame.addEventListener("load", inspect);
 window.addEventListener("pagehide", stopWatching);
 window.addEventListener("pageshow", () => {

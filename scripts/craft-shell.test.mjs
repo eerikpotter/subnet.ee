@@ -46,9 +46,12 @@ function host(initialState, search = "", hash = "", language = "et") {
   };
 }
 
-test("cloud file references, renderer flags and fragments reach the original editor", () => {
-  const query = "?cloud_service=cloud&cloud_space=one&cloud_file=two&webgl";
-  assert.equal(host("false", query, "#page=3").editor.src, `./editor.html${query}#page=3`);
+test("the version manager owns launching; the shell exposes its live dirty-state guard", () => {
+  const h = host("false");
+  assert.equal(h.editor.src, undefined);
+  assert.equal(h.window.SubnetCraftHost.dirtyState(), "false");
+  h.setState("true");
+  assert.equal(h.window.SubnetCraftHost.dirtyState(), "true");
 });
 
 test("clean editors allow both portal destinations and browser navigation", () => {

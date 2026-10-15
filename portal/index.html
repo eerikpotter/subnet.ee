@@ -14,8 +14,6 @@
   <meta property="og:locale" content="et_EE">
   <title>subnet.ee — Eesti esimene suveräänne nutipilv</title>
   <link rel="icon" type="image/png" href="/assets/brand/subnet.png">
-  <link rel="preload" as="image" href="/assets/landing/estonian-lakes.png" fetchpriority="high">
-  <link rel="preload" as="image" href="/assets/landing/cloud-of-estonia.png">
   <link rel="stylesheet" href="/tokens.css">
   <link rel="stylesheet" href="/landing.css">
   <link rel="stylesheet" href="/agent-workflow.css">
@@ -55,8 +53,8 @@
     </header>
     <main id="sisu">
       <div class="hero-scene" id="visioon">
-        <img class="hero-landscape" src="/assets/landing/estonian-lakes.png" width="1672" height="941" alt="Kuldne hommikuvalgus Eesti järvede, metsasaarte ja kirikutorniga küla kohal." fetchpriority="high">
-        <img class="hero-cloud" src="/assets/landing/cloud-of-estonia.png" width="960" height="660" alt="Eesti kaardiga hele pilv, mida ümbritsevad ühendusjooned ja valguspunktid." decoding="async">
+        <img class="hero-landscape" src="/assets/landing/estonian-lakes.png" data-image-widths="640,1280,1920" data-image-preload sizes="100vw" width="1672" height="941" alt="Kuldne hommikuvalgus Eesti järvede, metsasaarte ja kirikutorniga küla kohal." fetchpriority="high">
+        <img class="hero-cloud" src="/assets/landing/cloud-of-estonia.png" data-image-widths="320,640,960" data-image-preload sizes="(max-width: 580px) min(310px, 78vw), (max-width: 1200px) 43vw, (min-width: 1600px) 530px, min(500px, 43vw)" width="960" height="660" alt="Eesti kaardiga hele pilv, mida ümbritsevad ühendusjooned ja valguspunktid." decoding="async">
       <section class="hero container" aria-labelledby="hero-title">
         <div class="hero-copy">
           <p class="eyebrow">EFTI AVALIK DEMO</p>
@@ -116,7 +114,7 @@
                     <p>Võrgustatud pilv ja AI-agent Eesti maastiku kohal.</p>
                   </div>
                   <div class="wf-detail-card wf-generating" data-wf="generating" hidden>
-                    <img src="/assets/landing/sovereign-cloud.png" width="750" height="563" alt="Kampaaniapildi loomise eelvaade" loading="lazy" decoding="async">
+                    <img src="/assets/landing/sovereign-cloud.png" data-image-widths="320,500,750" sizes="(max-width: 760px) 64px, 400px" width="750" height="563" alt="Kampaaniapildi loomise eelvaade" loading="lazy" decoding="async">
                     <span>AI-agent loob pilti…</span>
                   </div>
                   <div class="wf-detail-card wf-transfer" data-wf="transfer"><svg viewBox="0 0 48 48" aria-hidden="true"><use href="#icon-cloud"/></svg><span data-wf="transfer-text">Tulemus on sinu pilves</span></div>
@@ -153,7 +151,7 @@
             <span class="wf-cursor" data-wf="cursor" hidden aria-hidden="true"><svg viewBox="0 0 24 28"><path d="M2 2 2 23 8 17 13 26 17 24 12 15 22 14Z" stroke="#fff" stroke-width="2" fill="#294d68"/></svg></span>
             <div class="wf-preview" data-wf="preview">
               <div class="wf-preview-head"><button type="button" class="wf-back" data-wf="close-preview" aria-label="Tagasi failide juurde" hidden>‹</button><strong data-wf="preview-name">sovereign-cloud.png</strong></div>
-              <div class="wf-image-holder" data-wf="image-preview"><img src="/assets/landing/sovereign-cloud.png" width="750" height="563" alt="subnet.ee kampaaniapilt: AI-robot vaatab Eesti maastiku kohal hõljuvat ICP pilve." loading="lazy" decoding="async"></div>
+              <div class="wf-image-holder" data-wf="image-preview"><img src="/assets/landing/sovereign-cloud.png" data-image-widths="320,500,750" sizes="(max-width: 760px) calc(100vw - 70px), 600px" width="750" height="563" alt="subnet.ee kampaaniapilt: AI-robot vaatab Eesti maastiku kohal hõljuvat ICP pilve." loading="lazy" decoding="async"></div>
               <pre class="wf-brief-preview" data-wf="brief-preview" data-no-translate hidden># AI agendi uus digitaalne kodu
 
 Võrgustatud pilv ja AI-agent Eesti maastiku kohal.
@@ -248,7 +246,7 @@ Loo subnet.ee kampaaniapilt ja salvesta see samasse kausta failina sovereign-clo
   </div>
 
   <section class="creative-banner" aria-labelledby="creative-title">
-    <img src="/assets/landing/creative-workspace.jpg" alt="Looja töötab sülearvutiga päikeselises järveäärses kodus." width="2172" height="724" loading="lazy">
+    <img src="/assets/landing/creative-workspace.jpg" data-image-widths="640,1280,2172" sizes="100vw" alt="Looja töötab sülearvutiga päikeselises järveäärses kodus." width="2172" height="724" loading="lazy" decoding="async">
     <div class="creative-content container"><div class="creative-copy"><h2 id="creative-title">Suveräänse pilve<br> kogemus loojatele</h2><p>Töötle pilte ja PDF-e, kirjuta tekste või koosta esitlusi. Vali pilveruumist sobiv rakendus ja proovi ise.</p><a class="button dark" href="/pilveruum/">Ava pilveruum <svg viewBox="0 0 24 24" aria-hidden="true"><use href="#icon-arrow"/></svg></a></div></div>
   </section>
 
@@ -257,7 +255,7 @@ Loo subnet.ee kampaaniapilt ja salvesta see samasse kausta failina sovereign-clo
     <a class="footer-brand" href="/" aria-label="subnet.ee avaleht"><img src="/assets/brand/subnet.png" width="542" height="394" alt=""><span><span class="subnet-wordmark">subnet<span>.ee</span></span><small>Eesti digivabaduse heaks</small></span></a>
     <nav aria-label="Jaluse menüü">
       <a href="#kontakt" data-dialog="kontakt">Kontakt</a>
-      <a class="footer-efti" href="https://efti.org/" target="_blank" rel="noopener noreferrer" aria-label="EFTI koduleht"><img src="/assets/brand/efti.png" width="1167" height="1158" alt="" loading="lazy" decoding="async"><span>EFTI</span></a>
+      <a class="footer-efti" href="https://efti.org/" target="_blank" rel="noopener noreferrer" aria-label="EFTI koduleht"><img src="/assets/brand/efti.png" data-image-widths="96" width="1167" height="1158" alt="" loading="lazy" decoding="async"><span>EFTI</span></a>
       <a href="#kkk" data-dialog="kkk">KKK</a>
     </nav>
     <div class="footer-meta"><div class="language-switch" role="group" aria-label="Keel"><a href="/" data-language="et" lang="et" aria-label="Eesti keeles">ET</a><a href="/en/" data-language="en" lang="en" aria-label="In English">EN</a></div><a class="icon-button" href="https://github.com/eerikpotter/subnet.ee" target="_blank" rel="noopener noreferrer" aria-label="subnet.ee GitHub"><svg viewBox="0 0 24 24" aria-hidden="true"><use href="#icon-github"/></svg></a></div>
