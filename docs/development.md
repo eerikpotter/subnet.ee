@@ -243,7 +243,9 @@ empty and the dialog says that notes are unavailable. Do not substitute newer no
 
 ### Architecture evidence and validation
 
-Status: implemented and locally tested; production deployment is a separate step.
+Status: implemented, locally tested and deployed to mainnet on 2026-10-15.
+The full production verifier passed for the shared site and all seven editors;
+native browser checks also confirmed cached GridCraft launch and popup dismissal.
 The session's ICP [static-site skill](https://skills.internetcomputer.org/.well-known/skills/static-site/SKILL.md)
 was consulted on 2026-10-15 before implementation. Its existing certified-assets
 recipe remains the supported hosting solution. Its revalidated HTML/metadata and

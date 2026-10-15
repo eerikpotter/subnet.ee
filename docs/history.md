@@ -557,7 +557,7 @@ previous release's authenticated seven-app collaboration matrix or establish
 compatibility with future upstream format changes.
 
 No new deployment tool or dependency was added. Backend data/schema and app engines
-are unchanged. Mainnet and GitHub have not been updated for this feature.
+are unchanged. Publication followed in the combined release recorded below.
 
 
 ## 2026-10-15 — Version popup refinement and combined publication
@@ -575,4 +575,20 @@ and editor engine binaries remain unchanged. No backend upgrade is required.
 Local frontend state after the popup change:
 `79cf05b79c6b219e85ac1bc97ce45076e8cda60b2098ed09184962e9139d3b56`.
 
-GitHub/mainnet publication is authorized; final rollout evidence will follow here.
+Published source commit `ba0e063e722a6ec05f14de30d446338af5f08c37` to
+`origin/main` and deployed the complete frontend to mainnet with the existing
+DFINITY certified-assets sync adapter. The frontend now contains 203 assets;
+production state hash:
+`ecf088800f24b6bc77e003287e5a03ecfa1439b91d43d279917fb489fe569c17`.
+The backend and its data were not upgraded.
+
+`python3 scripts/verify.py all --environment ic --origin https://www.subnet.ee --timings`
+passed for the shared site and all seven editor packages, including payloads,
+release metadata, cache headers, runtime configuration, certification and missing
+asset handling. Native browser checks on mainnet confirmed the homepage's responsive
+WebP images loaded, GridCraft reached ready from its cached package, and its version
+popup closed on an outside click with no Keep current action. Both pages reported
+no console errors. Local checks additionally covered Escape, the close button and
+clicks inside popup padding. These checks do not repeat the prior authenticated
+collaboration matrix because this release changes neither app engines nor the cloud
+backend.
