@@ -658,3 +658,29 @@ Logs and commit receipts are under `.local/ai-cloud-space-*`.
 The mainnet preflight state matches the previously published frontend:
 `ecf088800f24b6bc77e003287e5a03ecfa1439b91d43d279917fb489fe569c17`.
 Publication and production verification are recorded below when complete.
+
+## 2026-10-15 — AI setup and cloud space published to GitHub and mainnet
+
+Published `16281fc8067cb5b6737a37c8b24f48153a5e97c8` to the root
+`origin/main`, after pushing all seven editor snapshot commits to their respective
+`origin/main` branches. The complete assembled release pins clean editor commits.
+The existing DFINITY v0.4.0 certified-assets sync adapter updated 47 assets,
+retained 156 current assets and finalized all 203 assets on the existing frontend.
+The backend, identity settings and data were not upgraded. An independent
+consensus-backed `state_hash` call confirmed the reported production state:
+`45d80386895e353584632b0f08af8ff7162dd0ccbd6b4c4a12624aab1452fdf3`.
+
+`python3 scripts/verify.py all --environment ic --origin https://www.subnet.ee --timings`
+passed for the shared site and every editor: exact deployed bytes, release
+metadata, certification, identity configuration, cache rules and missing-asset
+handling. Browser checks on mainnet confirmed cloud space wording across the
+landing page, both AI setup options, preserved expanded steps when switching
+languages, and AI setup hidden in Shared and Trash. GridCraft reached ready on
+mainnet and opened its signed-out Cloud space dialog. The checked pages reported
+no console errors. Screenshots are under `.local/ai-setup-qa/mainnet-*`; deployment,
+verification and state receipts are under `.local/ai-cloud-space-*`.
+
+The full editor CI limitations recorded above remain. This release does not repeat
+authenticated sharing or two-identity hosted MCP acceptance; it changes frontend
+guidance, navigation and dialog wording. Cached editor versions remain under user
+control and can adopt the new packages through the existing version menu.

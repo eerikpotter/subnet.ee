@@ -85,7 +85,7 @@ checked on subsequent operations, including retries.
 
 ## Setup decision — 2026-10-15
 
-Status: implemented locally; hosted two-identity MCP sign-in remains an interactive
+Status: deployed to mainnet on 2026-10-15; hosted two-identity MCP sign-in remains an interactive
 acceptance check. Requirement: move optional setup into navigation and explain both
 full account access and recommended, folder-limited access through a separate II.
 
