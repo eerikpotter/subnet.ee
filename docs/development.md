@@ -96,8 +96,13 @@ command arguments or permanent project files. Never configure these variables
 on the frontend canister, whose environment is served to browsers.
 
 Use a standard ICP CLI identity backed by macOS Keychain, not a plaintext PEM.
-The helper requires the signing identity to be the sole controller and requires
-controller-only status, snapshots and logs. It does not change controllers.
+By default the helper requires the signing identity to be the sole controller;
+status, snapshots and logs must always be controller-only. Production's existing
+immutable CycleOps V3 monitor can be retained with `--allow-cycleops-monitor`:
+the helper verifies its exact module hash and absence of controllers before
+reading the credential. No arbitrary additional controller is accepted. See the
+[monitor review](deployment.md#cycleops-monitor-and-mail-secrets).
+The helper does not change controllers.
 SEV hosting is planned for a later deployment and does not block current email
 functionality. Controller authorization protects the management boundary; it does
 not hide state from ordinary subnet operators.

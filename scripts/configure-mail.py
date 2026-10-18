@@ -17,6 +17,11 @@ from urllib.parse import urlparse
 ROOT = Path(__file__).resolve().parents[1]
 MAIL_NAMES = ('RESEND_API_KEY', 'SUBNET_MAIL_FROM', 'SUBNET_MAIL_ORIGIN')
 SENDER = 'subnet.ee <info@subnet.ee>'
+# Existing production monitoring. This immutable module returns a fixed status
+# record without environment variables and has no management mutation methods.
+# Source/hash review: docs/deployment.md#cycleops-monitor-and-mail-secrets
+CYCLEOPS_MONITOR = 'cpbhu-5iaaa-aaaad-aalta-cai'
+CYCLEOPS_MODULE = 'dfcf37d4ee18bfe77a12197feaf4686f160d717383f0cf525f9d30e60fec204d'
 
 
 def run(arguments, cwd):
@@ -32,9 +37,15 @@ def run(arguments, cwd):
     return result.stdout
 
 
-def require_private_owner(settings, principal):
-    if principal == '2vxsx-fae' or settings.get('controllers') != [principal]:
-        raise RuntimeError('The signing identity must be the sole private canister controller.')
+def require_private_owner(settings, principal, monitor=None):
+    expected = {principal}
+    if monitor is not None:
+        if (monitor.get('id') != CYCLEOPS_MONITOR or monitor.get('controllers') != []
+                or monitor.get('module_hash', '').removeprefix('0x') != CYCLEOPS_MODULE):
+            raise RuntimeError('The CycleOps monitor must be the reviewed immutable module.')
+        expected.add(CYCLEOPS_MONITOR)
+    if principal in ('2vxsx-fae', CYCLEOPS_MONITOR) or set(settings.get('controllers', [])) != expected:
+        raise RuntimeError('The signing identity must be the only controller apart from an explicitly verified CycleOps monitor.')
     for name in ('status_visibility', 'snapshot_visibility', 'log_visibility'):
         if settings.get(name) != 'controllers':
             raise RuntimeError('Canister status, snapshots and logs must be controller-only.')
@@ -77,7 +88,11 @@ def configure(options):
 
     before = settings()
     principal = run(['identity', 'principal', *identity], project).strip()
-    require_private_owner(before, principal)
+    monitor = None
+    if options.allow_cycleops_monitor:
+        monitor = json.loads(run(['canister', 'status', CYCLEOPS_MONITOR,
+                                 *target, *identity, '--json'], project))
+    require_private_owner(before, principal, monitor)
     if options.status:
         values = {v['name']: v['value'] for v in before.get('environment_variables', [])}
         print('Backend:', canister)
@@ -111,7 +126,7 @@ def configure(options):
             run(['canister', 'link', 'cloud', canister, '-e', 'mail'], temporary)
             run(['canister', 'settings', 'sync', 'cloud', '-e', 'mail', *identity], temporary)
     after = settings()
-    require_private_owner(after, principal)
+    require_private_owner(after, principal, monitor)
     values = {v['name']: v['value'] for v in after.get('environment_variables', [])}
     if any(values.get(n) != desired.get(n) for n in MAIL_NAMES):
         raise RuntimeError('Mail configuration verification failed; no values were printed.')
@@ -126,7 +141,9 @@ def main():
     target.add_argument('--local', action='store_true', help='Use this project’s managed local backend')
     target.add_argument('--network', help='HTTPS gateway of the selected IC/Cloud Engine deployment')
     parser.add_argument('--canister', help='Explicit backend canister ID for a remote target')
-    parser.add_argument('--identity', required=True, help='The sole controller’s ICP CLI identity')
+    parser.add_argument('--identity', required=True, help='The owner’s ICP CLI identity')
+    parser.add_argument('--allow-cycleops-monitor', action='store_true',
+                        help='Preserve the existing CycleOps V3 monitor after verifying its immutable module hash')
     action = parser.add_mutually_exclusive_group()
     action.add_argument('--disable', action='store_true')
     action.add_argument('--status', action='store_true', help='Print only non-secret configuration status')

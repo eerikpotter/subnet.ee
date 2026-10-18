@@ -26,7 +26,9 @@ class ConfigureMailTests(unittest.TestCase):
                              snapshot_visibility='controllers', log_visibility='controllers',
                              environment_variables=[dict(name='UNRELATED', value='preserved')])
         self.options = argparse.Namespace(project=self.root, network=None, canister=None,
-                                          identity='owner-keychain', status=False, disable=False)
+                                          identity='owner-keychain', status=False, disable=False,
+                                          allow_cycleops_monitor=False)
+        self.monitor = dict(id=mail.CYCLEOPS_MONITOR, controllers=[], module_hash='0x' + mail.CYCLEOPS_MODULE)
         self.temporary_paths = []
         self.fail_sync = False
 
@@ -36,6 +38,9 @@ class ConfigureMailTests(unittest.TestCase):
             return json.dumps(dict(managed=True, gateway_url='http://127.0.0.1:5000'))
         if args[:2] == ['identity', 'principal']:
             return 'owner\n'
+        if args[:2] == ['canister', 'status']:
+            self.assertEqual(args[2], mail.CYCLEOPS_MONITOR)
+            return json.dumps(self.monitor)
         if args[:3] == ['canister', 'settings', 'show']:
             return json.dumps(self.settings)
         if args[:2] == ['canister', 'link']:
@@ -98,6 +103,33 @@ class ConfigureMailTests(unittest.TestCase):
             self.configure()
         self.assertEqual(len(self.temporary_paths), 1)
         self.assertFalse(self.temporary_paths[0].exists())
+
+    def test_explicit_immutable_monitor_preserves_existing_controllers(self):
+        self.options.allow_cycleops_monitor = True
+        self.settings['controllers'] = [mail.CYCLEOPS_MONITOR, 'owner']
+        self.configure()
+        self.assertEqual(self.settings['controllers'], [mail.CYCLEOPS_MONITOR, 'owner'])
+        self.options.status = True
+        self.configure()
+
+    def test_monitor_exception_fails_closed_before_reading_secret(self):
+        self.options.allow_cycleops_monitor = True
+        self.settings['controllers'] = ['owner', mail.CYCLEOPS_MONITOR]
+        valid = self.monitor.copy()
+        for changes in ({'controllers': ['third-party']}, {'controllers': None},
+                        {'module_hash': '0xunknown'}, {'id': 'another-monitor'}):
+            self.monitor = dict(valid, **changes)
+            with self.subTest(changes=changes), \
+                 patch.object(mail, 'run', side_effect=self.cli), \
+                 patch.object(mail, 'keychain_credential') as credential, \
+                 self.assertRaises(RuntimeError):
+                mail.configure(self.options)
+            credential.assert_not_called()
+        self.monitor = valid
+        for controllers in (['owner', mail.CYCLEOPS_MONITOR, 'stranger'],
+                            [mail.CYCLEOPS_MONITOR], ['owner']):
+            with self.subTest(controllers=controllers), self.assertRaises(RuntimeError):
+                mail.require_private_owner(dict(self.settings, controllers=controllers), 'owner', valid)
 
     def test_project_temporary_directory_is_rejected_before_writing_secret(self):
         with patch.object(mail.tempfile, 'tempdir', str(self.root)), self.assertRaises(RuntimeError):

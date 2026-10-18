@@ -4,6 +4,42 @@
 
 
 
+## Mainnet UUID backend and Git publication — 18 October 2026
+
+Published all nine `main` branches after explicit authorization: root release
+`e4a6c10d7e84929a4ae6b2edaf13428bbcfc9b38` in `eerikpotter/subnet.ee`
+and the eight Craft commits pinned by that root. No standalone Craft deployment
+was changed. Existing validation is recorded in the two following milestone entries.
+
+The authenticated owner session was renewed with Internet Identity and stored in
+Keychain as `codex-subnet-release-20261018`. Mainnet cloud
+`vbfbj-tyaaa-aaaac-bgegq-cai` contained the previous numeric-ID schema. Under the
+agreed disposable-development-data policy, it was stopped, snapshotted and freshly
+installed with the UUID backend, then started. No legacy conversion or ID aliases.
+Snapshot `0000000000000003000000000041310d0101` (232,090,483 bytes) remains on the
+canister and was verified in its snapshot list after installation; previous
+snapshots were retained. The old module was
+`0a62f6a6a8216b4298a53f1266284adb9880281a65f2fe9de70eaf125b947089`.
+Restoring this snapshot restores the old program and data together and requires
+matching old frontend assets; it also discards subsequent writes.
+
+The official Rust recipe built backend module
+`c6104cf1cfb371bdbb18dda4fc25d8e6c5d3606967ef7dd8aefcaca8b6f9b1a3`;
+its deployed hash and public Candid exactly match the release artifact/contract.
+Public `get_api_doc` succeeded and anonymous `drive_browser_home` was rejected.
+Resend settings were provisioned through the owner from Keychain, with no secret
+in repository files or command arguments. Application `email_profile` returned
+`enabled = true`; no email was sent during this release.
+
+The existing second controller is the immutable CycleOps V3 status monitor, not
+an alternate owner. Its live hash matched the upstream published binary and its
+controller list was empty. Its reviewed typed response omits environment variables
+and it has no management mutation methods. Added an explicit hash-checked exception
+to the operator helper, retaining owner-only configuration and private visibility
+without removing monitoring or accepting arbitrary additional controllers.
+Eight operator tests passed. Details and the primary source are in
+[the deployment review](deployment.md#cycleops-monitor-and-mail-secrets).
+
 ## Daily file workflows and accurate 36-group review — 18 October 2026
 
 Completed the existing daily workflow slice without changing the backend schema,

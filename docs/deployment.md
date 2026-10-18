@@ -12,10 +12,11 @@ Local development uses its own canisters and data. Production configuration is i
 [`.icp/data/mappings/ic.ids.json`](../.icp/data/mappings/ic.ids.json).
 Retain the mapping file so updates reuse the existing canisters.
 
-The current development backend uses canonical UUID keys and intentionally has no
+The current backend uses canonical UUID keys and intentionally has no
 numeric-ID migration. Its schema guard rejects an older numeric stable layout.
-The authorized local test deployment was freshly installed on 18 October 2026;
-production was not changed. Code-only upgrades below apply between versions of
+The authorized local and mainnet development deployments were freshly installed
+on 18 October 2026. Mainnet's previous numeric-ID data remains in snapshot
+`0000000000000003000000000041310d0101`. Code-only upgrades below apply between versions of
 the same UUID schema. Deployment over an older layout needs a separate deliberate
 fresh installation/new canister, not an attempted in-place conversion.
 
@@ -25,11 +26,13 @@ graph is retained only as a migration source and no longer receives writes.
 Prefer a compatible forward fix. Restoring a snapshot also rewinds user data;
 review writes since the snapshot before considering that recovery path. Release
 hashes, snapshots and validation are recorded in
-[collaboration progress](collaboration-progress.md).
+[release history](history.md) and [earlier collaboration progress](collaboration-progress.md).
 
-The production canisters are controlled using the locally configured `efti-nns`
-identity. This is an identity name, not a credential. Signing credentials stay
-outside the repository.
+The production owner's Internet Identity principal remains unchanged. Release
+18 October 2026 used the fresh Keychain-backed CLI session
+`codex-subnet-release-20261018`; the older `efti-nns` delegation had expired.
+Use a current authenticated session explicitly with `--identity`; these names are
+not credentials. Signing credentials stay outside the repository.
 
 Standalone Craft deployments have separate accounts and files. Changing a domain
 or deploying this workspace does not migrate their data.
@@ -44,6 +47,43 @@ because it is intentionally absent from `icp.yaml`. Do not fix that by adding
 secrets to source. If deployment settings are deliberately reapplied, configure
 mail afterwards through the private controller and verify redacted status. See
 [the credential workflow](development.md#canister-held-email-credentials).
+
+### CycleOps monitor and mail secrets
+
+Requirement: configure the backend-held Resend key through its owner while
+preserving existing monitoring. Skills consulted on 18 October 2026:
+[canister-security](https://skills.internetcomputer.org/.well-known/skills/canister-security/SKILL.md)
+and [icp-cli](https://skills.internetcomputer.org/.well-known/skills/icp-cli/SKILL.md),
+including its `references/canister-env-vars.md`. The supported approach is signed
+management settings with private visibility and a Keychain-backed identity.
+
+Observed gap: production already has CycleOps V3 (`cpbhu-5iaaa-aaaad-aalta-cai`)
+as its second controller; the provisioner's original sole-controller check rejected
+it. This is a status monitor, **not a recovery controller**. Removing it would
+interrupt monitoring. An arbitrary-controller bypass would weaken secret custody.
+
+Smallest extension: explicit `--allow-cycleops-monitor`, accepting only the owner
+plus this exact monitor, and checking its certified controller list is empty and
+its module hash is
+`dfcf37d4ee18bfe77a12197feaf4686f160d717383f0cf525f9d30e60fec204d`.
+All visibility settings remain controller-only; no controllers are changed.
+The [reviewed source and published Wasm](https://github.com/CycleOperators/BalanceCheckerVerification/tree/24d22bbb07f2de207c215b70b450df9ac172de11/blackholes/v3)
+matched the on-chain hash. Its typed status result omits environment variables,
+and its only management call is `canister_status`; it cannot update settings,
+read snapshots or upgrade code. The published binary was hash-checked, not
+independently rebuilt during this release.
+
+Proof: eight operator tests cover default rejection, explicit monitor acceptance,
+changed hash/controller/ID rejection before secret access, unrelated-settings
+preservation, private temporary files, cleanup and redacted status. Provision with:
+
+```sh
+.tools/mail/bin/python scripts/configure-mail.py --network https://icp-api.io --canister vbfbj-tyaaa-aaaac-bgegq-cai --identity <current-owner-session> --allow-cycleops-monitor
+```
+
+The exception is pinned to the reviewed immutable module, not future monitor
+versions. Ordinary subnet operators remain within the previously accepted trust
+boundary until SEV hosting; this release does not claim SEV deployment.
 
 ## MCP participation
 
@@ -99,7 +139,7 @@ editors, then sync assets explicitly to `ic`:
 
 ```sh
 python3 scripts/assemble.py
-icp sync frontend -e ic --identity efti-nns
+icp sync frontend -e ic --identity <current-owner-session>
 python3 scripts/verify.py portal --environment ic
 ```
 
