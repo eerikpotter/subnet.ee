@@ -4,7 +4,7 @@
 
 
 
-## Mainnet UUID backend and Git publication — 18 October 2026
+## Mainnet cloud drive release and Git publication — 18 October 2026
 
 Published all nine `main` branches after explicit authorization: root release
 `e4a6c10d7e84929a4ae6b2edaf13428bbcfc9b38` in `eerikpotter/subnet.ee`
@@ -40,21 +40,46 @@ without removing monitoring or accepting arbitrary additional controllers.
 Eight operator tests passed. Details and the primary source are in
 [the deployment review](deployment.md#cycleops-monitor-and-mail-secrets).
 
-The frontend release is **not complete**: the official static-site v0.4.0 sync
+The first frontend attempt used the official static-site v0.4.0 sync. It
 planned 456 assets, prepared 259 changed assets (197 already current), and started
 session 26. After uploading roughly 378 MB of raw/compressed content, `upload_chunks`
 was rejected with `IC0207` because the canister reached its freezing reserve.
 It requested at least 3,227,141,030 more cycles for that next call; that minimum
 does not cover the remaining release. The balance was 663,177,243,643 cycles against
 22,047,166,183 idle cycles/day and a 30-day reserve. No freezing or access-control
-setting was reduced. `state_hash` remained zero: no finalized frontend release.
+setting was reduced. That attempt left `state_hash` at zero and was not a finalized
+frontend release.
 
 Read the official `cycles-management` skill and checked the existing owner ledger:
 0.031T cycles was insufficient for a full retry. Requested explicit approval to
 convert at most 1 ICP and deposit 2T cycles into the existing frontend before
-retrying the standard sync. Token conversion, deposit, frontend verification and
-browser proof are pending that approval. Failure evidence:
-`.local/mainnet-frontend-sync.log`. The local deployment was not stopped or reset.
+retrying the standard sync. The user approved that exact budget. Converted 0.966 ICP (total debit
+**0.9661 ICP**, including the ledger fee), receiving 2,000,486,000,000 cycles;
+deposited exactly **2T** to frontend `vigkv-fqaaa-aaaac-bgeha-cai`. The subsequent
+canister balance was 4,068,771,315,644 cycles, above its then-current 30-day reserve
+of 661,414,985,490 cycles. Failure evidence:
+`.local/mainnet-frontend-sync.log`; funding receipts and retry output are in
+`.local/mainnet-cycles-mint.json`, `mainnet-frontend-top-up.log` and
+`mainnet-frontend-sync-funded.log`. The local deployment was not stopped or reset.
+
+The funded official sync **completed successfully**, publishing 456 assets with
+final state hash
+`55742e3e12db9695de8327f7bd3decba54265351219c5e47bb930458e5a63fb7`.
+A separate canister call confirmed the same hash. Both canisters were running;
+the frontend retained its existing static-site module and had approximately 3.27T
+cycles afterwards. Controllers and freezing thresholds were unchanged.
+
+`python3 scripts/verify.py all --environment ic --origin https://www.subnet.ee --timings`
+passed: 342 asset responses matched the local release byte-for-byte, including all
+eight editor bundles and the local PDF runtime. Certification headers, MIME,
+cache policies, CSP, mainnet trust configuration, both languages' UUID deep links,
+Internet Identity discovery, MCP discovery and missing-asset responses also passed.
+Browser smoke testing at the public origin confirmed the signed-out Home view,
+enabled sign-in controls and navigation to all eight application launchers, with
+no captured warning/error messages. Screenshot: `.local/mainnet-release.jpg`;
+verification output: `.local/mainnet-final-verify.log`; sanitized canister evidence:
+`.local/mainnet-final-status.json`. Authenticated daily file flows were tested
+locally as described below, not repeated on production accounts during this release.
 
 ## Daily file workflows and accurate 36-group review — 18 October 2026
 
