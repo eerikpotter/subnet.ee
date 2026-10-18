@@ -40,6 +40,22 @@ without removing monitoring or accepting arbitrary additional controllers.
 Eight operator tests passed. Details and the primary source are in
 [the deployment review](deployment.md#cycleops-monitor-and-mail-secrets).
 
+The frontend release is **not complete**: the official static-site v0.4.0 sync
+planned 456 assets, prepared 259 changed assets (197 already current), and started
+session 26. After uploading roughly 378 MB of raw/compressed content, `upload_chunks`
+was rejected with `IC0207` because the canister reached its freezing reserve.
+It requested at least 3,227,141,030 more cycles for that next call; that minimum
+does not cover the remaining release. The balance was 663,177,243,643 cycles against
+22,047,166,183 idle cycles/day and a 30-day reserve. No freezing or access-control
+setting was reduced. `state_hash` remained zero: no finalized frontend release.
+
+Read the official `cycles-management` skill and checked the existing owner ledger:
+0.031T cycles was insufficient for a full retry. Requested explicit approval to
+convert at most 1 ICP and deposit 2T cycles into the existing frontend before
+retrying the standard sync. Token conversion, deposit, frontend verification and
+browser proof are pending that approval. Failure evidence:
+`.local/mainnet-frontend-sync.log`. The local deployment was not stopped or reset.
+
 ## Daily file workflows and accurate 36-group review — 18 October 2026
 
 Completed the existing daily workflow slice without changing the backend schema,

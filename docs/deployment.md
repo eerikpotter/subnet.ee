@@ -122,6 +122,16 @@ gateway and has no production derivation origin.
 
 After an SDK change, adopt its snapshot in the affected editors and rebuild them
 before assembly. Ordinary portal updates continue to reuse packaged editors.
+Before a full mainnet fleet sync, check the frontend's cycles balance against its
+freezing reserve (`idle_cycles_burned_per_day × freezing_threshold / 86400`).
+Leave an additional upload budget: the 18 October fleet attempt spent roughly
+0.70T cycles before reaching the existing 30-day reserve. Raw, gzip and Brotli
+content are all uploaded; a 221 MB source bundle can transfer substantially more.
+Do not reduce the freezing threshold to complete a release. Use an explicitly
+approved `icp canister top-up frontend --amount <cycles> -e ic --identity <session>`
+and re-run the normal sync after an insufficient-cycles rejection; a zero
+`state_hash` means the release is not yet finalized. Confirm a nonzero final hash
+and verify the served assets before declaring publication complete.
 The official static-site sync plugin generates gzip and Brotli encodings. A fleet
 refresh can exceed its default compute-time limit; on 18 October the complete
 221 MB local editor bundle also exceeded a 600-second limit inside Brotli. Increase
