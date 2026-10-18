@@ -96,7 +96,7 @@ class Page(HTMLParser):
             if isinstance(node, tuple):
                 return node[0]
             changes, texts, attributes = {}, [], {}
-            skip = skip or node.tag in ("script", "style", "option") or "data-no-translate" in node.attrs
+            skip = skip or node.tag in ("script", "style") or "data-no-translate" in node.attrs
             for name in ATTRIBUTES:
                 source = node.attrs.get(name)
                 if source and (target := translated(source, english)) != source:

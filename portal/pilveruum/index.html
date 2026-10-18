@@ -8,59 +8,114 @@
   <script src="/i18n.js" defer></script>
   <meta name="description" content="Sinu failid ja kaustad. Loo, jaga ja tööta koos pilveruumis.">
   <title>subnet.ee — Pilveruum</title>
+  <script src="/workspace.js" defer></script>
   <script type="module" src="/cloud.js"></script>
   <link rel="icon" type="image/png" href="/assets/brand/subnet.png">
   <link rel="stylesheet" href="/tokens.css">
   <link rel="stylesheet" href="/style.css">
 </head>
 <body>
-  <a class="skip" href="#failid">Liigu failideni</a>
+  <a id="workspace-skip" class="skip" href="#workspace-content">Liigu sisu juurde</a>
+  <header class="topbar">
+    <div class="workspace-brand"><a class="brand" href="/" aria-label="subnet.ee avaleht"><img class="brand-mark" src="/assets/brand/subnet.png" width="542" height="394" alt=""><span class="subnet-wordmark">subnet<span>.ee</span></span></a><span class="workspace-label">Pilveruum</span><span id="page-name" class="sr-only">Minu failid</span></div>
+    <div class="account-controls">
+      <button id="sign-in" class="button button-primary" disabled>Logi sisse</button>
+      <details id="account-menu" class="account-menu" hidden>
+        <summary class="button" aria-label="Minu konto"><svg class="icon" viewBox="0 0 24 24" aria-hidden="true"><circle cx="12" cy="8" r="3.5"/><path d="M5 21v-3a7 7 0 0 1 14 0v3"/></svg><span id="account-status">Minu konto</span><svg class="account-chevron" viewBox="0 0 16 16" aria-hidden="true"><path d="m4 6 4 4 4-4"/></svg></summary>
+        <div class="account-popover"><span class="account-caption">Konto ID</span><code id="account-principal" data-no-translate></code><button id="copy-account" class="button" hidden>Kopeeri konto ID</button><button id="account-help" class="button">Abi ja failivormingud</button><button id="account-safety" class="button">Peidetud ja blokeeritud</button><button id="account-contacts" class="button">Minu kontaktid</button><button id="account-email" class="button">Minu e-postid</button><button id="sign-out" class="button" hidden>Logi välja</button></div>
+      </details>
+      <button id="workspace-menu" class="button menu-toggle" type="button" aria-label="Ava menüü" aria-expanded="false" aria-controls="workspace-navigation"><svg class="icon" viewBox="0 0 24 24" aria-hidden="true"><path class="menu-open" d="M4 7h16M4 12h16M4 17h16"/><path class="menu-close" d="m6 6 12 12M6 18 18 6"/></svg></button>
+    </div>
+  </header>
   <div class="workspace">
-    <aside class="sidebar">
-      <a class="brand" href="/" aria-label="subnet.ee avaleht"><img class="brand-mark" src="/assets/brand/subnet.png" width="542" height="394" alt=""><span class="subnet-wordmark">subnet<span>.ee</span></span></a>
-      <div class="space-label">SINU PILVERUUM</div>
+    <aside id="workspace-navigation" class="sidebar">
+      <details id="new-menu" class="new-menu"><summary class="button new-button"><svg class="icon" viewBox="0 0 24 24" aria-hidden="true"><path d="M12 4v16M4 12h16"/></svg>Uus</summary><div class="new-menu-items"><button id="new-menu-folder" type="button" class="button" disabled>Uus kaust</button><button id="new-menu-upload" type="button" class="button" disabled>Laadi fail üles</button><button id="new-menu-upload-folder" type="button" class="button" disabled>Laadi kaust üles</button><div id="new-apps" class="new-apps" data-no-translate></div></div></details>
       <nav aria-label="Peamenüü">
-        <a id="files-nav" class="nav-active" href="#failid" aria-current="page"><span aria-hidden="true">▱</span> Minu failid</a>
-        <a id="shared-nav" href="#jagatud"><span aria-hidden="true">♧</span> Minuga jagatud</a>
-        <a id="trash-nav" href="#prugikast"><span aria-hidden="true">⌫</span> Prügikast</a>
-        <a id="apps-nav" href="#rakendused"><span aria-hidden="true">⊞</span> Rakendused <span class="nav-count">__APP_COUNT_PADDED__</span></a>
-        <a id="ai-nav" href="#ai"><span aria-hidden="true">✧</span> Tööta AI-ga</a>
+        <div class="nav-group"><span class="nav-label">SINU TÖÖD</span>
+          <a id="home-nav" href="#kodu"><svg class="icon" viewBox="0 0 24 24" aria-hidden="true"><path d="m3 10 9-7 9 7v11h-7v-7h-4v7H3Z"/></svg>Kodu</a>
+          <a id="inbox-nav" href="#teavitused"><svg class="icon" viewBox="0 0 24 24" aria-hidden="true"><path d="M5 16v-6a7 7 0 0 1 14 0v6l2 2H3ZM9 21h6"/></svg>Teavitused</a>
+          <a id="activity-nav" href="#tegevused"><svg class="icon" viewBox="0 0 24 24" aria-hidden="true"><path d="M8 6h12M8 12h12M8 18h12M3 6h1M3 12h1M3 18h1"/></svg>Tegevused</a>
+          <div class="tree-nav-root"><button id="folder-tree-toggle" class="tree-arrow" type="button" aria-label="Ava alamkaustad" aria-expanded="false" aria-controls="folder-tree" hidden>▸</button><a id="files-nav" class="nav-active" href="#failid" aria-current="page"><svg class="icon" viewBox="0 0 24 24" aria-hidden="true"><path d="M3 6a2 2 0 0 1 2-2h5l2 3h7a2 2 0 0 1 2 2v10a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2Z"/><path d="M3 11h18"/></svg>Minu failid</a></div><div id="folder-tree" class="folder-tree" role="tree" aria-label="Kaustapuu" hidden></div>
+          <a id="shared-nav" href="#jagatud"><svg class="icon" viewBox="0 0 24 24" aria-hidden="true"><circle cx="9" cy="8" r="3"/><path d="M3 21v-3a6 6 0 0 1 12 0v3M16 5a3 3 0 0 1 0 6m2 3a5 5 0 0 1 3 4v3"/></svg>Minuga jagatud</a>
+          <a id="recent-nav" href="#hiljutised"><svg class="icon" viewBox="0 0 24 24" aria-hidden="true"><circle cx="12" cy="12" r="9"/><path d="M12 6v6l4 2"/></svg>Hiljutised</a>
+          <a id="starred-nav" href="#tarniga"><svg class="icon" viewBox="0 0 24 24" aria-hidden="true"><path d="m12 3 2.8 5.7 6.2.9-4.5 4.4 1.1 6.2-5.6-3-5.6 3 1.1-6.2L3 9.6l6.2-.9Z"/></svg>Tärniga</a>
+        </div>
+        <div class="nav-group"><span class="nav-label">TÖÖRIISTAD</span>
+          <a id="apps-nav" href="#rakendused"><svg class="icon" viewBox="0 0 24 24" aria-hidden="true"><rect x="3" y="3" width="7" height="7" rx="1.5"/><rect x="14" y="3" width="7" height="7" rx="1.5"/><rect x="3" y="14" width="7" height="7" rx="1.5"/><rect x="14" y="14" width="7" height="7" rx="1.5"/></svg>Rakendused<span class="nav-count">__APP_COUNT__</span></a>
+          <a id="ai-nav" href="#ai"><svg class="icon" viewBox="0 0 24 24" aria-hidden="true"><path d="m10 3 2.5 7.5L20 13l-7.5 2.5L10 23l-2.5-7.5L0 13l7.5-2.5ZM19 1l1 3 3 1-3 1-1 3-1-3-3-1 3-1Z"/></svg>Tööta AI-ga</a>
+        </div>
+        <div class="nav-secondary"><a id="trash-nav" href="#prugikast"><svg class="icon" viewBox="0 0 24 24" aria-hidden="true"><path d="M4 7h16M9 7V4h6v3M6 7l1 14h10l1-14M10 11v6m4-6v6"/></svg>Prügikast</a></div>
       </nav>
-      <div class="sidebar-bottom"><span class="status-dot"></span> ICP-pilv<p>Sinu ideed. Sinu tööriistad.</p></div>
+      <div id="sidebar-storage" class="sidebar-storage" hidden><a id="storage-nav" href="#salvestusruum"><svg class="icon" viewBox="0 0 24 24" aria-hidden="true"><path d="M7 19a5 5 0 1 1 0-10 7 7 0 0 1 13 2 4 4 0 0 1-1 8Z"/></svg>Salvestusruum</a><progress id="storage-meter" max="1" value="0" aria-label="Kasutatud salvestusruum"></progress><span id="storage-usage">Sinu failid on seotud sinu kontoga.</span></div>
+      <div class="sidebar-utilities"><div class="language-switch" role="group" aria-label="Keel"><a href="/pilveruum/" data-language="et" lang="et" aria-label="Eesti keeles">ET</a><a href="/en/pilveruum/" data-language="en" lang="en" aria-label="In English">EN</a></div><a class="home-link" href="/">Avaleht <span aria-hidden="true">↗</span></a></div>
     </aside>
-    <main>
-      <header class="topbar"><span>Pilveruum <span class="breadcrumb">/</span> <span id="page-name">Rakendused</span></span><div class="account-controls"><div class="language-switch" role="group" aria-label="Keel"><a href="/pilveruum/" data-language="et" lang="et" aria-label="Eesti keeles">ET</a><a href="/en/pilveruum/" data-language="en" lang="en" aria-label="In English">EN</a></div><span id="account-status">Ühendan kontoga…</span><button id="sign-in" class="button button-primary" disabled>Logi sisse</button><button id="sign-out" class="button" hidden>Logi välja</button></div></header>
+    <main id="workspace-content" tabindex="-1">
       <p id="account-message" class="account-message" role="status" hidden></p>
       <div id="apps-view" hidden>
-      <section class="intro" aria-labelledby="intro-title">
-        <div class="eyebrow"><span></span> RUUM SINU IDEEDELE</div>
-        <h1 id="intro-title">Mida sa täna <em>lood?</em></h1>
-        <p>ArtCrafti avatud lähtekoodiga loometööriistad, millele oleme lisanud ICP-pilvetoe.</p>
-        <div class="craft-context">
-          <span class="alpha-badge">Alpha</span>
-          <span>Varajased versioonid, mida kogukond pidevalt täiustab.</span>
-          <a href="https://getartcraft.com/apps" target="_blank" rel="noopener noreferrer">ArtCrafti projekt <span aria-hidden="true">↗</span></a>
-        </div>
-      </section>
-      <section id="rakendused" class="applications" aria-labelledby="apps-title">
-        <div class="section-heading"><h2 id="apps-title">Sinu rakendused</h2><span>__APP_COUNT__ tööriista · üks loomeruum</span></div>
-        <div class="app-grid"><!-- APP_CARDS --></div>
-      </section>
-      <section class="cloud-note" aria-labelledby="cloud-title">
-        <img class="cloud-symbol" src="/assets/brand/subnet.png" width="542" height="394" alt="">
-        <div><h2 id="cloud-title">Sinu tööle oma koht</h2><p>Salvesta oma tööd pilve ja jätka hiljem samast kohast.<br>Üks konto ja sinu failid kõigis Crafti rakendustes.</p></div>
-        <span class="cloud-label">Sovereign Cloud <span>Kõigis rakendustes</span></span>
-      </section>
+        <section id="rakendused" class="applications" aria-labelledby="apps-title">
+          <div class="view-heading"><h1 id="apps-title">Rakendused</h1><span class="app-total">__APP_COUNT__ rakendust</span></div>
+          <div class="app-grid"><!-- APP_CARDS --></div>
+          <div class="craft-context"><span class="alpha-badge">Alpha</span><p><a href="https://getartcraft.com/apps" target="_blank" rel="noopener noreferrer">ArtCrafti avatud lähtekoodiga rakendused <span aria-hidden="true">↗</span></a><span>Pilvetugi subnetilt.</span></p></div>
+        </section>
       </div>
+      <section id="people-view" class="files-view" aria-labelledby="people-title" hidden><h1 id="people-title">Teavitused</h1><div id="people-body" aria-live="polite"></div></section>
+      <section id="insights-view" class="files-view" aria-labelledby="insights-title" hidden><h1 id="insights-title">Tegevused</h1><div id="insights-body" aria-live="polite"></div></section>
       <section id="failid" class="files-view" aria-labelledby="files-title">
-        <div class="files-heading"><div><h1 id="files-title">Minu failid</h1><p id="drive-description">Sinu failid. Sinu inimesed. Sinu AI.</p></div>
-          <div class="drive-actions"><button id="new-folder" class="button" disabled>Uus kaust</button><button id="upload-file" class="button button-primary" disabled>Laadi fail üles</button><input id="upload-input" type="file" multiple hidden><input id="replace-input" type="file" hidden></div>
+        <div class="files-heading"><div><h1 id="files-title">Minu failid</h1><p id="drive-description">Sinu salvestatud tööd.</p></div>
+          <div class="drive-actions"><button id="clipboard-paste" class="button" disabled>Kleebi</button><button id="new-folder" class="button" disabled><svg class="icon" viewBox="0 0 24 24" aria-hidden="true"><path d="M3 7a2 2 0 0 1 2-2h5l2 3h7a2 2 0 0 1 2 2v9a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2ZM12 12v6m-3-3h6"/></svg><span id="new-folder-label">Uus kaust</span></button><button id="upload-file" class="button button-primary" disabled><svg class="icon" viewBox="0 0 24 24" aria-hidden="true"><path d="M12 16V3m-5 5 5-5 5 5M4 15v5a1 1 0 0 0 1 1h14a1 1 0 0 0 1-1v-5"/></svg>Laadi fail üles</button><button id="empty-trash" class="button button-danger" hidden disabled>Tühjenda prügikast</button><input id="upload-input" type="file" multiple hidden><input id="folder-upload-input" type="file" webkitdirectory multiple hidden><input id="replace-input" type="file" hidden></div>
         </div>
-        <div class="files-toolbar"><nav id="breadcrumbs" aria-label="Kausta asukoht"></nav><span id="view-status" role="status"></span><button id="refresh-files" class="button" disabled>Värskenda</button></div>
+        <form id="drive-search" class="drive-search" role="search" aria-label="Otsi pilveruumist">
+          <div class="search-line"><button class="button search-submit" type="submit" aria-label="Otsi" title="Otsi"><svg class="icon" viewBox="0 0 24 24" aria-hidden="true"><circle cx="10" cy="10" r="7"/><path d="m15 15 6 6"/></svg></button><label class="sr-only" for="search-text">Faili või kausta nimi</label><input id="search-text" type="search" placeholder="Otsi pilveruumist" maxlength="160" autocomplete="off"><button id="search-clear" class="button" type="button" hidden>Tühjenda otsing</button></div>
+          <div id="search-filters" class="search-filter-fields" role="group" aria-label="Otsingu filtrid">
+            <label class="filter-chip"><span class="sr-only">Tüüp</span><select id="search-type"><option value="">Tüüp</option><option value="folder">Kaustad</option><option value="file">Failid</option><option value="shortcut">Otseteed</option><option value="image">Pildid</option><option value="pdf">PDF</option><option value="text">Tekst</option><option value="audio">Heli</option><option value="video">Video</option></select></label>
+            <label class="filter-chip"><span class="sr-only">Omanik</span><select id="search-owner"><option value="">Omanik</option><option value="mine">Mina</option></select></label>
+            <details id="date-filter" class="date-filter"><summary>Muudetud</summary><div class="date-filter-fields"><label>Muudetud alates<input id="search-after" type="date"></label><label>Muudetud enne<input id="search-before" type="date"></label><button type="submit" class="button">Rakenda</button></div></details>
+            <label class="filter-chip"><span class="sr-only">Asukoht</span><select id="search-location"><option value="">Asukoht</option><option id="search-current-folder" value="current">Praegune kaust ja alamkaustad</option></select></label>
+          </div>
+        </form>
+        <section id="home-folders" class="home-folders" aria-label="Soovitatud kaustad" hidden><div class="home-folders-heading"><h2>Soovitatud kaustad</h2><a href="#failid">Vaata kõiki</a></div><div id="home-folder-list" class="home-folder-list"></div></section>
+        <h2 id="home-recent-heading" class="home-recent-heading" hidden>Soovitatud failid</h2>
+        <div id="file-area" class="file-area" role="region" aria-label="Failid ja kaustad">
+        <div class="files-toolbar"><nav id="breadcrumbs" aria-label="Kausta asukoht"></nav><span id="view-status" class="sr-only" role="status"></span><button id="show-details" class="button details-toggle" type="button" aria-label="Faili teave" title="Faili teave">ⓘ</button><button id="refresh-files" class="button refresh-button" aria-label="Värskenda faililoendit" title="Värskenda faililoendit" disabled><svg class="icon refresh-icon" viewBox="0 0 24 24" aria-hidden="true"><path d="M20 7v5h-5M4 17v-5h5M5.5 7a8 8 0 0 1 13-1L20 8M4 16l1.5 2a8 8 0 0 0 13-1"/></svg></button></div>
+        <div id="browser-action-bar" class="browser-action-bar">
+        <div id="browse-controls" class="browse-controls">
+          <span class="browse-hint">Failid ja kaustad</span>
+          <label id="sort-control">Sordi<select id="sort-field"><option value="name">Nimi</option><option value="modified">Muudetud</option><option value="size">Suurus</option><option value="opened">Viimati avatud</option></select></label>
+          <button id="sort-direction" class="button" type="button" aria-label="Muuda sortimise suunda">Kasvav</button>
+          <div class="view-switch" role="group" aria-label="Failide vaade"><button id="view-list" class="button" type="button" aria-pressed="true">Loend</button><button id="view-grid" class="button" type="button" aria-pressed="false">Ruudustik</button></div>
+        </div>
+        <div id="selection-toolbar" class="selection-toolbar" role="group" aria-label="Valitud failide toimingud" hidden>
+          <button id="selection-clear" class="button selection-icon" type="button" aria-label="Tühista valik" title="Tühista valik"><svg class="icon" viewBox="0 0 24 24" aria-hidden="true"><path d="m6 6 12 12M6 18 18 6"/></svg></button>
+          <span id="selection-count" role="status"></span>
+          <button id="selection-share" class="button selection-icon" type="button" aria-label="Jaga" title="Jaga"><svg class="icon" viewBox="0 0 24 24" aria-hidden="true"><circle cx="9" cy="7" r="3"/><path d="M3 21v-3a6 6 0 0 1 12 0v3M19 7v6m-3-3h6"/></svg></button>
+          <button id="selection-download" class="button selection-icon" type="button" aria-label="Laadi alla" title="Laadi alla"><svg class="icon" viewBox="0 0 24 24" aria-hidden="true"><path d="M12 3v12m-5-5 5 5 5-5M4 16v5h16v-5"/></svg></button>
+          <button id="selection-move" class="button selection-icon" type="button" aria-label="Liiguta" title="Liiguta"><svg class="icon" viewBox="0 0 24 24" aria-hidden="true"><path d="M3 7a2 2 0 0 1 2-2h5l2 3h7a2 2 0 0 1 2 2v9a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2ZM8 14h9m-3-3 3 3-3 3"/></svg></button>
+          <button id="selection-trash" class="button selection-icon" type="button" aria-label="Prügikasti" title="Prügikasti"><svg class="icon" viewBox="0 0 24 24" aria-hidden="true"><path d="M3 6h18M9 6V3h6v3M5 6l1 15h12l1-15M10 10v7m4-7v7"/></svg></button>
+          <button id="selection-restore" class="button" type="button" hidden>Taasta</button>
+          <details id="selection-more" class="file-menu selection-more"><summary class="button selection-icon" aria-label="Veel toiminguid" title="Veel toiminguid">···</summary><div class="file-menu-items">
+            <button id="selection-open" type="button" class="button">Ava</button>
+            <button id="selection-details" type="button" class="button">Faili teave</button><button id="selection-link" type="button" class="button">Kopeeri link</button>
+            <button id="clipboard-cut" type="button" class="button">Lõika</button><button id="clipboard-copy" type="button" class="button">Kopeeri</button>
+            <button id="selection-copy" type="button" class="button">Tee koopia</button>
+            <button id="selection-rename" type="button" class="button">Nimeta ümber</button>
+            <button id="selection-menu-share" type="button" class="button">Jaga</button>
+            <button id="selection-menu-download" type="button" class="button">Laadi alla</button>
+            <button id="selection-menu-move" type="button" class="button">Liiguta</button>
+            <button id="selection-menu-trash" type="button" class="button">Prügikasti</button>
+            <button id="selection-star" type="button" class="button">Lisa tärn</button>
+            <button id="selection-unstar" type="button" class="button">Eemalda tärn</button>
+            <button id="select-all-files" type="button" class="button">Vali laaditud failid</button>
+          </div></details>
+        </div>
+        </div>
+        <div id="file-columns" class="file-columns" role="group" aria-label="Failide veerud"><button id="column-name" type="button" class="column-name">Nimi</button><span>Omanik</span><button id="column-modified" type="button">Muudetud</button><button id="column-size" type="button">Suurus</button><span></span></div>
         <div id="file-status" class="file-status" role="status">Logi sisse, et näha oma salvestatud faile.</div>
-        <div data-no-translate id="file-list" class="file-list" aria-label="Salvestatud failid"></div>
+        <div id="signed-out-actions" class="signed-out-actions" hidden><button id="files-sign-in" class="button button-primary" disabled>Logi sisse</button><a class="button" href="#rakendused">Ava rakendused</a></div>
+        <div data-no-translate id="file-list" class="file-list" role="grid" aria-multiselectable="true" aria-label="Salvestatud failid"></div>
         <button id="more-files" class="button" hidden>Näita rohkem</button>
-        <div class="drive-footer"><span id="storage-usage">Sinu failid on seotud sinu kontoga.</span><button id="copy-account" class="button" hidden>Kopeeri konto ID</button></div>
+        <div id="file-drop-hint" class="file-drop-hint" hidden><svg class="icon" viewBox="0 0 24 24" aria-hidden="true"><path d="M12 16V4m-4 4 4-4 4 4M4 15v5h16v-5"/></svg><span>Lohista failid siia</span></div>
+        <div id="file-drop-overlay" class="file-drop-overlay" hidden aria-hidden="true"><svg class="icon" viewBox="0 0 24 24"><path d="M12 16V3m-5 5 5-5 5 5M4 15v5a1 1 0 0 0 1 1h14a1 1 0 0 0 1-1v-5"/></svg><strong>Laadi failid siia</strong><span id="file-drop-target" data-no-translate></span></div>
+        </div>
 
       </section>
       <section id="ai-view" class="ai-view" aria-labelledby="ai-title" hidden>
@@ -78,7 +133,7 @@
               <li>Logi välja ja oma tavakontoga uuesti sisse. Ava soovitud kausta menüüs „Jaga“, kleebi agendi konto ID ja vali õigused.</li>
               <li>Ühenda allolevate juhiste järgi ICP MCP, logides sisse agendi Internet Identityga.</li>
             </ol>
-            <p class="ai-permission-note">Lugemine on alati lubatud. Lisa loomise, muutmise või kustutamise õigus ainult vajadusel. Kausta õigused kehtivad ka selle sisule.</p>
+            <p class="ai-permission-note">Vali Vaataja, kui agent vajab ainult lugemisõigust, või Muutja, kui ta peab ka faile muutma. Kausta õigused kehtivad ka selle sisule.</p>
             <div id="ai-account" class="ai-account" hidden>
               <strong>Sisselogitud Subneti konto ID</strong>
               <code id="ai-principal" data-no-translate></code>
@@ -99,22 +154,21 @@
           <h2 id="ai-connect-title">Ühenda ICP MCP</h2>
           <ol>
             <li>Lisa assistendi seadetes MCP-ühendus selle aadressiga:<code data-no-translate>https://mcp.internetcomputer.org/mcp</code></li>
-            <li>Logi sisse valitud Internet Identityga ja vali „Actions &amp; questions“.</li>
+            <li>Logi sisse valitud Internet Identityga. Vali „Questions only“ ainult lugemiseks või „Actions &amp; questions“, et lubada ka toiminguid.</li>
             <li>Anna assistendile aadress https://www.subnet.ee ja kirjelda oma ülesannet.</li>
           </ol>
-          <p>Praegu vajab ka failide loendi lugemine valikut „Actions &amp; questions“. Kausta jagamisõigused määravad endiselt, mida agent teha saab.</p>
+          <p>Subneti praegune faililiides vajab valikut „Actions &amp; questions“ ka failide sirvimiseks. Kausta jagamisõigused määravad endiselt, mida agent teha saab: ainult lugemisõigusega jagatud kausta sisu ta muuta ei saa.</p>
           <a href="https://internetcomputer.org/icp-mcp/" target="_blank" rel="noopener noreferrer">ICP MCP ühendamise juhend ↗</a>
         </section>
         <p class="ai-footnote">Ajalugu näitab tegutsenud kontot. Eraldi identiteet eristab kontosid, kuid ei tõenda, kas toimingu tegi inimene või AI.</p>
       </section>
-      <footer><span>Avatud tööriistad. Iseseisev looming.</span><span>Craft-rakendused · ArtCrafti avatud lähtekoodil</span></footer>
     </main>
   </div>
 <section id="picker-footer" hidden aria-labelledby="picker-heading">
   <form id="picker-form">
     <h2 id="picker-heading"></h2>
     <label id="picker-name-field" for="picker-name">Faili nimi<input id="picker-name" name="name" maxlength="160" autocomplete="off"></label>
-    <p id="picker-hint"></p>
+    <p id="picker-hint"></p><div id="picker-owner"></div>
     <div class="picker-buttons"><button id="picker-cancel" class="button" type="button">Tühista</button><button id="picker-submit" class="button button-primary" type="submit" disabled>Ava</button></div>
   </form>
 </section>
@@ -122,7 +176,12 @@
   <p id="transfer-label" role="status" aria-live="polite"></p>
   <progress id="transfer-progress" max="1" aria-label="Üleslaadimise edenemine"></progress>
   <p id="transfer-detail"></p>
+  <div id="transfer-items"></div>
+  <p class="muted">Ülekanded jäävad sellesse vahelehte. Pärast lehe sulgemist vali kohalikud failid uuesti.</p>
+  <button id="transfer-clear" type="button" class="button">Sulge tulemused</button>
 </aside>
+<aside id="file-details" class="file-details" aria-labelledby="details-title" hidden><div class="details-heading"><h2 id="details-title" data-no-translate></h2><button id="details-close" class="button" type="button" aria-label="Sulge faili teave">×</button></div><div id="details-body" data-no-translate></div></aside>
+<div id="undo-notice" class="undo-notice" hidden><span id="undo-label" role="status"></span><button id="undo-action" type="button" class="button">Võta tagasi</button><button id="undo-dismiss" type="button" class="button" aria-label="Sulge">×</button></div>
 <dialog id="drive-dialog" aria-labelledby="dialog-title">
   <form id="dialog-form"><div class="dialog-heading"><h2 id="dialog-title"></h2><button id="dialog-close" type="button" class="button" aria-label="Sulge">×</button></div>
     <div id="dialog-body" data-no-translate></div><p id="dialog-error" class="is-error" role="alert" hidden></p>
@@ -134,6 +193,7 @@
     <div><p class="preview-eyebrow">Eelvaade</p><h2 id="preview-name" data-no-translate></h2><p id="preview-meta"></p></div>
     <button id="preview-close" class="button preview-close" type="button" aria-label="Sulge" autofocus>×</button>
   </header>
+  <div class="preview-toolbar" role="toolbar" aria-label="Eelvaate tööriistad"><button id="preview-previous" class="button" type="button">Eelmine</button><button id="preview-next" class="button" type="button">Järgmine</button><button id="preview-zoom-out" class="button" type="button" aria-label="Vähenda">−</button><button id="preview-fit" class="button" type="button">Mahuta</button><button id="preview-zoom-in" class="button" type="button" aria-label="Suurenda">+</button><a id="preview-open-with" class="button" hidden>Ava redaktoris</a></div>
   <div id="preview-content" aria-busy="false" data-no-translate></div>
   <footer class="preview-footer"><span>Faili vaatamine ei muuda selle sisu.</span><button id="preview-download" class="button" type="button">Laadi alla</button></footer>
 </dialog>

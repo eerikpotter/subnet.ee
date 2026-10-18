@@ -75,36 +75,17 @@ def instrument_editor(folder):
         source = source.replace(tag, "", 1)
     page.write_text(source)
 
-def art(app):
-    if app == "figcraft":
-        return '<div class="fig-board"><div class="fig-sidebar"><i></i><i></i><i></i></div><div class="fig-screen"><span></span><b></b><i></i><i></i></div><div class="fig-screen second"><span></span><b></b><i></i><i></i></div><div class="fig-connector"></div></div>'
-    if app == "photocraft":
-        return '<div class="art-work"><div class="photo-sky"><span class="photo-sun"></span><span class="photo-hill"></span><span class="photo-hill second"></span></div></div><div class="photo-tools">+<br>◌<br>⌁</div>'
-    if app == "pdfcraft":
-        lines = '<div class="pdf-line title"></div>' + '<div class="pdf-line"></div>' * 5
-        return f'<div class="pdf-sheet back">{lines}</div><div class="pdf-sheet">{lines}</div><span class="pdf-stamp">PDF</span>'
-    if app == "wordcraft":
-        return '<div class="word-page"><div class="word-title">Alguses<br>oli sõna</div><div class="word-line"></div><div class="word-line short"></div><div class="word-selection"></div><div class="word-line"></div><div class="word-line short"></div></div>'
-    if app == "deckcraft":
-        return '<div class="deck-slide back"></div><div class="deck-slide"><div class="deck-title">Ideest<br>esitluseni.</div><div class="deck-chart"><span></span><span></span><span></span></div><div class="deck-dots">● ○ ○</div></div>'
-    if app == "cadcraft":
-        return '<div class="cad-plan"><svg viewBox="0 0 240 150"><path class="cad-wall" d="M35 30h160v90H35Zm100 0v52h60M35 82h52m25 0h23v38"/><path class="cad-door" d="M87 82v25a25 25 0 0 0 25-25"/><path class="cad-measure" d="M35 15h160M35 10v10m160-10v10M210 30v90m-5-90h10m-10 90h10"/><text x="106" y="12">8 000</text><text x="204" y="144">4 500</text></svg></div>'
-    if app == "gridcraft":
-        return '<div class="grid-sheet"><div class="grid-columns"><span>A</span><span>B</span><span>C</span></div><div class="grid-cells"><span>Ideed</span><span>Tehtud</span><span>Järgmisena</span><span>12</span><span>8</span><span>4</span><span class="grid-selected">=SUM(B2:C2)</span><span></span><span></span></div><div class="grid-bars"><i></i><i></i><i></i><i></i></div></div>'
-    # Deterministic original waveform illustration; no external media or scripts.
-    heights = [4, 8, 13, 7, 18, 22, 14, 9, 17, 23, 12, 5, 9, 16, 21, 12, 18, 6, 4, 13, 20, 9, 15, 5]
-    waves = "".join(f'<span class="wave" style="height:{h}px"></span>' for h in heights)
-    return '<div class="sound-tracks">' + f'<div class="track">{waves}</div>' * 3 + '</div>'
-
 def cards(apps):
-    colors = {"photocraft":"photo", "pdfcraft":"pdf", "wordcraft":"word", "deckcraft":"deck", "soundcraft":"sound", "cadcraft":"cad", "gridcraft":"grid", "figcraft":"fig"}
     result = []
     for app in apps:
         e = {key: html.escape(str(value), quote=True) for key, value in app.items()}
-        result.append(f'''<a class="app-card" href="/apps/{e['id']}/" aria-label="Ava {e['name']}">
-          <div class="art art-{colors[app['id']]}" aria-hidden="true"><span class="app-symbol">{e['symbol']}</span>{art(app['id'])}</div>
-          <div class="card-body"><div class="card-title"><h3>{e['name']}</h3><span class="category">{e['kind']}</span></div><p>{e['description']}</p>
-          <div class="card-bottom"><span class="formats">{e['formats']}</span><span class="open-app">Ava rakendus <span aria-hidden="true">→</span></span></div></div></a>''')
+        icon = e['id'] if app['id'] in {"photocraft", "pdfcraft", "wordcraft", "deckcraft", "soundcraft", "cadcraft", "gridcraft", "figcraft"} else "application"
+        artwork = (f'<img class="app-art" src="/assets/crafts/{e["id"]}.png" width="256" height="256" alt="" loading="lazy" decoding="async">'
+                   if icon != "application" else '')
+        result.append(f'''<a class="app-card app-{e['id']}" href="/apps/{e['id']}/" aria-label="Ava {e['name']}">
+          {artwork}
+          <span class="app-arrow" aria-hidden="true">↗</span>
+          <h2>{e['name']}</h2><span class="app-kind"><svg class="app-icon" viewBox="0 0 48 48" aria-hidden="true"><use href="/assets/brand/craft-icons.svg#icon-{icon}"/></svg><span>{e['kind']}</span></span><p>{e['description']}</p></a>''')
     return "\n".join(result)
 
 def landing_cards(apps):
@@ -235,8 +216,8 @@ def assemble(root=ROOT, selected=("portal",)):
             parser.feed((folder / "editor.html").read_text())
             hashes.extend("'sha256-" + base64.b64encode(hashlib.sha256(s.encode()).digest()).decode() + "'" for s in parser.scripts)
         policy = "; ".join(["default-src 'self'", "script-src 'self' 'wasm-unsafe-eval' " + " ".join(sorted(set(hashes))),
-            "style-src 'self' 'unsafe-inline'", "img-src 'self' data: blob:", "font-src 'self' data:", "connect-src 'self' https://icp-api.io", "worker-src 'self' blob:", "media-src 'self' blob:", "object-src 'none'", "base-uri 'self'", "frame-ancestors 'self'"])
-        headers = f"/*\n  X-Content-Type-Options: nosniff\n  Referrer-Policy: no-referrer\n  Content-Security-Policy: {policy}\n\n/*.html\n  Cache-Control: no-cache\n\n/*.css\n  Cache-Control: no-cache\n\n/*.json\n  Cache-Control: no-cache\n\n/i18n.js\n  Cache-Control: no-cache\n\n/translations.js\n  Cache-Control: no-cache\n\n/landing.js\n  Cache-Control: no-cache\n\n/cloud.js\n  Cache-Control: no-cache\n\n/craft-shell.js\n  Cache-Control: no-cache\n\n/assets/*\n  Cache-Control: no-cache\n\n/apps/*.wasm\n  Content-Type: application/wasm\n  Cache-Control: public, max-age=31536000, immutable\n\n/apps/*.js\n  Cache-Control: public, max-age=31536000, immutable\n\n/cloud/*.wasm\n  Content-Type: application/wasm\n  Cache-Control: public, max-age=31536000, immutable\n\n/cloud/*.js\n  Cache-Control: public, max-age=31536000, immutable\n\n/.well-known/ii-app-metadata\n  Content-Type: application/json\n  Access-Control-Allow-Origin: *\n"
+            "style-src 'self' 'unsafe-inline'", "img-src 'self' data: blob:", "font-src 'self' data:", "connect-src 'self' https://icp-api.io", "worker-src 'self' blob:", "media-src 'self' blob:", "object-src 'none'", "frame-src 'self' blob:", "base-uri 'self'", "frame-ancestors 'self'"])
+        headers = f"/*\n  X-Content-Type-Options: nosniff\n  Referrer-Policy: no-referrer\n  Content-Security-Policy: {policy}\n\n/*.html\n  Cache-Control: no-cache\n\n/*.css\n  Cache-Control: no-cache\n\n/*.json\n  Cache-Control: no-cache\n\n/i18n.js\n  Cache-Control: no-cache\n\n/translations.js\n  Cache-Control: no-cache\n\n/landing.js\n  Cache-Control: no-cache\n\n/cloud.js\n  Cache-Control: no-cache\n\n/drive-pdf.js\n  Cache-Control: no-cache\n\n/vendor/pdfjs/*\n  Cache-Control: no-cache\n\n/vendor/pdfjs/build/*.mjs\n  Content-Type: text/javascript\n\n/drive-preview.js\n  Cache-Control: no-cache\n\n/drive-people.js\n  Cache-Control: no-cache\n\n/drive-insights.js\n  Cache-Control: no-cache\n\n/drive-navigation.js\n  Cache-Control: no-cache\n\n/drive-recovery.js\n  Cache-Control: no-cache\n\n/drive-browser.js\n  Cache-Control: no-cache\n\n/account-email.js\n  Cache-Control: no-cache\n\n/drive-transfers.js\n  Cache-Control: no-cache\n\n/download-archive.js\n  Cache-Control: no-cache\n\n/craft-shell.js\n  Cache-Control: no-cache\n\n/assets/*\n  Cache-Control: no-cache\n\n/apps/*.wasm\n  Content-Type: application/wasm\n  Cache-Control: public, max-age=31536000, immutable\n\n/apps/*.js\n  Cache-Control: public, max-age=31536000, immutable\n\n/cloud/*.wasm\n  Content-Type: application/wasm\n  Cache-Control: public, max-age=31536000, immutable\n\n/cloud/*.js\n  Cache-Control: public, max-age=31536000, immutable\n\n/.well-known/ii-app-metadata\n  Content-Type: application/json\n  Access-Control-Allow-Origin: *\n"
         headers += "\n/craft-loading.js\n  Cache-Control: no-cache\n\n/craft-wasm.js\n  Cache-Control: no-cache\n\n/agent-workflow.js\n  Cache-Control: no-cache\n"
         headers += "\n/images/*\n  Cache-Control: public, max-age=31536000, immutable\n"
         # Shared worker/runtime URLs are mutable; fingerprinted editor files keep

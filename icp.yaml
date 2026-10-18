@@ -14,7 +14,7 @@ networks:
   - name: local
     mode: managed
     gateway:
-      port: 0
+      port: 61304
 
 environments:
   - name: ic

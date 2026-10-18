@@ -1,4 +1,5 @@
 //! V1 file transfer. Checkpoints retain retry state; metadata comes from consensus updates.
+use crate::ObjectId;
 use crate::protocol::*;
 use candid::{CandidType, decode_one, encode_args};
 use serde::de::DeserializeOwned;
@@ -56,13 +57,40 @@ impl<T: Transport> FileClient<T> {
         request_id: String,
         mut progress: impl FnMut(usize, usize),
     ) -> CloudResult<crate::drive::DriveUpload> {
+        self.drive_save_controlled(target, bytes, request_id, |done, total| {
+            progress(done, total);
+            true
+        })
+        .await
+    }
+    /// Returning false cancels before publication. In-flight chunk calls are drained
+    /// before abort; once a commit has been sent its result remains authoritative.
+    pub async fn drive_save_controlled(
+        &self,
+        target: crate::drive::UploadTarget,
+        bytes: &[u8],
+        request_id: String,
+        progress: impl FnMut(usize, usize) -> bool,
+    ) -> CloudResult<crate::drive::DriveUpload> {
+        self.drive_save_with_policy(target, bytes, request_id, None, progress).await
+    }
+    pub async fn drive_save_with_policy(
+        &self,
+        target: crate::drive::UploadTarget,
+        bytes: &[u8],
+        request_id: String,
+        automatic: Option<bool>,
+        mut progress: impl FnMut(usize, usize) -> bool,
+    ) -> CloudResult<crate::drive::DriveUpload> {
         use crate::drive::*;
         if bytes.len() as u64 > MAX_DOCUMENT_BYTES {
             return Err("Files must be at most 64 MiB".into());
         }
         let total = bytes.len().div_ceil(CHUNK_BYTES);
-        progress(0, total);
-        let request = DriveUploadRequest { target, bytes: bytes.len() as u64, sha256: Sha256::digest(bytes).to_vec(), request_id };
+        if !progress(0, total) {
+            return Err("Upload cancelled".into());
+        }
+        let request = DriveUploadRequest { automatic, target, bytes: bytes.len() as u64, sha256: Sha256::digest(bytes).to_vec(), request_id };
         let stage: DriveUpload = self.drive_call("drive_begin_upload", args((request,))?).await?;
         if stage.committed.is_some() {
             return Ok(stage);
@@ -70,7 +98,12 @@ impl<T: Transport> FileClient<T> {
         // Drain each bounded batch even after an error: no earlier upload request
         // remains in flight when the caller retries the identical snapshot.
         let mut completed = 0;
+        let mut cancelled = false;
         for (batch, chunks) in bytes.chunks(CHUNK_BYTES * 4).enumerate() {
+            if !progress(completed, total) {
+                cancelled = true;
+                break;
+            }
             let mut pending = futures::stream::FuturesUnordered::new();
             for (offset, chunk) in chunks.chunks(CHUNK_BYTES).enumerate() {
                 pending.push(self.drive_call::<()>("drive_put_chunk", args((stage.id, (batch * 4 + offset) as u64, chunk.to_vec()))?));
@@ -81,20 +114,27 @@ impl<T: Transport> FileClient<T> {
                 match result {
                     Ok(()) => {
                         completed += 1;
-                        progress(completed, total);
+                        cancelled |= !progress(completed, total);
                     }
                     Err(e) => {
                         error.get_or_insert(e);
                     }
                 }
             }
+            if cancelled {
+                break;
+            }
             if let Some(error) = error {
                 return Err(error);
             }
         }
+        if cancelled || !progress(completed, total) {
+            self.drive_call::<()>("drive_abort_upload", args((stage.id,))?).await?;
+            return Err("Upload cancelled".into());
+        }
         self.drive_call("drive_commit_upload", args((stage.id,))?).await
     }
-    pub async fn drive_download(&self, file: u64, revision: u64) -> CloudResult<Vec<u8>> {
+    pub async fn drive_download(&self, file: ObjectId, revision: u64) -> CloudResult<Vec<u8>> {
         let entry: crate::drive::DriveEntry = self.drive_call("drive_get", args((file,))?).await?;
         let current = entry.latest.ok_or("File unavailable")?;
         let manifest = if current.id == revision {
@@ -122,7 +162,7 @@ impl<T: Transport> FileClient<T> {
         Ok(bytes)
     }
     /// A Craft host validates the authenticated drive reference, never personal ownership.
-    pub async fn drive_craft_file(&self, space: u64, file: u64, kind: &FileKind) -> CloudResult<crate::drive::DriveEntry> {
+    pub async fn drive_craft_file(&self, space: ObjectId, file: ObjectId, kind: &FileKind) -> CloudResult<crate::drive::DriveEntry> {
         let entry: crate::drive::DriveEntry = self.drive_call("drive_get", args((file,))?).await?;
         validate_craft_entry(&entry, space, kind)?;
         Ok(entry)
@@ -134,6 +174,17 @@ impl<T: Transport> FileClient<T> {
         request_id: String,
         kind: &FileKind,
         progress: impl FnMut(usize, usize),
+    ) -> CloudResult<crate::drive::DriveUpload> {
+        self.drive_save_craft_with_policy(target, bytes, request_id, kind, false, progress).await
+    }
+    pub async fn drive_save_craft_with_policy(
+        &self,
+        target: crate::drive::UploadTarget,
+        bytes: &[u8],
+        request_id: String,
+        kind: &FileKind,
+        automatic: bool,
+        mut progress: impl FnMut(usize, usize),
     ) -> CloudResult<crate::drive::DriveUpload> {
         use crate::drive::*;
         kind.validate()?;
@@ -149,7 +200,11 @@ impl<T: Transport> FileClient<T> {
             _ => return Err("This file format is not supported by this editor".into()),
         }
         // The server rechecks Create/Edit, revocation and expected revision at commit.
-        self.drive_save(target, bytes, request_id, progress).await
+        self.drive_save_with_policy(target, bytes, request_id, automatic.then_some(true), |done, total| {
+            progress(done, total);
+            true
+        })
+        .await
     }
     pub async fn projects(&self) -> CloudResult<Vec<Project>> {
         self.update("list_projects", args(())?).await
@@ -161,10 +216,10 @@ impl<T: Transport> FileClient<T> {
     pub async fn account(&self) -> CloudResult<AccountContext> {
         self.update("get_or_create_account", args(())?).await
     }
-    pub async fn files(&self, space: u64, after: Option<u64>, limit: u32) -> CloudResult<FilePage> {
+    pub async fn files(&self, space: ObjectId, after: Option<ObjectId>, limit: u32) -> CloudResult<FilePage> {
         self.update("list_files", args((space, after, limit))?).await
     }
-    pub async fn file(&self, space: u64, file: u64) -> CloudResult<FileDetails> {
+    pub async fn file(&self, space: ObjectId, file: ObjectId) -> CloudResult<FileDetails> {
         self.update("get_file", args((space, file))?).await
     }
     pub async fn save(&self, state: &mut UploadState, bytes: &[u8], notify: impl FnMut(TransferEvent)) -> CloudResult<Revision> {
@@ -224,7 +279,7 @@ impl<T: Transport> FileClient<T> {
         notify(TransferEvent::Committing);
         self.update("commit_upload", args((id,))?).await
     }
-    pub async fn download(&self, file: u64, revision: u64, mut notify: impl FnMut(TransferEvent)) -> CloudResult<(Revision, Vec<u8>)> {
+    pub async fn download(&self, file: ObjectId, revision: u64, mut notify: impl FnMut(TransferEvent)) -> CloudResult<(Revision, Vec<u8>)> {
         let manifest: Revision = self.update("get_revision", args((file, revision))?).await?;
         if manifest.id != revision
             || manifest.bytes > MAX_DOCUMENT_BYTES
@@ -252,7 +307,7 @@ impl<T: Transport> FileClient<T> {
     }
 }
 
-fn validate_craft_entry(entry: &crate::drive::DriveEntry, space: u64, kind: &FileKind) -> CloudResult<()> {
+fn validate_craft_entry(entry: &crate::drive::DriveEntry, space: ObjectId, kind: &FileKind) -> CloudResult<()> {
     kind.validate()?;
     if entry.object.space != space || !entry.capabilities.read || entry.object.trashed_at.is_some() {
         return Err("This file is not available to the signed-in account".into());

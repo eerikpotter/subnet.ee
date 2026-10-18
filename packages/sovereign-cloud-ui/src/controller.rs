@@ -1,10 +1,15 @@
 //! Shared browser controller; all file access uses the canonical authorized drive API.
+#[path = "drafts.rs"]
+mod drafts;
 #[path = "panel.rs"]
 mod panel;
 #[path = "picker.rs"]
 mod picker;
+#[path = "recovery.rs"]
+mod recovery;
 #[path = "session.rs"]
 mod session;
+use crate::locale::tr;
 use crate::{AppSpec, Editor, MenuHandle, Request, Snapshot, flow, presentation};
 use candid::Principal;
 use sovereign_cloud::{
@@ -29,6 +34,7 @@ struct Attempt {
     request: String,
     doc_id: u64,
     doc_revision: u64,
+    automatic: bool,
 }
 enum Event {
     SessionLoaded(CloudResult<BrowserSession>),
@@ -43,10 +49,11 @@ enum Event {
 struct Binding {
     /// The account that opened/saved, not the (potentially different) owner.
     actor: Principal,
-    file: u64,
+    file: ObjectId,
     version: u64,
     name: String,
     document_revision: u64,
+    editable: bool,
 }
 struct PendingSave {
     snapshot: Snapshot,
@@ -79,9 +86,13 @@ pub struct Cloud {
     next_session_check: f64,
     launch: Option<sovereign_cloud::launch::CloudLaunch>,
     after_login: Option<Request>,
+    initial_destination: Option<(ObjectId, ObjectId)>,
     picker: Option<picker::Picker>,
     picker_id: u64,
     picker_document: Option<u64>,
+    autosave: crate::autosave::Schedule,
+    recovery: recovery::Recovery,
+    background_save: bool,
 }
 fn send_scoped(tx: &mpsc::Sender<Event>, ctx: &egui::Context, stamp: &str, event: Event) {
     send(tx, ctx, Event::Scoped(stamp.to_string(), Box::new(event)));
@@ -123,9 +134,13 @@ impl Cloud {
             next_session_check: 0.0,
             launch: launch.ok().flatten(),
             after_login: None,
+            initial_destination: None,
             picker: None,
             picker_id: 0,
             picker_document: None,
+            autosave: crate::autosave::Schedule::default(),
+            recovery: recovery::Recovery::new(),
+            background_save: false,
         }
     }
     pub fn menu_handle(&self) -> MenuHandle {
@@ -142,7 +157,9 @@ impl Cloud {
     }
     fn begin_operation(&mut self, message: impl Into<String>) {
         self.busy = true;
-        self.visible = true;
+        if !self.background_save {
+            self.visible = true;
+        }
         self.status = message.into();
         self.progress = None;
         self.notice = None;
@@ -176,6 +193,9 @@ impl Cloud {
             self.visible = true;
             return;
         }
+        if request != Request::Autosave {
+            self.background_save = false;
+        }
         if request == Request::Open {
             self.show_picker(None, None, ctx);
             return;
@@ -184,7 +204,7 @@ impl Cloud {
             self.notify("Open or create a document first", true);
             return;
         };
-        if request == Request::Save
+        if matches!(request, Request::Save | Request::Autosave)
             && let Some(binding) = self.bindings.get(&doc.id)
         {
             if Some(binding.actor) != self.principal() {
@@ -192,14 +212,21 @@ impl Cloud {
                 return;
             }
             if flow::route(Some(binding.document_revision), doc.revision, false) == flow::SaveRoute::AlreadySaved {
-                self.notify("This file is already saved to cloud. No changes to upload.", false);
+                if request != Request::Autosave {
+                    self.notify("This file is already saved to cloud. No changes to upload.", false);
+                }
                 return;
             }
             let target = UploadTarget::Replace { file: binding.file, expected_revision: binding.version };
             let name = binding.name.clone();
+            self.background_save = request == Request::Autosave;
             self.save(app, ctx, target, name);
             return;
         }
+        if request == Request::Autosave {
+            return;
+        }
+        self.background_save = false;
         let name = self.bindings.get(&doc.id).map_or(doc.name.as_str(), |b| b.name.as_str());
         let name = if request == Request::SaveAs { format!("{} copy", self.spec.stem(name)) } else { self.spec.stem(name) };
         self.show_picker(Some(&self.spec.file_name(&name)), Some(doc.id), ctx);
@@ -210,7 +237,9 @@ impl Cloud {
         let (tx, ctx) = (self.tx.clone(), ctx.clone());
         let stamp = self.stamp();
         let dark = ctx.global_style().visuals.dark_mode;
-        match picker::Picker::open(self.spec, name, dark, move |selection| send_scoped(&tx, &ctx, &stamp, Event::Selection(id, selection))) {
+        match picker::Picker::open(self.spec, name, self.initial_destination, dark, move |selection| {
+            send_scoped(&tx, &ctx, &stamp, Event::Selection(id, selection))
+        }) {
             Ok(picker) => {
                 self.picker = Some(picker);
                 self.picker_document = document;
@@ -239,8 +268,16 @@ impl Cloud {
                 return;
             }
         };
-        let attempt =
-            Attempt { actor, target, bytes: Arc::new(Vec::new()), name, request, doc_id: snapshot.document.id, doc_revision: snapshot.document.revision };
+        let attempt = Attempt {
+            actor,
+            target,
+            bytes: Arc::new(Vec::new()),
+            name,
+            request,
+            doc_id: snapshot.document.id,
+            doc_revision: snapshot.document.revision,
+            automatic: self.background_save,
+        };
         self.pending_save = Some(PendingSave { snapshot, attempt, ready_frame: ctx.cumulative_frame_nr().saturating_add(2) });
         self.begin_operation("Preparing your file…");
         ctx.request_repaint();
@@ -268,7 +305,7 @@ impl Cloud {
                 self.notify(
                     match result {
                         Ok(_) => "Cloud files can be up to 64 MiB".into(),
-                        Err(e) => format!("Could not prepare your file: {e}"),
+                        Err(e) => format!("{}: {e}", tr("Could not prepare your file")),
                     },
                     true,
                 );
@@ -302,7 +339,7 @@ impl Cloud {
         let (tx, ctx) = (self.tx.clone(), ctx.clone());
         wasm_bindgen_futures::spawn_local(async move {
             let result = api
-                .drive_save_craft(attempt.target.clone(), &attempt.bytes, attempt.request.clone(), &kind, |done, total| {
+                .drive_save_craft_with_policy(attempt.target.clone(), &attempt.bytes, attempt.request.clone(), &kind, attempt.automatic, |done, total| {
                     send_scoped(
                         &tx,
                         &ctx,
@@ -325,7 +362,7 @@ impl Cloud {
             );
         });
     }
-    fn open(&mut self, space: u64, file: u64, revision: Option<u64>, ctx: &egui::Context) {
+    fn open(&mut self, space: ObjectId, file: ObjectId, revision: Option<u64>, ctx: &egui::Context) {
         let api = match self.api() {
             Ok(a) => a,
             Err(e) => {
@@ -388,19 +425,26 @@ impl Cloud {
                             self.signing_in = false;
                             if self.principal().is_some() {
                                 if let Some(link) = self.launch.take() {
-                                    self.open(link.space, link.file, None, ctx);
+                                    match link {
+                                        sovereign_cloud::launch::CloudLaunch::File { space, file } => self.open(space, file, None, ctx),
+                                        sovereign_cloud::launch::CloudLaunch::New { space, parent } => {
+                                            self.initial_destination = Some((space, parent));
+                                            self.visible = false;
+                                        }
+                                    }
                                 } else if let Some(request) = self.after_login.take() {
                                     self.request(request, app, ctx);
                                 }
                             }
                         }
                         Ok(_) => self.reload_session(ctx),
-                        Err(e) => self.notify(format!("Identity initialization: {e}"), true),
+                        Err(e) => self.notify(format!("{}: {e}", tr("Identity initialization")), true),
                     }
                 }
                 Event::SignedIn => self.reload_session(ctx),
                 Event::Scoped(_, _) => {}
                 Event::Error(e) => {
+                    self.background_save = false;
                     self.busy = false;
                     self.signing_in = false;
                     self.notify(e, true);
@@ -451,16 +495,18 @@ impl Cloud {
                 }
                 Event::Saved(attempt, upload) => {
                     self.busy = false;
+                    self.background_save = false;
                     let Some(revision) = upload.committed else {
                         self.notify("The upload was not committed. Retry the captured file.", true);
                         continue;
                     };
+                    self.recovery.saved(attempt.actor, attempt.doc_id, attempt.doc_revision);
                     browser::notify_files_changed();
                     self.attempt = None;
                     let saved_revision = match app.saved(attempt.doc_id, attempt.doc_revision, &attempt.bytes) {
                         Ok(revision) => revision.unwrap_or(attempt.doc_revision),
                         Err(e) => {
-                            self.notify(format!("Cloud saved, but the editor could not update its saved state: {e}"), true);
+                            self.notify(format!("{}: {e}", tr("Cloud saved, but the editor could not update its saved state")), true);
                             attempt.doc_revision
                         }
                     };
@@ -472,10 +518,11 @@ impl Cloud {
                             version: revision.id,
                             name: attempt.name.clone(),
                             document_revision: saved_revision,
+                            editable: true,
                         },
                     );
-                    if !self.notice.as_ref().is_some_and(|n| n.error) {
-                        self.notify(format!("Saved {} · {}", attempt.name, timestamp(revision.created_at)), false);
+                    if !attempt.automatic && !self.notice.as_ref().is_some_and(|n| n.error) {
+                        self.notify(format!("{} {} · {}", tr("Saved"), attempt.name, timestamp(revision.created_at)), false);
                     }
                 }
                 Event::Opened(entry, revision, bytes) => {
@@ -489,15 +536,51 @@ impl Cloud {
             }
         }
     }
+    fn schedule_autosave(&mut self, app: &impl Editor, ctx: &egui::Context) {
+        let Some(doc) = app.document() else {
+            return;
+        };
+        let eligible = !self.busy
+            && self.attempt.is_none()
+            && self.pending_open.is_none()
+            && self.picker.is_none()
+            && !self.session_loading
+            && self.bindings.get(&doc.id).is_some_and(|b| Some(b.actor) == self.principal() && b.editable && b.document_revision != doc.revision);
+        if eligible {
+            ctx.request_repaint_after(std::time::Duration::from_secs(1));
+        }
+        if self.autosave.due(doc.id, doc.revision, js_sys::Date::now(), eligible) {
+            self.menu.request(Request::Autosave);
+            ctx.request_repaint();
+        }
+    }
     fn finish_open(&mut self, app: &mut impl Editor, entry: DriveEntry, revision: Revision, bytes: Vec<u8>) {
         let Some(actor) = self.principal() else {
             return;
         };
         match app.open(&self.spec.file_name(&entry.object.name), &bytes) {
             Ok(document) => {
+                // Only successful native decoding is a view. Personal activity
+                // is best-effort and must never prevent access to the document.
+                if let Ok(api) = self.api() {
+                    let file = entry.object.id;
+                    let seen = revision.id;
+                    wasm_bindgen_futures::spawn_local(async move {
+                        if let Ok(input) = args((file, Some(seen))) {
+                            let _ = api.drive_call::<()>("drive_acknowledge_open", input).await;
+                        }
+                    });
+                }
                 self.bindings.insert(
                     document.id,
-                    Binding { actor, file: entry.object.id, version: revision.id, name: entry.object.name.clone(), document_revision: document.revision },
+                    Binding {
+                        actor,
+                        file: entry.object.id,
+                        version: revision.id,
+                        name: entry.object.name.clone(),
+                        document_revision: document.revision,
+                        editable: entry.capabilities.edit,
+                    },
                 );
                 if entry.capabilities.edit {
                     self.visible = false;
@@ -506,10 +589,12 @@ impl Cloud {
                     self.notify("Opened read-only. You can edit locally and use Save As to save your own copy.", false);
                 }
             }
-            Err(e) => self.notify(format!("Could not open your file: {e}"), true),
+            Err(e) => self.notify(format!("{}: {e}", tr("Could not open your file")), true),
         }
     }
 }
 fn timestamp(nanos: u64) -> String {
-    js_sys::Date::new(&wasm_bindgen::JsValue::from_f64((nanos / 1_000_000) as f64)).to_locale_string("en-GB", &wasm_bindgen::JsValue::UNDEFINED).into()
+    js_sys::Date::new(&wasm_bindgen::JsValue::from_f64((nanos / 1_000_000) as f64))
+        .to_locale_string(if crate::locale::language() == "et" { "et-EE" } else { "en-GB" }, &wasm_bindgen::JsValue::UNDEFINED)
+        .into()
 }

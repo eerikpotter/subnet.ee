@@ -34,5 +34,23 @@ ArtCraft team and contributors. The checked-in submodule revisions are the sourc
 truth. Each application's license, NOTICE and asset attribution are copied into its
 own directory in the assembled site. This portal is an independent integration.
 
+The app-card images in `portal/assets/crafts/` are unmodified 256-pixel PNG exports
+of the respective Craft app icons, redistributed under their MIT license option.
+[Source revisions and artwork credits](portal/assets/crafts/README.md) are recorded
+beside the images; original license notices are preserved in `licenses/` there.
+These are application icons, not the ArtCraft umbrella brand logo.
+
 The internal Sovereign Cloud SDK is extracted from the ICP integration in
 `eerikpotter/photocraft`, preserving its license and V1 protocol.
+
+- `portal/vendor/fflate/browser.js`, `portal/vendor/fflate/LICENSE`: fflate 0.8.2,
+  Arjun Barrett, MIT, <https://github.com/101arrowz/fflate/tree/v0.8.2>.
+  Pinned npm archive `fflate-0.8.2.tgz`; browser module SHA-256
+  `8cc1f687e0159e977addb6b85e274dbd11e622cf151f4fcb7b85d49622ea43e7`.
+  Used only to read bounded, allowlisted Office XML parts for inert previews.
+
+## PDF preview
+
+Mozilla PDF.js 6.4.299 (Apache-2.0), https://github.com/mozilla/pdf.js .
+The display layer, worker, CMaps, fonts and Wasm codecs are served locally from
+`portal/vendor/pdfjs/`. Licenses and package checksum are retained there.

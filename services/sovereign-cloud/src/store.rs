@@ -4,38 +4,73 @@ use ic_stable_structures::{
     Memory, StableBTreeMap, StableCell,
     memory_manager::{MemoryId, MemoryManager, VirtualMemory},
 };
+use rand_chacha::ChaCha20Rng;
+use rand_core::{RngCore, SeedableRng};
 use serde::{Serialize, de::DeserializeOwned};
 use sha2::{Digest, Sha256};
 use sovereign_cloud::protocol::*;
+mod activity;
+mod bookmarks;
+mod browse;
+mod catalog_index;
 mod collaboration;
+mod details;
 mod drive_transfer;
+mod email;
+mod moves;
+mod people;
 mod read_index;
+mod revisions;
+mod safety;
+#[cfg(test)]
+mod scaling_tests;
+mod storage;
+mod trash;
+#[cfg(test)]
+mod workflow_tests;
 
 type Vm<M> = VirtualMemory<M>;
 pub struct Store<M: Memory> {
+    random: Option<ChaCha20Rng>,
+    bookmark_key: StableCell<Vec<u8>, Vm<M>>,
+    email: email::EmailStore<M>,
+    people: people::PeopleStore<M>,
+    safety: safety::SafetyStore<M>,
+    activity: activity::ActivityStore<M>,
+    revisions: revisions::RevisionStore<M>,
     next: StableCell<u64, Vm<M>>,
     total: StableCell<u64, Vm<M>>,
-    projects: StableBTreeMap<u64, Vec<u8>, Vm<M>>,
+    projects: StableBTreeMap<ObjectId, Vec<u8>, Vm<M>>,
     uploads: StableBTreeMap<u64, Vec<u8>, Vm<M>>,
     chunks: StableBTreeMap<(u64, u64), Vec<u8>, Vm<M>>,
     usage: StableBTreeMap<Principal, u64, Vm<M>>,
     accounts: StableBTreeMap<Principal, Vec<u8>, Vm<M>>,
-    account_files: StableBTreeMap<(u64, u64), u8, Vm<M>>,
-    file_kinds: StableBTreeMap<u64, Vec<u8>, Vm<M>>,
-    access_graph: StableCell<Vec<u8>, Vm<M>>,
-    read_objects: StableBTreeMap<u64, Vec<u8>, Vm<M>>,
-    read_children: StableBTreeMap<(u64, u64), u8, Vm<M>>,
-    read_grants: StableBTreeMap<(u64, u64), Vec<u8>, Vm<M>>,
+    account_files: StableBTreeMap<(ObjectId, ObjectId), u8, Vm<M>>,
+    file_kinds: StableBTreeMap<ObjectId, Vec<u8>, Vm<M>>,
+    read_objects: StableBTreeMap<ObjectId, Vec<u8>, Vm<M>>,
+    read_children: StableBTreeMap<(ObjectId, ObjectId), u8, Vm<M>>,
+    read_grants: StableBTreeMap<(ObjectId, u64), Vec<u8>, Vm<M>>,
     read_subjects: StableBTreeMap<(Principal, u64), Vec<u8>, Vm<M>>,
-    read_owners: StableBTreeMap<(Principal, u64), u8, Vm<M>>,
-    read_version: StableCell<u64, Vm<M>>,
-    read_ready: StableCell<u8, Vm<M>>,
-    project_owners: StableBTreeMap<(Principal, u64), u8, Vm<M>>,
+    read_owners: StableBTreeMap<(Principal, ObjectId), u8, Vm<M>>,
+    space_versions: StableBTreeMap<ObjectId, u64, Vm<M>>,
+    folder_versions: StableBTreeMap<ObjectId, u64, Vm<M>>,
+    acl_versions: StableBTreeMap<ObjectId, u64, Vm<M>>,
+    discovery_versions: StableBTreeMap<Principal, u64, Vm<M>>,
+    policy_versions: StableBTreeMap<Principal, u64, Vm<M>>,
+    catalog_counts: StableBTreeMap<Principal, (u64, u64), Vm<M>>,
+    catalog_order: StableBTreeMap<catalog_index::CatalogKey, u8, Vm<M>>,
+    names: StableBTreeMap<read_index::NameKey, ObjectId, Vm<M>>,
+    shared_roots: StableBTreeMap<(Principal, ObjectId), u64, Vm<M>>,
+    project_owners: StableBTreeMap<(Principal, ObjectId), u8, Vm<M>>,
     pending_owners: StableBTreeMap<(Principal, u64), u8, Vm<M>>,
     pending_uploaders: StableBTreeMap<(Principal, u64), u8, Vm<M>>,
     attributions: StableBTreeMap<u64, Vec<u8>, Vm<M>>,
     drive_retries: StableBTreeMap<String, Vec<u8>, Vm<M>>,
     drive_uploads: StableBTreeMap<u64, Vec<u8>, Vm<M>>,
+    viewer_hidden: StableBTreeMap<(Principal, (u64, ObjectId)), u8, Vm<M>>,
+    viewer_opened: StableBTreeMap<(Principal, (u64, ObjectId)), u8, Vm<M>>,
+    viewer_items: StableBTreeMap<(Principal, ObjectId), Vec<u8>, Vm<M>>,
+    viewer_settings: StableBTreeMap<Principal, Vec<u8>, Vm<M>>,
 }
 
 fn encode<T: Serialize>(v: &T) -> CloudResult<Vec<u8>> {
@@ -51,8 +86,21 @@ fn authenticated(caller: Principal) -> CloudResult<()> {
 impl<M: Memory> Store<M> {
     pub fn new(memory: M) -> Self {
         let m = MemoryManager::init(memory);
-        let mut store = Self {
-            next: StableCell::init(m.get(MemoryId::new(0)), 1),
+        // This is a new schema, installed fresh during private development.
+        // Refuse incompatible state before opening differently typed map keys.
+        let schema = StableCell::init(m.get(MemoryId::new(0)), 0x5355_424e_4554_0002u64);
+        if *schema.get() != 0x5355_424e_4554_0002 {
+            ic_cdk::trap("This storage schema requires a fresh installation");
+        }
+        let store = Self {
+            random: None,
+            bookmark_key: StableCell::init(m.get(MemoryId::new(60)), Vec::new()),
+            email: email::EmailStore::new(&m),
+            people: people::PeopleStore::new(&m),
+            safety: safety::SafetyStore::new(&m),
+            activity: activity::ActivityStore::new(&m),
+            revisions: revisions::RevisionStore::new(&m),
+            next: StableCell::init(m.get(MemoryId::new(49)), 1),
             total: StableCell::init(m.get(MemoryId::new(1)), 0),
             projects: StableBTreeMap::init(m.get(MemoryId::new(2))),
             uploads: StableBTreeMap::init(m.get(MemoryId::new(3))),
@@ -61,7 +109,6 @@ impl<M: Memory> Store<M> {
             accounts: StableBTreeMap::init(m.get(MemoryId::new(6))),
             account_files: StableBTreeMap::init(m.get(MemoryId::new(7))),
             file_kinds: StableBTreeMap::init(m.get(MemoryId::new(8))),
-            access_graph: StableCell::init(m.get(MemoryId::new(9)), b"{}".to_vec()),
             // ID 10 reserved for the withdrawn, never deployed OAuth prototype.
             attributions: StableBTreeMap::init(m.get(MemoryId::new(11))),
             drive_retries: StableBTreeMap::init(m.get(MemoryId::new(12))),
@@ -71,18 +118,58 @@ impl<M: Memory> Store<M> {
             read_grants: StableBTreeMap::init(m.get(MemoryId::new(16))),
             read_subjects: StableBTreeMap::init(m.get(MemoryId::new(17))),
             read_owners: StableBTreeMap::init(m.get(MemoryId::new(18))),
-            read_version: StableCell::init(m.get(MemoryId::new(19)), 0),
-            read_ready: StableCell::init(m.get(MemoryId::new(20)), 0),
+            space_versions: StableBTreeMap::init(m.get(MemoryId::new(50))),
+            folder_versions: StableBTreeMap::init(m.get(MemoryId::new(51))),
+            acl_versions: StableBTreeMap::init(m.get(MemoryId::new(52))),
+            discovery_versions: StableBTreeMap::init(m.get(MemoryId::new(53))),
+            policy_versions: StableBTreeMap::init(m.get(MemoryId::new(57))),
+            catalog_counts: StableBTreeMap::init(m.get(MemoryId::new(54))),
+            catalog_order: StableBTreeMap::init(m.get(MemoryId::new(58))),
+            names: StableBTreeMap::init(m.get(MemoryId::new(55))),
+            shared_roots: StableBTreeMap::init(m.get(MemoryId::new(56))),
             project_owners: StableBTreeMap::init(m.get(MemoryId::new(21))),
             pending_owners: StableBTreeMap::init(m.get(MemoryId::new(22))),
             pending_uploaders: StableBTreeMap::init(m.get(MemoryId::new(23))),
+            viewer_hidden: StableBTreeMap::init(m.get(MemoryId::new(61))),
+            viewer_opened: StableBTreeMap::init(m.get(MemoryId::new(59))),
+            viewer_items: StableBTreeMap::init(m.get(MemoryId::new(24))),
+            viewer_settings: StableBTreeMap::init(m.get(MemoryId::new(25))),
         };
-        if *store.read_ready.get() == 0 {
-            // One-time, bounded migration of the existing alpha graph (<=10,000
-            // objects). A trap rolls back the entire upgrade on invalid state.
-            store.migrate_graph().unwrap_or_else(|_| ic_cdk::trap("Drive index migration failed"));
-        }
+        #[cfg(test)]
+        let store = {
+            let mut store = store;
+            store.seed_ids([42; 32]);
+            store
+        };
         store
+    }
+    pub(crate) fn ids_ready(&self) -> bool {
+        self.random.is_some()
+    }
+    pub(crate) fn seed_ids(&mut self, seed: [u8; 32]) {
+        // Concurrent first requests can return separate seeds; never rewind a
+        // generator that another completed request has already initialized.
+        if self.bookmark_key.get().is_empty() {
+            let mut hash = sha2::Sha512::new();
+            hash.update(b"subnet/bookmarks/aes-siv/v1");
+            hash.update(seed);
+            self.bookmark_key.set(hash.finalize().to_vec());
+        }
+        if self.random.is_none() {
+            self.random = Some(ChaCha20Rng::from_seed(seed));
+        }
+    }
+    fn next_object_id(&mut self) -> CloudResult<ObjectId> {
+        let rng = self.random.as_mut().ok_or("Object identity generator is not ready")?;
+        for _ in 0..8 {
+            let mut bytes = [0; 16];
+            rng.fill_bytes(&mut bytes);
+            let id = ObjectId::from_random_bytes(bytes);
+            if !self.read_objects.contains_key(&id) && !self.projects.contains_key(&id) {
+                return Ok(id);
+            }
+        }
+        Err("Could not allocate an object identity".into())
     }
     fn next_id(&self) -> CloudResult<(u64, u64)> {
         let id = *self.next.get();
@@ -96,22 +183,15 @@ impl<M: Memory> Store<M> {
             if self.accounts.len() >= 10_000 {
                 return Err("Account capacity reached".into());
             }
-            // V1 is globally bounded to 1000 projects. Backfill once per account,
-            // retaining the exact legacy file IDs, owner and revision records.
-            let projects = self.list(caller)?;
-            let (id, next) = self.next_id()?;
+            let id = self.next_object_id()?;
             let account = Account { id, owner: caller, personal_space: id, created_at: now };
             let bytes = encode(&account)?;
-            self.next.set(next);
-            for project in projects {
-                self.account_files.insert((id, project.id), 0);
-            }
             self.accounts.insert(caller, bytes);
             account
         };
         Ok(AccountContext { account, used_bytes: self.usage.get(&caller).unwrap_or(0), quota_bytes: USER_QUOTA_BYTES })
     }
-    fn account_in_space(&self, caller: Principal, space: u64) -> CloudResult<Account> {
+    fn account_in_space(&self, caller: Principal, space: ObjectId) -> CloudResult<Account> {
         authenticated(caller)?;
         let account: Account = decode(&self.accounts.get(&caller).ok_or("Space not found or not permitted")?)?;
         if account.personal_space != space {
@@ -119,29 +199,34 @@ impl<M: Memory> Store<M> {
         }
         Ok(account)
     }
-    pub fn files(&self, caller: Principal, space: u64, after: Option<u64>, limit: u32) -> CloudResult<FilePage> {
+    pub fn files(&self, caller: Principal, space: ObjectId, after: Option<ObjectId>, limit: u32) -> CloudResult<FilePage> {
         use std::ops::Bound::{Excluded, Included};
         let account = self.account_in_space(caller, space)?;
         let limit = limit.clamp(1, 50) as usize;
         let mut files = Vec::new();
-        let mut more = false;
-        for entry in self.account_files.range((Excluded((account.id, after.unwrap_or(0))), Included((account.id, u64::MAX)))) {
-            let (_, id) = *entry.key();
-            if !self.legacy_visible(id)? {
+        let mut ids = self
+            .account_files
+            .range((Excluded((account.id, after.unwrap_or(ObjectId::MIN))), Included((account.id, ObjectId::MAX))))
+            .map(|e| e.key().1)
+            .peekable();
+        let mut scanned = None;
+        for _ in 0..512 {
+            let Some(id) = ids.next() else { break };
+            scanned = Some(id);
+            if !self.catalog_visible(id)? {
                 continue;
             }
             let project = self.project(caller, id)?;
             let Some(latest) = project.revisions.last().cloned() else { continue };
+            files.push(FileSummary { id, space_id: space, name: project.name, kind: self.kind(id)?, latest, version_count: project.revisions.len() as u64 });
             if files.len() == limit {
-                more = true;
                 break;
             }
-            files.push(FileSummary { id, space_id: space, name: project.name, kind: self.kind(id)?, latest, version_count: project.revisions.len() as u64 });
         }
-        let next_cursor = if more { files.last().map(|f| f.id) } else { None };
+        let next_cursor = if ids.peek().is_some() { scanned } else { None };
         Ok(FilePage { files, next_cursor })
     }
-    pub fn file(&self, caller: Principal, space: u64, id: u64) -> CloudResult<FileDetails> {
+    pub fn file(&self, caller: Principal, space: ObjectId, id: ObjectId) -> CloudResult<FileDetails> {
         self.account_in_space(caller, space)?;
         let project = self.project(caller, id)?;
         if project.revisions.is_empty() {
@@ -149,9 +234,8 @@ impl<M: Memory> Store<M> {
         }
         Ok(FileDetails { project, space_id: space, kind: self.kind(id)? })
     }
-    fn kind(&self, id: u64) -> CloudResult<FileKind> {
-        // Older deployments only stored PhotoCraft files; preserve their exact IDs and bytes.
-        self.file_kinds.get(&id).map(|bytes| decode(&bytes)).unwrap_or_else(|| Ok(FileKind::photocraft()))
+    fn kind(&self, id: ObjectId) -> CloudResult<FileKind> {
+        self.file_kinds.get(&id).ok_or_else(|| "Missing file format".into()).and_then(|bytes| decode(&bytes))
     }
     pub fn list_kind(&self, caller: Principal, kind: &FileKind) -> CloudResult<Vec<Project>> {
         kind.validate()?;
@@ -164,10 +248,10 @@ impl<M: Memory> Store<M> {
             })
             .collect()
     }
-    fn project(&self, caller: Principal, id: u64) -> CloudResult<Project> {
+    fn project(&self, caller: Principal, id: ObjectId) -> CloudResult<Project> {
         authenticated(caller)?;
         let p: Project = decode(&self.projects.get(&id).ok_or("Project not found or not permitted")?)?;
-        if p.owner != caller || !self.legacy_visible(id)? {
+        if p.owner != caller || !self.catalog_visible(id)? {
             return Err("Project not found or not permitted".into());
         }
         Ok(p)
@@ -180,11 +264,14 @@ impl<M: Memory> Store<M> {
     }
     pub fn list(&self, caller: Principal) -> CloudResult<Vec<Project>> {
         authenticated(caller)?;
-        let ids: Vec<u64> = self.project_owners.range((caller, 0)..=(caller, u64::MAX)).map(|e| e.key().1).collect();
+        let ids: Vec<ObjectId> = self.project_owners.range((caller, ObjectId::MIN)..=(caller, ObjectId::MAX)).take(201).map(|e| e.key().1).collect();
+        if ids.len() > 200 {
+            return Err("Use paginated file listing for this account".into());
+        }
         ids.into_iter()
             .filter_map(|id| match self.project(caller, id) {
                 Ok(project) => Some(Ok(project)),
-                Err(_) if self.legacy_visible(id).is_ok_and(|visible| !visible) => None,
+                Err(_) if self.catalog_visible(id).is_ok_and(|visible| !visible) => None,
                 Err(error) => Some(Err(error)),
             })
             .collect()
@@ -205,19 +292,36 @@ impl<M: Memory> Store<M> {
         if self.projects.len() >= MAX_PROJECTS || self.owned_project_count(caller)? >= MAX_USER_PROJECTS {
             return Err("Project quota reached".into());
         }
-        let graph = self.graph_for_owner(caller).map_err(|e| e.to_string())?;
-        let root_needed = usize::from(!graph.objects.contains_key(&account.id));
-        if self.drive_space_count(&graph, caller).map_err(|e| e.to_string())? + root_needed >= 200 {
-            return Err("Drive object limit reached".into());
-        }
-        let (id, next) = self.next_id()?;
-        let p = Project { id, owner: caller, name, created_at: now, revisions: vec![], pending_upload: None };
+        let root = self.drive_initialize(caller, now).map_err(|e| e.to_string())?;
+        let mut graph = self.graph_for_object(root.object.id).map_err(|e| e.to_string())?;
+        self.check_new_name(root.object.id, &name, None).map_err(|e| e.to_string())?;
+        let id = self.next_object_id()?;
+        let p = Project { id, owner: caller, name: name.clone(), created_at: now, revisions: vec![], pending_upload: None };
         let bytes = encode(&p)?;
+        graph.objects.insert(
+            id,
+            sovereign_cloud::drive::DriveObject {
+                id,
+                space: root.object.space,
+                owner: caller,
+                parent: Some(root.object.id),
+                name,
+                kind: sovereign_cloud::drive::ObjectKind::File(sovereign_cloud::drive::FileFormat {
+                    media_type: "application/octet-stream".into(),
+                    craft: Some(decode(&kind)?),
+                }),
+                version: 1,
+                created_at: now,
+                updated_at: now,
+                trashed_at: None,
+            },
+        );
+        let changes = self.prepare_graph(&graph).map_err(|e| e.to_string())?;
         self.projects.insert(id, bytes);
         self.project_owners.insert((caller, id), 0);
         self.file_kinds.insert(id, kind);
         self.account_files.insert((account.id, id), 0);
-        self.next.set(next);
+        self.apply_graph(changes);
         Ok(p)
     }
     pub fn begin(&mut self, caller: Principal, request: BeginUpload, now: u64) -> CloudResult<Upload> {
@@ -298,25 +402,45 @@ impl<M: Memory> Store<M> {
         p.revisions.push(r.clone());
         p.pending_upload = None;
         let (pb, ub) = (encode(&p)?, encode(&u)?);
+        let actor = crate::permissions::Actor::user(caller).map_err(|e| e.to_string())?;
+        let kind = if p.revisions.len() == 1 { sovereign_cloud::drive::ActivityKind::Created } else { sovereign_cloud::drive::ActivityKind::ContentSaved };
+        let event = self.activity.prepare(caller, p.id, &actor, kind, now).map_err(|e| e.to_string())?;
+        let mut graph = self.graph_for_object(p.id).map_err(|e| e.to_string())?;
+        let object = graph.objects.get_mut(&p.id).ok_or("Missing catalog object")?;
+        object.version = object.version.checked_add(1).ok_or("Object version exhausted")?;
+        object.updated_at = now;
+        let changes = self.prepare_graph_size(&graph, Some((p.id, r.bytes))).map_err(|e| e.to_string())?;
         self.projects.insert(p.id, pb);
         self.uploads.insert(id, ub);
+        self.apply_graph(changes);
+        self.activity.apply(event);
         Ok(r)
     }
-    pub fn revision(&self, caller: Principal, project: u64, revision: u64) -> CloudResult<Revision> {
+    pub fn revision(&self, caller: Principal, project: ObjectId, revision: u64) -> CloudResult<Revision> {
         self.project(caller, project)?.revisions.into_iter().find(|r| r.id == revision).ok_or("Revision not found".into())
     }
-    pub fn chunk(&self, caller: Principal, project: u64, revision: u64, index: u64) -> CloudResult<Vec<u8>> {
+    pub fn chunk(&self, caller: Principal, project: ObjectId, revision: u64, index: u64) -> CloudResult<Vec<u8>> {
         let r = self.revision(caller, project, revision)?;
         if index >= r.chunk_count {
             return Err("Invalid chunk index".into());
         }
         self.chunks.get(&(revision, index)).ok_or("Chunk missing".into())
     }
-    pub fn remove_upload(&mut self, caller: Principal, id: u64) -> CloudResult<()> {
+    pub fn remove_upload(&mut self, caller: Principal, id: u64, now: u64) -> CloudResult<()> {
         let (u, mut p) = self.upload(caller, id)?;
         if u.committed.is_some() && p.pending_upload.is_some() {
             return Err("Finish or discard the pending upload first".into());
         }
+        if u.committed.is_some() {
+            if !p.revisions.iter().any(|r| r.id == id) {
+                return Ok(());
+            }
+            let properties = self.revisions.get(p.id, id).map_err(|e| e.to_string())?;
+            if properties.keep || !properties.label.is_empty() {
+                return Err("Remove the version name and keep setting before deleting".into());
+            }
+        }
+        let head_changed = p.revisions.last().is_some_and(|r| r.id == id);
         p.revisions.retain(|r| r.id != id);
         if p.pending_upload == Some(id) {
             p.pending_upload = None;
@@ -324,10 +448,23 @@ impl<M: Memory> Store<M> {
         let used = self.usage.get(&caller).unwrap_or(0).checked_sub(u.request.bytes).ok_or("Invalid usage accounting")?;
         let total = self.total.get().checked_sub(u.request.bytes).ok_or("Invalid total accounting")?;
         let pb = encode(&p)?;
+        let changed = if head_changed {
+            let mut graph = self.graph_for_object(p.id).map_err(|e| e.to_string())?;
+            let object = graph.objects.get_mut(&p.id).ok_or("File unavailable")?;
+            object.version = object.version.checked_add(1).ok_or("Object version exhausted")?;
+            object.updated_at = now;
+            Some(self.prepare_graph_size(&graph, Some((p.id, p.revisions.last().map_or(0, |r| r.bytes)))).map_err(|e| e.to_string())?)
+        } else {
+            None
+        };
+        if let Some(changed) = changed {
+            self.apply_graph(changed);
+        }
         for i in 0..u.request.bytes.div_ceil(CHUNK_BYTES as u64) {
             self.chunks.remove(&(id, i));
         }
         self.uploads.remove(&id);
+        self.revisions.remove(p.id, id);
         self.projects.insert(p.id, pb);
         if used == 0 {
             self.usage.remove(&caller);
@@ -337,18 +474,20 @@ impl<M: Memory> Store<M> {
         self.total.set(total);
         Ok(())
     }
-    pub fn delete_project(&mut self, caller: Principal, id: u64) -> CloudResult<()> {
+    pub fn delete_project(&mut self, caller: Principal, id: ObjectId) -> CloudResult<()> {
         let p = self.project(caller, id)?;
         if p.pending_upload.is_some() || !p.revisions.is_empty() {
             return Err("Delete revisions and discard uploads before deleting this project".into());
         }
         let account = self.accounts.get(&caller).map(|bytes| decode::<Account>(&bytes)).transpose()?;
-        let mut graph = self.graph_for_owner(caller).map_err(|e| e.to_string())?;
+        let mut graph = self.graph_for_object(id).map_err(|e| e.to_string())?;
         graph.objects.remove(&id);
         graph.grants.retain(|_, grant| grant.root != id);
         graph.tree_version = graph.tree_version.checked_add(1).ok_or("Tree version exhausted")?;
         self.persist_graph(&graph).map_err(|e| e.to_string())?;
         self.projects.remove(&id);
+        self.activity.remove_object(id);
+        self.revisions.remove_object(id);
         self.project_owners.remove(&(caller, id));
         self.file_kinds.remove(&id);
         if let Some(account) = account {
@@ -357,9 +496,9 @@ impl<M: Memory> Store<M> {
         Ok(())
     }
 
-    fn legacy_visible(&self, id: u64) -> CloudResult<bool> {
+    fn catalog_visible(&self, id: ObjectId) -> CloudResult<bool> {
         if !self.read_objects.contains_key(&id) {
-            return Ok(true);
+            return Ok(false);
         }
         let graph = self.indexed_graph(id).map_err(|e| e.to_string())?;
         Ok(graph.ancestry(id, false).is_ok())
@@ -367,7 +506,7 @@ impl<M: Memory> Store<M> {
 
     fn owned_project_count(&self, caller: Principal) -> CloudResult<usize> {
         // Trash still consumes both storage and the file count quota.
-        Ok(self.project_owners.range((caller, 0)..=(caller, u64::MAX)).count())
+        Ok(self.catalog_counts.get(&caller).unwrap_or((0, 0)).1 as usize)
     }
 }
 
@@ -380,11 +519,10 @@ mod tests {
         Principal::self_authenticating([n; 32])
     }
     #[test]
-    fn typed_files_preserve_legacy_data_and_filter_by_compatible_app() {
+    fn typed_files_keep_their_format_and_filter_by_compatible_app() {
         let memory = VectorMemory::default();
         let mut store = Store::new(memory.clone());
-        let legacy = store.create(owner(1), "Legacy photo".into(), 1).unwrap();
-        store.file_kinds.remove(&legacy.id); // V1/V2 never stored a kind.
+        let photo = store.create(owner(1), "Photo".into(), 1).unwrap();
         let mut ids = vec![];
         for app in ["pdfcraft", "wordcraft", "deckcraft", "soundcraft", "cadcraft", "gridcraft", "figcraft"] {
             let kind = FileKind::for_app(app).unwrap();
@@ -397,7 +535,7 @@ mod tests {
         let space = store.account(owner(1), 5).unwrap().account.personal_space;
         drop(store);
         let mut store = Store::new(memory);
-        assert_eq!(store.list_kind(owner(1), &FileKind::photocraft()).unwrap()[0].id, legacy.id);
+        assert_eq!(store.list_kind(owner(1), &FileKind::photocraft()).unwrap()[0].id, photo.id);
         assert_eq!(store.list_kind(owner(1), &FileKind::photocraft()).unwrap().len(), 1);
         assert_eq!(store.files(owner(1), space, None, 50).unwrap().files.len(), ids.len());
         for (id, kind) in ids {
@@ -415,7 +553,7 @@ mod tests {
         assert!(store.create_typed(owner(1), "Wrong format".into(), spoofed, 6).is_err());
         assert_eq!(store.list(owner(1)).unwrap().len(), 8);
     }
-    fn request(project: u64, data: &[u8], expected: Option<u64>) -> BeginUpload {
+    fn request(project: ObjectId, data: &[u8], expected: Option<u64>) -> BeginUpload {
         BeginUpload {
             project_id: project,
             bytes: data.len() as u64,
@@ -470,7 +608,7 @@ mod tests {
             assert!(s.begin(attacker, request(p.id, b"x", None), 2).is_err());
             assert!(s.put(attacker, u.id, 0, b"document".to_vec()).is_err());
             assert!(s.commit(attacker, u.id, 3).is_err());
-            assert!(s.remove_upload(attacker, u.id).is_err());
+            assert!(s.remove_upload(attacker, u.id, 5).is_err());
             assert!(s.delete_project(attacker, p.id).is_err());
         }
         s.put(owner(1), u.id, 0, b"document".to_vec()).unwrap();
@@ -512,7 +650,7 @@ mod tests {
         s.put(owner(1), u.id, 0, b"bad".to_vec()).unwrap();
         assert!(s.commit(owner(1), u.id, 3).is_err());
         assert!(s.list(owner(1)).unwrap()[0].revisions.is_empty());
-        s.remove_upload(owner(1), u.id).unwrap();
+        s.remove_upload(owner(1), u.id, 5).unwrap();
         assert_eq!(*s.total.get(), 0);
         assert!(s.usage.get(&owner(1)).is_none());
         s.usage.insert(owner(1), USER_QUOTA_BYTES);
@@ -532,7 +670,7 @@ mod tests {
         let mut s = Store::new(memory);
         assert_eq!(s.chunk(owner(1), p.id, u.id, 0).unwrap(), b"document");
         assert!(s.delete_project(owner(1), p.id).is_err());
-        s.remove_upload(owner(1), u.id).unwrap();
+        s.remove_upload(owner(1), u.id, 5).unwrap();
         s.delete_project(owner(1), p.id).unwrap();
         assert!(s.list(owner(1)).unwrap().is_empty());
         assert_eq!(*s.total.get(), 0);

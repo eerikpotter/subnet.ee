@@ -107,3 +107,10 @@ test('legacy links normalize without adding history; modified clicks keep native
   assert.equal(click.defaultPrevented, false);
   assert.equal(host.i18n.language, 'en');
 });
+
+test('canonical UUID paths keep the same object when switching language', () => {
+  const id='01234567-89ab-4cde-8fab-0123456789ab';
+  const {i18n}=localeHost({pathname:`/pilveruum/file/${id}`});
+  assert.equal(i18n.href(`/pilveruum/file/${id}`, 'en'),`/en/pilveruum/file/${id}`);
+  assert.equal(i18n.href(`/en/pilveruum/folder/${id}?picker=save`, 'et'),`/pilveruum/folder/${id}?picker=save`);
+});

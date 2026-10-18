@@ -5,6 +5,10 @@ use sovereign_cloud::{CloudResult, FileClient, TransferEvent, Transport, UploadS
 use std::cell::RefCell;
 use std::collections::VecDeque;
 
+fn object(n: u8) -> sovereign_cloud::ObjectId {
+    sovereign_cloud::ObjectId::from_random_bytes([n; 16])
+}
+
 type Step = (&'static str, bool, CloudResult<Vec<u8>>);
 struct Mock {
     steps: RefCell<VecDeque<Step>>,
@@ -40,7 +44,7 @@ fn revision(bytes: &[u8]) -> Revision {
 }
 fn state() -> UploadState {
     UploadState {
-        file: Some(Project { id: 1, owner: Principal::anonymous(), name: "x".into(), created_at: 0, revisions: vec![], pending_upload: None }),
+        file: Some(Project { id: object(1), owner: Principal::anonymous(), name: "x".into(), created_at: 0, revisions: vec![], pending_upload: None }),
         upload: Some(7),
         expected_revision: None,
         name: "x".into(),
@@ -89,14 +93,14 @@ fn corrupt_query_content_never_reaches_the_editor() {
             ("get_chunk", true, Mock::reply(b"modified".to_vec())),
         ])),
     });
-    assert!(block_on(client.download(1, 8, |_| {})).unwrap_err().contains("integrity"));
+    assert!(block_on(client.download(object(1), 8, |_| {})).unwrap_err().contains("integrity"));
 }
 #[test]
 fn impossible_manifest_is_rejected_before_querying_bytes() {
     let mut bad = revision(b"original");
     bad.bytes = MAX_DOCUMENT_BYTES + 1;
     let client = FileClient::with_transport(Mock { steps: RefCell::new(VecDeque::from([("get_revision", false, Mock::reply(bad))])) });
-    assert!(block_on(client.download(1, 8, |_| {})).unwrap_err().contains("manifest"));
+    assert!(block_on(client.download(object(1), 8, |_| {})).unwrap_err().contains("manifest"));
 }
 #[test]
 fn valid_download_reports_completion_and_preserves_exact_bytes() {
@@ -109,7 +113,7 @@ fn valid_download_reports_completion_and_preserves_exact_bytes() {
         ])),
     });
     let mut completed = false;
-    let result = block_on(client.download(1, 8, |event| {
+    let result = block_on(client.download(object(1), 8, |event| {
         if let TransferEvent::Downloading { completed: 2, total: 2 } = event {
             completed = true;
         }
@@ -126,6 +130,7 @@ struct ConcurrentState {
     started: Vec<u64>,
     finished: Vec<u64>,
     committed: bool,
+    aborted: bool,
 }
 struct ConcurrentMock {
     state: std::rc::Rc<RefCell<ConcurrentState>>,
@@ -134,7 +139,7 @@ struct ConcurrentMock {
 impl Transport for ConcurrentMock {
     async fn update(&self, method: &str, args: Vec<u8>) -> CloudResult<Vec<u8>> {
         use sovereign_cloud::drive::*;
-        let stage = DriveUpload { id: 7, file: 8, committed: None };
+        let stage = DriveUpload { id: 7, file: object(8), committed: None };
         match method {
             "drive_begin_upload" => Ok(encode_one(Ok::<_, DriveError>(stage)).unwrap()),
             "drive_put_chunk" => {
@@ -165,6 +170,11 @@ impl Transport for ConcurrentMock {
                 }
                 if self.fail == Some(index) { Err("lost chunk response".into()) } else { Ok(encode_one(Ok::<_, DriveError>(())).unwrap()) }
             }
+            "drive_abort_upload" => {
+                assert_eq!(self.state.borrow().active, 0);
+                self.state.borrow_mut().aborted = true;
+                Ok(encode_one(Ok::<_, DriveError>(())).unwrap())
+            }
             "drive_commit_upload" => {
                 assert_eq!(self.state.borrow().active, 0);
                 self.state.borrow_mut().committed = true;
@@ -180,7 +190,7 @@ impl Transport for ConcurrentMock {
 #[test]
 fn drive_upload_is_bounded_reports_completed_chunks_and_drains_errors_before_retry() {
     use sovereign_cloud::drive::*;
-    let target = UploadTarget::New { parent: 1, name: "parallel.txt".into(), format: FileFormat { media_type: "text/plain".into(), craft: None } };
+    let target = UploadTarget::New { parent: object(1), name: "parallel.txt".into(), format: FileFormat { media_type: "text/plain".into(), craft: None } };
     let bytes = vec![42; CHUNK_BYTES * 5 + 1];
     for fail in [None, Some(1)] {
         let state = std::rc::Rc::new(RefCell::new(ConcurrentState::default()));
@@ -209,10 +219,10 @@ fn craft_entry() -> sovereign_cloud::drive::DriveEntry {
     use sovereign_cloud::drive::*;
     DriveEntry {
         object: DriveObject {
-            id: 21,
-            space: 9,
+            id: object(21),
+            space: object(9),
             owner: Principal::self_authenticating([11; 32]),
-            parent: Some(7),
+            parent: Some(object(7)),
             name: "Shared deck".into(),
             kind: ObjectKind::File(FileFormat { media_type: "application/octet-stream".into(), craft: FileKind::for_app("deckcraft") }),
             version: 1,
@@ -245,7 +255,7 @@ fn craft_open_allows_shared_read_but_rejects_wrong_space_format_and_trashed_entr
             entry.capabilities.read = false;
         }
         let client = FileClient::with_transport(Mock { steps: RefCell::new(VecDeque::from([("drive_get", false, drive_reply(entry))])) });
-        assert_eq!(block_on(client.drive_craft_file(space, 21, &kind)).is_ok(), scenario == 0);
+        assert_eq!(block_on(client.drive_craft_file(object(space), object(21), &kind)).is_ok(), scenario == 0);
     }
 }
 #[test]
@@ -254,7 +264,7 @@ fn read_only_and_wrong_format_craft_replacements_never_begin_an_upload() {
         let client = FileClient::with_transport(Mock { steps: RefCell::new(VecDeque::from([("drive_get", false, drive_reply(entry))])) });
         assert!(
             block_on(client.drive_save_craft(
-                sovereign_cloud::drive::UploadTarget::Replace { file: 21, expected_revision: 8 },
+                sovereign_cloud::drive::UploadTarget::Replace { file: object(21), expected_revision: 8 },
                 b"changed",
                 "craft-read-denied-001".into(),
                 &kind,
@@ -263,4 +273,20 @@ fn read_only_and_wrong_format_craft_replacements_never_begin_an_upload() {
             .is_err()
         );
     }
+}
+
+#[test]
+fn cancellation_drains_inflight_chunks_and_aborts_without_publishing() {
+    use sovereign_cloud::drive::*;
+    let state = std::rc::Rc::new(RefCell::new(ConcurrentState::default()));
+    let client = FileClient::with_transport(ConcurrentMock { state: state.clone(), fail: Some(2) });
+    let target = UploadTarget::New { parent: object(1), name: "cancel.txt".into(), format: FileFormat { media_type: "text/plain".into(), craft: None } };
+    let result = block_on(client.drive_save_controlled(target, &vec![42; CHUNK_BYTES * 6], "cancel-upload-01".into(), |done, _| done == 0));
+    assert_eq!(result.unwrap_err(), "Upload cancelled");
+    let s = state.borrow();
+    assert!(s.aborted);
+    assert!(!s.committed);
+    assert_eq!(s.active, 0);
+    assert_eq!(s.started.len(), 4);
+    assert_eq!(s.started.len(), s.finished.len());
 }

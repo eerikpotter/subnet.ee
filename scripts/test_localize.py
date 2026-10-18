@@ -24,6 +24,16 @@ def visible(node):
 
 
 class StaticLanguagesTest(unittest.TestCase):
+    def test_drive_filter_and_sort_options_translate_without_changing_values(self):
+        english = dictionary(ROOT / "portal/translations.js")
+        template = Page((ROOT / "portal/pilveruum/index.html").read_text())
+        versions = [list(elements(Page(template.render(english, lang)).root)) for lang in ("et", "en")]
+        options = [[node for node in nodes if node.tag == "option"] for nodes in versions]
+        self.assertEqual([node.attrs.get("value") for node in options[0]], [node.attrs.get("value") for node in options[1]])
+        self.assertIn("Name", [visible(node) for node in options[1]])
+        self.assertIn("Type", [visible(node) for node in options[1]])
+        self.assertTrue(any("data-i18n-text" in node.attrs for node in options[0]))
+
     def test_real_pages_have_translated_content_metadata_links_and_identical_structure(self):
         english = dictionary(ROOT / "portal/translations.js")
         for source, path in [("index.html", "/"), ("pilveruum/index.html", "/pilveruum/")]:

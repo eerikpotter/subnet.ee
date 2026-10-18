@@ -1,11 +1,11 @@
 //! Public launch references carry identity-free IDs. Authorization remains server-side.
-use crate::CloudResult;
+use crate::{CloudResult, ObjectId};
 use std::collections::BTreeMap;
 
 #[derive(Clone, Debug, PartialEq, Eq)]
-pub struct CloudLaunch {
-    pub space: u64,
-    pub file: u64,
+pub enum CloudLaunch {
+    File { space: ObjectId, file: ObjectId },
+    New { space: ObjectId, parent: ObjectId },
 }
 impl CloudLaunch {
     pub fn parse(query: &str) -> CloudResult<Option<Self>> {
@@ -21,14 +21,16 @@ impl CloudLaunch {
         if values.len() != 3 || values.get("cloud_service").map(String::as_str) != Some("cloud") {
             return Err("Unsupported cloud file link".into());
         }
-        let id = |name: &str| -> CloudResult<u64> {
+        let id = |name: &str| -> CloudResult<ObjectId> {
             let text = values.get(name).ok_or("Incomplete cloud file link")?;
-            if !text.bytes().all(|c| c.is_ascii_digit()) {
-                return Err("Invalid file ID".into());
-            }
-            text.parse::<u64>().ok().filter(|id| *id > 0).ok_or("Invalid file ID".into())
+            text.parse::<ObjectId>().map_err(str::to_string)
         };
-        Ok(Some(Self { space: id("cloud_space")?, file: id("cloud_file")? }))
+        let space = id("cloud_space")?;
+        Ok(Some(if values.contains_key("cloud_parent") {
+            Self::New { space, parent: id("cloud_parent")? }
+        } else {
+            Self::File { space, file: id("cloud_file")? }
+        }))
     }
 }
 
@@ -37,9 +39,17 @@ mod tests {
     use super::*;
     #[test]
     fn links_require_one_unambiguous_supported_reference() {
+        let a = ObjectId::from_random_bytes([1; 16]);
+        let b = ObjectId::from_random_bytes([2; 16]);
         assert_eq!(CloudLaunch::parse("?webgl").unwrap(), None);
-        assert_eq!(CloudLaunch::parse("?cloud_service=cloud&cloud_space=1&cloud_file=2").unwrap(), Some(CloudLaunch { space: 1, file: 2 }));
+        assert_eq!(CloudLaunch::parse(&format!("?cloud_service=cloud&cloud_space={a}&cloud_file={b}")).unwrap(), Some(CloudLaunch::File { space: a, file: b }));
+        assert_eq!(
+            CloudLaunch::parse(&format!("?cloud_service=cloud&cloud_space={a}&cloud_parent={b}")).unwrap(),
+            Some(CloudLaunch::New { space: a, parent: b })
+        );
         for value in [
+            "cloud_service=cloud&cloud_space=1&cloud_parent=2&cloud_file=3",
+            "cloud_service=cloud&cloud_space=1&cloud_parent=0",
             "cloud_file=2",
             "cloud_service=other&cloud_space=1&cloud_file=2",
             "cloud_service=cloud&cloud_space=0&cloud_file=2",

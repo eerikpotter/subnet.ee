@@ -11,8 +11,12 @@ publish = false
 crate-type = ["cdylib", "rlib"]
 
 [dependencies]
-sovereign-cloud = { path = "../../packages/sovereign-cloud" }
+sovereign-cloud = { path = "../../packages/sovereign-cloud", features = ["storage"] }
+rand_chacha = { version = "0.3", default-features = false }
+rand_core = { version = "0.6", default-features = false }
+aes-siv = { version = "0.8", default-features = false, features = ["alloc"] }
 ic-cdk = "0.20.3"
+ic-cdk-management-canister = "=0.2.0"
 ic-stable-structures = "0.7"
 candid = "0.10"
 serde = { version = "1", features = ["derive"] }

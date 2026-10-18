@@ -12,7 +12,14 @@ Local development uses its own canisters and data. Production configuration is i
 [`.icp/data/mappings/ic.ids.json`](../.icp/data/mappings/ic.ids.json).
 Retain the mapping file so updates reuse the existing canisters.
 
-The 2026-10-14 drive upgrade migrated the old serialized access graph into
+The current development backend uses canonical UUID keys and intentionally has no
+numeric-ID migration. Its schema guard rejects an older numeric stable layout.
+The authorized local test deployment was freshly installed on 18 October 2026;
+production was not changed. Code-only upgrades below apply between versions of
+the same UUID schema. Deployment over an older layout needs a separate deliberate
+fresh installation/new canister, not an attempted in-place conversion.
+
+Historical production state: the 2026-10-14 drive upgrade migrated the old serialized access graph into
 authoritative stable indexes. Do not downgrade to a pre-index backend: its old
 graph is retained only as a migration source and no longer receives writes.
 Prefer a compatible forward fix. Restoring a snapshot also rewinds user data;
@@ -26,6 +33,17 @@ outside the repository.
 
 Standalone Craft deployments have separate accounts and files. Changing a domain
 or deploying this workspace does not migrate their data.
+
+## Backend upgrades with canister-held secrets
+
+Build and use `icp canister install cloud --mode upgrade` for code-only updates to
+an already configured backend. Keep the normal Candid compatibility check. A
+canister upgrade preserves environment variables; the CLI's broader `icp deploy`
+workflow re-applies deployment settings and was observed removing the provider key
+because it is intentionally absent from `icp.yaml`. Do not fix that by adding
+secrets to source. If deployment settings are deliberately reapplied, configure
+mail afterwards through the private controller and verify redacted status. See
+[the credential workflow](development.md#canister-held-email-credentials).
 
 ## MCP participation
 
@@ -64,6 +82,12 @@ gateway and has no production derivation origin.
 
 After an SDK change, adopt its snapshot in the affected editors and rebuild them
 before assembly. Ordinary portal updates continue to reuse packaged editors.
+The official static-site sync plugin generates gzip and Brotli encodings. A fleet
+refresh can exceed its default compute-time limit; on 18 October the complete
+221 MB local editor bundle also exceeded a 600-second limit inside Brotli. Increase
+only this CLI time allowance for a large sync, for example
+`ICP_CLI_PLUGIN_COMPUTE_LIMIT_SECS=3600 icp sync frontend -e local`.
+This does not change canister limits, runtime permissions or the served encodings.
 Verify the custom origin with:
 
 ```sh

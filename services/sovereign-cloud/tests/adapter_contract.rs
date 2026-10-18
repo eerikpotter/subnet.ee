@@ -1,4 +1,4 @@
-//! Exercise the extracted SDK against the deployed V1 contract and pre-extraction Wasm.
+//! Shared adapter contract: UUID identity, dropped replies, upgrades and format isolation.
 use candid::{Principal, encode_args};
 use futures::executor::block_on;
 use pocket_ic::{PocketIc, PocketIcBuilder};
@@ -25,13 +25,12 @@ impl Transport for PocketTransport<'_> {
 }
 
 #[test]
-fn legacy_save_survives_sdk_upgrade_and_lost_commit_response() {
-    let old_wasm = std::fs::read(std::env::var("PHOTOCRAFT_BASELINE_WASM").expect("Set PHOTOCRAFT_BASELINE_WASM to the pre-extraction canister")).unwrap();
+fn save_survives_service_upgrade_and_lost_commit_response() {
     let new_wasm = std::fs::read(std::env::var("PHOTOCRAFT_CLOUD_WASM").expect("Set PHOTOCRAFT_CLOUD_WASM to the updated canister")).unwrap();
     let pic = PocketIcBuilder::new().with_application_subnet().build();
     let canister = pic.create_canister();
     pic.add_cycles(canister, 20_000_000_000_000);
-    pic.install_canister(canister, old_wasm, encode_args(()).unwrap(), None);
+    pic.install_canister(canister, new_wasm.clone(), encode_args(()).unwrap(), None);
     let owner = Principal::self_authenticating([31; 32]);
     let client = FileClient::with_transport(PocketTransport { pic: &pic, canister, caller: owner, lose_commit_reply: Cell::new(true) });
     let bytes: Vec<_> = (0..CHUNK_BYTES + 17).map(|i| (i % 251) as u8).collect();
@@ -53,7 +52,7 @@ fn legacy_save_survives_sdk_upgrade_and_lost_commit_response() {
     assert_eq!(files.files[0].id, file);
     assert_eq!(files.files[0].latest.id, revision.id);
     assert_eq!(block_on(client.file(account.account.personal_space, file)).unwrap().project.id, file);
-    // An edit through the legacy client remains the same catalog file, at a new revision.
+    // An edit through the shared SDK remains the same catalog file, at a new revision.
     let mut edit = attempt.clone();
     edit.upload = None;
     edit.expected_revision = Some(revision.id);
@@ -98,7 +97,7 @@ fn all_app_formats_round_trip_and_survive_upgrade_without_cross_app_listing() {
     let account = block_on(client.account()).unwrap();
     let files = block_on(client.files(account.account.personal_space, None, 20)).unwrap();
     assert_eq!(files.files.len(), 8);
-    assert_eq!(block_on(client.projects()).unwrap().len(), 1); // Legacy PhotoCraft picker.
+    assert_eq!(block_on(client.projects()).unwrap().len(), 1); // PhotoCraft format filter.
     for (kind, id, revision, bytes) in saved {
         let projects = block_on(client.projects_for(&kind)).unwrap();
         assert_eq!(projects.len(), 1);
@@ -115,8 +114,7 @@ fn shared_drive_sdk_journey_survives_upgrade_and_uncertain_commit() {
     let pic = PocketIcBuilder::new().with_application_subnet().build();
     let canister = pic.create_canister();
     pic.add_cycles(canister, 20_000_000_000_000);
-    let initial = std::env::var("DRIVE_PRE_INDEX_WASM").map(|path| std::fs::read(path).unwrap()).unwrap_or_else(|_| wasm.clone());
-    pic.install_canister(canister, initial, args(()).unwrap(), None);
+    pic.install_canister(canister, wasm.clone(), args(()).unwrap(), None);
     let alice = Principal::self_authenticating([51; 32]);
     let bob = Principal::self_authenticating([52; 32]);
     let a = FileClient::with_transport(PocketTransport { pic: &pic, canister, caller: alice, lose_commit_reply: Cell::new(false) });
@@ -146,6 +144,7 @@ fn shared_drive_sdk_journey_survives_upgrade_and_uncertain_commit() {
         b.drive_call(
             "drive_begin_upload",
             args((DriveUploadRequest {
+                automatic: None,
                 target: UploadTarget::New {
                     parent: folder.object.id,
                     name: "inflight.txt".into(),
@@ -178,7 +177,8 @@ fn shared_drive_sdk_journey_survives_upgrade_and_uncertain_commit() {
     assert_eq!(upload.committed.as_ref().unwrap().author, bob);
     let browse: DriveBrowse = block_on(b.drive_call("drive_browse", args((folder.object.id, None::<DriveCursor>, 50u32)).unwrap())).unwrap();
     assert_eq!(browse.breadcrumbs.len(), 1);
-    assert_eq!(browse.page.entries[0].object.id, upload.file);
+    let visible: std::collections::BTreeSet<_> = browse.page.entries.iter().map(|e| e.object.id).collect();
+    assert_eq!(visible, std::collections::BTreeSet::from([upload.file, pending.file]));
     assert_eq!(block_on(a.drive_download(upload.file, upload.id)).unwrap(), bytes);
     assert_eq!(block_on(b.drive_download(upload.file, upload.id)).unwrap(), bytes);
     assert!(block_on(b.drive_call::<Vec<Revision>>("drive_history", args((upload.file,)).unwrap())).is_err());
@@ -305,7 +305,7 @@ fn craft_shared_folder_permissions_and_conflicts_use_the_same_drive_contract() {
         .unwrap_err();
         assert!(error.contains("changed"), "{error}");
         assert_eq!(block_on(b.drive_download(upload.file, changed.id)).unwrap(), b"Alice's newer version");
-        assert!(block_on(b.drive_craft_file(folder.object.space + 999, upload.file, &kind)).is_err());
+        assert!(block_on(b.drive_craft_file(sovereign_cloud::ObjectId::from_random_bytes([99; 16]), upload.file, &kind)).is_err());
         files.push((kind, upload.file, changed.id));
     }
     grant = block_on(

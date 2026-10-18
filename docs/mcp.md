@@ -46,10 +46,17 @@ folders.
    for the current client setup.
 2. Connect with the identity chosen above: the separate agent identity for limited
    shared access, or your own identity for your account's full access.
-3. Choose **Actions & questions** and a session duration. In this alpha, private
-   metadata reads are consensus update calls, so Questions-only cannot browse the
-   drive; it can read the public API reference.
+3. Choose a session duration and access level: **Questions only** for read-only
+   queries, or **Actions & questions** to allow update calls too.
 4. Give the assistant the application URL, `https://www.subnet.ee`, and the task.
+
+**Current Subnet limitation:** file listings and metadata reads use update calls
+so their results come from network consensus, even when the method only reads
+data. **Questions only** blocks those calls, so it can read the public API
+reference but cannot browse the drive. Browsing currently requires **Actions &
+questions**. Folder permissions still apply: a folder shared with only Read
+permission cannot be changed by that recipient. This is a choice in Subnet's
+current API, rather than a general requirement for reading through ICP MCP.
 
 An initial demo prompt:
 

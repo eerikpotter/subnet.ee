@@ -1,0 +1,4 @@
+Mozilla PDF.js display distribution 6.4.299
+https://registry.npmjs.org/pdfjs-dist/-/pdfjs-dist-6.4.299.tgz
+Tarball SHA-512: AVl138zALtfaAPvADulE0PZThbYzCBS79nL4pOSL/6Sm/4AH5A21BD9VHt97OlCuzJuCpmeZtAtkinisF4Vb1g==
+Runtime files copied unchanged; source maps and viewer UI omitted.

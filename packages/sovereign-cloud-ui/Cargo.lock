@@ -4147,6 +4147,7 @@ dependencies = [
  "serde_json",
  "sha2 0.10.9",
  "url",
+ "uuid",
  "wasm-bindgen",
  "web-sys",
 ]
@@ -4159,7 +4160,10 @@ dependencies = [
  "egui",
  "egui_extras",
  "egui_kittest",
+ "futures",
  "js-sys",
+ "serde",
+ "serde_json",
  "sovereign-cloud",
  "wasm-bindgen",
  "wasm-bindgen-futures",

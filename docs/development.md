@@ -29,8 +29,8 @@ python3 scripts/dev.py all --build --bootstrap
 python3 scripts/verify.py all
 ```
 
-The dev command deploys **only to local**. It prints the actual URL; never assume a fixed
-gateway port. The full build/deployment above is for first-time setup only. Later runs
+The dev command deploys **only to local**. It prints the actual URL. This project
+pins its local gateway to port 61304 so the browser origin stays stable. The full build/deployment above is for first-time setup only. Later runs
 reuse the packaged editors in `dist/`; ordinary updates never deploy the backend.
 
 For portal HTML/CSS/JavaScript, app cards or the shared header:
@@ -52,7 +52,22 @@ Only PhotoCraft is built and its own pinned SDK snapshot checked. Other apps ret
 their existing binaries and source metadata. For a build without deployment, use
 `python3 scripts/build.py photocraft --assemble`; plain `build.py photocraft` only builds.
 After editing the portal Rust facade, use `python3 scripts/dev.py portal --build`.
-Backend changes use the separate command `icp deploy cloud -e local` after focused service checks.
+After focused service checks, upgrade an existing configured backend without
+re-applying environment settings:
+
+```sh
+icp build cloud -e local
+icp canister install cloud --mode upgrade -e local --identity subnet-cloud-local-keychain
+.tools/mail/bin/python scripts/configure-mail.py --local --identity subnet-cloud-local-keychain --status
+```
+
+Use `icp deploy cloud` for initial creation only. The observed CLI deploy workflow
+replaces environment variables and removes secrets absent from `icp.yaml`; those
+secrets must remain absent from source. The code-only install path preserves them.
+If deliberately re-applying deployment settings, run the owner-only mail provisioner
+afterwards and verify redacted status. On this machine the backend controller is the Keychain identity
+`subnet-cloud-local-keychain`; anonymous deployment cannot upgrade that backend.
+Frontend asset sync retains its existing local identity.
 `all` must be explicit in build, assembly and verification commands. No command here
 automatically runs the Craft repositories' test suites.
 
@@ -60,12 +75,91 @@ The frontend's presync hook generates the operator-approved MCP discovery files
 using that environment's deployed IDs. Assembly alone does not generate them.
 See [MCP setup](mcp.md) and the [isolated MCP smoke test](../experiments/mcp-smoke/README.md)
 for the account-authority alpha boundary and local protocol validation.
-`icp network stop` stops this project's local network. `icp network start local -d`
-restarts it. Keep `.icp/cache/` if you want the local data and network state to survive.
+`icp network stop` stops this project's local network. **Before stopping or updating
+a runtime containing valuable local data, export and verify a portable canister
+backup outside that runtime.** Keeping `.icp/cache/` alone is not a verified backup:
+on 18 October, stopping the older launcher lost its local canister state despite
+retaining that directory. A filesystem copy made after shutdown was incomplete.
+The user confirmed those files were disposable test data. Do not repeat that
+procedure on valuable state. See the incident record in [history](history.md).
 
 The workspace has its own local canisters and origin. Existing standalone
 PhotoCraft mainnet/local deployments are not migrated. Their accounts, files and
 canister IDs remain there. The local workflow does not deploy to mainnet or push Git changes.
+
+### Canister-held email credentials
+
+The backend reads `RESEND_API_KEY`, `SUBNET_MAIL_FROM` and `SUBNET_MAIL_ORIGIN`
+from its own canister settings at send time. Only its controller may configure
+them. Do not put provider keys in `icp.yaml`, `.env`, source, browser assets,
+command arguments or permanent project files. Never configure these variables
+on the frontend canister, whose environment is served to browsers.
+
+Use a standard ICP CLI identity backed by macOS Keychain, not a plaintext PEM.
+The helper requires the signing identity to be the sole controller and requires
+controller-only status, snapshots and logs. It does not change controllers.
+SEV hosting is planned for a later deployment and does not block current email
+functionality. Controller authorization protects the management boundary; it does
+not hide state from ordinary subnet operators.
+
+Install the operator-only Keychain dependency (not bundled into the application):
+
+```sh
+python3 -m venv .tools/mail
+.tools/mail/bin/python -m pip install -r scripts/mail-requirements.txt
+```
+
+The existing Resend key is already in macOS Keychain under service
+`ee.subnet.cloud.resend`, account `info@subnet.ee`. For a new/rotated key,
+use Keychain Access or hidden terminal input, never a literal shell argument:
+
+```sh
+.tools/mail/bin/python -c 'import getpass; from keyring.backends.macOS import Keyring; Keyring().set_password("ee.subnet.cloud.resend", "info@subnet.ee", getpass.getpass("Resend API key: "))'
+```
+
+Provision the selected **backend** with its private controller:
+
+```sh
+.tools/mail/bin/python scripts/configure-mail.py --network https://icp-api.io --canister <backend-canister-id> --identity <controller>
+```
+
+Repeat to rotate. Add `--status` for redacted status, or `--disable` to remove all
+three mail settings; these two actions do not read Keychain. None sends email.
+The helper uses ordinary signed management calls through ICP CLI and a private
+system temporary settings file outside the repository, removed on completion/error.
+It suppresses credential-bearing CLI output, merges unrelated variables and checks
+the resulting values in memory. Serialize operator configuration changes to avoid
+concurrent read/merge/write races. Old canister snapshots may retain a previous
+key: revoke a compromised key at Resend as well as rotating the active setting.
+
+For this local environment:
+
+```sh
+.tools/mail/bin/python scripts/configure-mail.py --local --identity subnet-cloud-local-keychain
+.tools/mail/bin/python scripts/configure-mail.py --local --identity subnet-cloud-local-keychain --status
+```
+
+The main local backend is configured and sending is enabled. The official launcher
+`v16.0.0-2026-10-08-03-33` supports the standard HTTP pricing-v2 wrapper with its
+normal defaults. The previous September launcher did not; beta flags and the
+experimental custom launcher are no longer needed. Use `icp network update` to
+install the official launcher **only after arranging a verified backup before any
+restart**. Local replica state includes configured canister secrets; keep its state
+and any backups private. The separately retained provisioning copy is in Keychain.
+
+User verification is **account menu → Minu e-postid → Lisa e-post → code**.
+The message links to `/pilveruum/#email`; this route survives sign-in and offers
+**Jätka e-posti kinnitamist** for the pending challenge. A code
+belongs to the principal/request that asked for it. A delivery test under a test
+identity cannot attach the address to the user's account; no binding was created
+by the authorized delivery test.
+
+Focused checks:
+
+```sh
+python3 -m unittest discover -s scripts -p test_configure_mail.py
+POCKET_IC_BIN=<compatible-official-pocket-ic> PHOTOCRAFT_CLOUD_WASM=<current-wasm> cargo +1.95.0 test --manifest-path services/sovereign-cloud/Cargo.toml --test email
+```
 
 ## Code ownership
 
@@ -128,8 +222,12 @@ with canonical sources; `--check-pinned` checks the fork's existing snapshot. Se
 
 The SDK owns identity adaptation, configured endpoint resolution, transport, upload
 checkpoints, progress and verified downloads. The shared UI owns the menu actions and dialogs;
-small editor adapters retain native encoding, document revisions and save state. The service preserves
-its existing Candid methods, serde shapes, stable-memory IDs and quotas. Its canonical implementation
+small editor adapters retain native encoding, document revisions and save state.
+Cloud UUIDs stay inside the shared adapter; `Editor`'s local document IDs and the
+eight editor-specific adapters do not change. Adopting a shared snapshot requires
+rebuilding its statically linked consumers, not running all editor engine suites.
+The UUID development schema intentionally drops numeric file IDs without a migration
+layer; subsequent same-schema upgrades preserve stable data. The canonical implementation
 lives under `services/sovereign-cloud`; `python3 scripts/sync-service.py` updates a checked
 snapshot in the standalone PhotoCraft backend. The root owns service changes and deployment;
 the PhotoCraft fork remains independently buildable. Do not edit the snapshots directly.
@@ -300,10 +398,23 @@ HTML/JS/Wasm, or explicit `all` for a full deployment audit. Shared metadata che
 ensure all registered app links exist. Script isolation regressions run offline with
 `python3 -m unittest discover -s scripts -p test_scoped_workflow.py`.
 
-PhotoCraft's existing browser, layer, ownership and persistence tests remain applicable.
-`sdk_migration` additionally takes `PHOTOCRAFT_BASELINE_WASM` and `PHOTOCRAFT_CLOUD_WASM`
-to test old-backend data through the extracted SDK after upgrade, including a dropped
-commit response. These tests create isolated disposable PocketIC canisters.
+Cloud contract tests live in the canonical service, SDK and shared UI. Set
+`POCKET_IC_BIN` to a compatible official `pocket-ic` executable and
+`PHOTOCRAFT_CLOUD_WASM` to the current release service Wasm. `adapter_contract`,
+`persistence`, `browse`, `recovery`, `workflows`, `trash` and `email` create isolated
+disposable canisters with the UUID schema, then upgrade the populated canister.
+Use the PocketIC binary bundled with the official local launcher
+`v16.0.0-2026-10-08-03-33` or newer for HTTP v2 email tests. The generic 16.0.0
+release does not exercise that default configuration: it completed the file
+contract tests but produced no HTTP request in the email harness. Tests use mock
+provider replies, never the configured real mail credential. Large storage tests
+advance empty replica rounds before upgrades to replenish the heap-delta budget;
+this is an accounting/persistence check, not a sustained-throughput benchmark.
+No previous-backend binary or numeric-ID compatibility fixture is required.
+`adapter_contract` also exercises shared-file retries after a lost commit response.
+Run `node --test scripts/*.test.mjs` for portal flows including canonical UUID URLs
+and empty bounded search continuations. Test editor-native behavior only when its
+adapter or engine changes.
 
 ## Editor integration
 

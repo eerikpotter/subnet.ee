@@ -2,6 +2,533 @@
 
 [Project overview](../README.md) · [Development](development.md) · [Deployment](deployment.md)
 
+
+
+## Daily file workflows and accurate 36-group review — 18 October 2026
+
+Completed the existing daily workflow slice without changing the backend schema,
+SDK, shared editor adapter or any editor-native source. Browser verification found
+and fixed a portal JSON/Candid boundary regression: `drive_list` still parsed a
+UUID parent as a number, breaking upload collision checks and destination pickers.
+Email retry/revoke had the inverse error (a numeric job parsed as an object UUID).
+Their serialization is now a small host-testable module in the portal facade;
+revision/operation parsing is named explicitly. No alternate file ID or alias layer.
+
+Previews now include a locally hosted, pinned Mozilla PDF.js display controller:
+one page/canvas at a time, page/zoom/fit controls, inert accessible page text, local
+fonts/codecs and cancellation on close/session change. The initial PDF fixture had
+empty form fields and was not a valid visual-content test; a separate generated
+2-page text PDF proved rendering and page navigation. Office remains a bounded,
+simplified text/value preview. PDF, Office and media controls retain arrow-key
+ownership. File menus are positioned within the viewport and scroll internally
+when tall, including bottom rows and phone layouts. Cut-file dimming applies to
+content, leaving action menus opaque and above neighboring controls.
+
+Real browser flows against the running local canister used disposable accounts
+on isolated localhost origins (no real-user session injection):
+- Uploaded PDF/DOCX/XLSX/PPTX/PNG through the ordinary queue; verified literal DOCX
+  markup, worksheet gaps/names, slide order and PDF page navigation.
+- Account B: inaccessible UUID link -> request; A: explicit Viewer decision;
+  B: readable file; A: revoke; B: inaccessible again.
+- WordCraft using the unchanged common adapter: edit -> autosave -> reopen with
+  saved text; new unsaved document -> persisted local draft -> second editor
+  window -> explicit restore as copy, without overwriting the cloud file.
+- Activity feed records content and sharing changes; storage separates current
+  and historical bytes; version UI identifies the automatic checkpoint.
+- 390px browser viewport: final-row/cut-file menu stays inside the viewport and
+  readable; its details action opens current metadata; the two-column grid has no
+  horizontal overflow and loads the PNG thumbnail. This is not a physical-phone
+  touch or comprehensive screen-reader audit.
+
+Validation: `node --test scripts/*.test.mjs` **185 passed**; portal facade
+`cargo +1.95.0 test --lib` **2 passed**; facade wasm32 clippy `-D warnings` passed;
+localization Python tests **4 passed**; portal release build and assembly passed,
+reusing all eight packaged editors. Native `cargo test` for the browser binary
+cannot import its wasm32-only SDK; the request boundary library is tested on host
+and the actual facade is compiled/linted for wasm32. An accidentally overlapping
+Trunk invocation failed; the final build was serialized and passed. Existing
+backend/PocketIC and eight-editor checks from the preceding entry were not rerun
+because their implementation did not change.
+
+Local frontend sync succeeded with 455 assets, state hash
+`208610388e64e46fd1dddb464e69a958bb7c77a225a9af71714e6cf9d0aad340`.
+The deployed asset verification passed, including every local PDF runtime, font,
+character map and codec (payload, certification, MIME and revalidation).
+No backend reinstall, settings update, mainnet deployment, email send or Git push.
+Proof images: `.local/daily-pdf-preview.jpg`, `.local/daily-draft-recovery.jpg`,
+`.local/daily-mobile-menu.jpg` and `.local/daily-feature-review.jpg`.
+The canonical HTML review remains `docs/cloud-drive-feature-review.html`, mirrored
+at `.local/drive-feature-review/index.html` for the existing port 61305 review.
+
+All 36 groups retain concrete boundaries: 29 available core flows, 1 partial
+accessibility/mobile group, 5 separate future groups and 1 explicitly deferred
+content-search group. No content index, OCR, ML or AI search was added. 100k users
+is a design target, not a demonstrated capacity claim. The storage overview still
+aggregates one account; large-account pagination/incremental accounting and broad
+screen-reader/editor-mobile audits remain explicit follow-ups.
+
+
+## UUID identities and scoped catalog operations — 18 October 2026
+
+The authorized technical milestone keeps one data canister and one canonical UUID
+v4 per object/space, with no numeric alias or migration layer. The development
+schema guard refuses numeric-ID state before opening differently typed maps.
+Rename/move/content/grant operations prepare changes to the relevant object/path,
+then maintain canonical records and derived indexes together. Name collisions,
+ordered listing, owner counts and sharing discovery use scoped stable indexes.
+Folders, spaces, ACL roots and viewer policy have independent revision scopes;
+there is no canister-wide cursor epoch.
+
+Bounded search examines at most 512 candidates and returns 50 matches. Continuation
+is opaque and authenticated; private filtered positions cannot be forged or read.
+Empty pages retain a next-page action. Suggestions inspect bounded windows, and
+opening/starring no longer scans all personal metadata. The per-object size index
+also follows replacement and current-revision removal. UUID URLs use certified
+SPA rewrites in both languages. The SDK and shared UI absorb cloud identity;
+all eight editor-specific `cloud.rs` adapters and the `Editor` trait are unchanged.
+
+Validation:
+
+- 68 canonical service unit tests; Clippy `--lib --tests -- -D warnings` clean.
+  Tests include 100,000 unique UUID allocations, same-owner 200/5,000-object
+  storage-operation comparison, private empty-page continuations, malformed and
+  cross-user bookmarks, sibling/account isolation, and same-schema reopening.
+- 19 SDK tests and 12 shared UI tests; the shared Wasm adapters compile in their
+  statically linked editor hosts. No editor engine suite is required by this change.
+- 15 PocketIC flows across `adapter_contract`, `browse`, `persistence`, `recovery`,
+  `workflows`, `trash` and `email`: populated same-schema upgrades, immutable bytes,
+  permissions/revocation, lost-response retries, activity, UUID shortcuts and purge.
+  No historical backend binary is used. Email's three tests pass with the official
+  October launcher; the generic 16.0.0 test binary failed to produce its HTTP v2
+  request. Provider responses are mocked and no real mail is sent.
+- The 256 MiB purge test advances empty replica rounds before code upgrades;
+  immediate management chunk upload after a large batch hits heap-delta throttling.
+  This proves accounting/persistence, not sustained write throughput.
+- Portal: all 180 tests passed, including the UUID language-switch check. Python: 10 scoped
+  workflow and four localization tests. Canonical standalone service snapshot also
+  compiles; its dependencies and API document are now included in snapshot checks.
+
+Local UUID-schema reinstall completed for `4caro-hl777-77775-aaaba-cai`, using the
+sole Keychain controller and code-only install. The user authorized disposable test
+data/no migration. Resend settings were verified configured before and after;
+provider credentials were not printed or added to files. No mainnet deployment.
+Browser verification on an isolated local test origin used the actual backend and
+assembled release Wasm: create a UUID folder, switch language, reload its deep link,
+launch WordCraft into that folder, save through the shared picker, and reopen the
+saved document with its text intact. The file deep link survived reload. A second
+disposable account received an unavailable/access-request view without the file
+name or contents. No editor-specific adapter change was needed. Screenshot:
+`.local/uuid-adapter-browser-proof.jpg`.
+
+The official static-site plugin exceeded its 60-second default and then a
+600-second compute allowance while Brotli-compressing the 221 MB editor bundle.
+`ICP_CLI_PLUGIN_COMPUTE_LIMIT_SECS=3600 icp sync frontend -e local` completed:
+252 assets, state hash
+`b3d46f662de295bb1d445da36bb56312ab229bb4278300cdcee234fdfa5e484e`.
+`python3 scripts/verify.py portal wordcraft` passed against the actual local
+canister, including all four certified UUID file/folder rewrites, portal assets,
+all editor entry shells, WordCraft HTML/JS/Wasm bytes and trust/missing-asset checks.
+The source checks also confirm unchanged native editor code in all eight forks.
+
+This is not a 100,000-user capacity claim. Existing product quotas, explicit
+subtree/aggregate bounds and single-canister hosting remain. Multi-canister routing,
+resumable large jobs and deployment throughput benchmarks remain separate work.
+
+## Folder navigation, details and recovery — 18 October 2026
+
+Delivered the authorized next milestone locally: an on-demand paginated sidebar
+folder tree, a caller-scoped details/access panel, Undo for rename/move/Trash, and
+restore with a different name or destination. The details and recovery controllers
+are separate portal modules; the tree reuses catalog browsing. Shared Rust types,
+Candid and the browser facade expose details and reviewed restore through ordinary
+authenticated methods. No stable schema, memory IDs, canisters or routing tables
+were added. Details filter inaccessible ancestor names and show only the caller's
+live access sources, never another recipient's email address.
+
+Undo issues ordinary version-checked inverse commands using successful mutation
+receipts. It retains exact requests across ambiguous responses and does not repeat
+successful members of a partial batch. Access changes require confirmation; an
+unrelated newer edit or revoked authority cannot be overwritten. Reviewed restore
+reuses the move-impact planner, checks name/destination and tree versions, requires
+Edit + Delete, and requires Create when changing parent. Its retry path rechecks
+the same authority. Plain Restore keeps its existing permission contract.
+
+Validation completed:
+
+- `cargo test --manifest-path services/sovereign-cloud/Cargo.toml --lib --quiet`:
+  52 tests passed, including hidden ancestors, stale Undo, revoked rights,
+  destination/name conflicts, cross-space rejection and access-impact checks.
+- `node --test scripts/cloud-i18n.test.mjs scripts/drive-transfers.test.mjs
+  scripts/download-archive.test.mjs scripts/i18n.test.mjs`: 113 tests passed,
+  including lazy pagination, session changes, details refresh, restore confirmation,
+  partial Undo and exact retries after lost responses.
+- `python3 -m unittest discover -s scripts -p test_localize.py`: four tests passed.
+- `cargo test --manifest-path services/sovereign-cloud/Cargo.toml --test recovery
+  --quiet`, with `POCKET_IC_BIN=/tmp/subnet-trash-tools/pocket-ic`,
+  `RECOVERY_BASELINE_WASM` pointing to `.local/recovery-baseline.wasm` and
+  `PHOTOCRAFT_CLOUD_WASM` pointing to the current release Wasm: populated old-to-new
+  upgrade, content/grants preservation, restore elsewhere, a second upgrade,
+  receipt replay and revoked access passed.
+- `python3 scripts/build.py portal --assemble`, backend release build/Candid
+  generation, formatting, `git diff --check` and `python3 scripts/verify.py` passed.
+
+Browser checks used the actual portal/backend with a disposable account on a
+separate loopback origin: folder expansion and navigation, file upload/details,
+rename/move/Trash Undo, restore to root with a new name after the original parent
+was trashed, and ET/EN panel translation. Proof:
+`.local/cloud-navigation-details.png`. Logs: `.local/navigation-*.log` and
+`.local/recovery-upgrade-test.log`. The existing HTML feature review and its served
+copy now mark these four capabilities delivered.
+
+Installed locally with `icp build cloud -e local` and code-only
+`icp canister install cloud --mode upgrade -e local --identity
+subnet-cloud-local-keychain`; the local network was not restarted. Mail status
+remained configured. The native certified-assets transport synced final asset hash
+`6a3a49ed12e4414f49cdd43daaec188b194651a8e923c6fbc352b94f62ec9e0f`.
+Mainnet was not deployed. Email account copy now reads “E-post seotakse sinu subnet
+kontoga.” Email anti-abuse limits were retained; clearer cooldown/daily-limit
+messages remain recorded follow-up work.
+
+Limits: one most recent action/group per account/tab, no redo or persisted Undo,
+no ACL/permanent-delete Undo, and no details for trashed objects. The tree covers
+My files; Shared with me retains its existing navigation. No mobile viewport
+browser proof was obtained. Activity history, sharing conveniences, previews and
+revision-retention policy remain later milestones.
+
+## Email enabled on the current local runtime — 18 October 2026
+
+The user explicitly deferred SEV hosting as a prerequisite and authorized finishing
+email on the current environment. Updated the official local launcher to
+`v16.0.0-2026-10-08-03-33`; its normal defaults support the standard HTTP v2 adapter.
+Tests no longer enable beta features or depend on the custom experimental launcher.
+The current backend is configured through its sole Keychain controller and mail
+is enabled. No standalone provider key file was reintroduced.
+
+**Local data incident:** stopping the September launcher lost the local canister
+state. The filesystem backup was taken after shutdown and proved incomplete; a
+portable canister export should have been made before stopping. No recoverable
+local copy was found. The user was informed and confirmed that only test data was
+stored there. Recreated the local backend and frontend from source/builds, using
+the same IDs and port 61304. This recreated the application, not the lost files.
+Mainnet and source were untouched. The incomplete backup is retained under
+`.local/email-runtime-backup/`. Development instructions no longer claim retaining
+the cache directory is a sufficient backup.
+
+Verification messages now link to `/pilveruum/#email`, preserve that destination
+through login and explain how to resume the pending code. Failed/expired delivery
+receipts no longer offer an unusable retry button. A full sharing integration test
+found and fixed re-sharing after revocation: email sharing updates a live direct
+grant, but creates a fresh grant after revocation/expiry. It never resurrects the
+old grant or makes old invitations grant access again.
+
+Validation: 49 backend unit tests, three actual Wasm/PocketIC email tests, 113
+portal/locale/shell/loading tests, six provisioner tests, four localization tests,
+and Clippy with warnings denied. Integration coverage includes verified-recipient
+file links, pending invitation verification and explicit acceptance, revoked access,
+address transfer with old ACL preservation, future sharing to the new address owner,
+populated pre-email upgrades, and controller-only key rotation/removal. Served
+portal/trust/cache verification passed. Evidence is `.local/email-finish-*.log`.
+
+The ordinary `icp deploy` re-applied environment settings and removed the mail key.
+Re-provisioned it from Keychain and verified that the standard code-only
+`icp canister install --mode upgrade` preserves it. Development/deployment guides
+now use this path for an existing configured backend. The frontend sync needed the
+existing native DFINITY adapter after the standard Wasm compressor hit its time
+limit, and local test cycles after creating the fresh canister. Final asset state:
+`f02e366d4b5989e25c977b36d71d179ccc2011f42b729d7d1ac037f0942f4ff0`.
+
+Browser checks used the actual portal and backend with a disposable test principal
+on a separate loopback origin; the user's login storage was untouched. The account
+menu, enabled email-entry dialog and authenticated `#email` deep link render
+correctly, with no observed console errors; proof:
+`.local/email-account-dialog.png`. No verification code was sent from that test
+account to the user. Prior authorized real Resend delivery remains verified by the
+user's receipt; a further send to the provider's test mailbox was rejected by
+automatic approval review because that destination was not authorized. It was not
+retried or bypassed. Provider responses in the automated integration suite are
+mocked. Bounce webhooks and notification preferences remain a separate later step.
+
+## Subnet email contacts, sharing and owner-managed credentials — 18 October 2026
+
+Implemented optional multi-address contacts within Subnet, without requiring
+Internet Identity email attributes. Eight-digit, caller-bound verification codes
+prove mailbox control; moving an existing address requires an explicit second
+confirmation. Transfers do not move files, old grants or old pending invitations.
+Email sharing resolves a current binding to the ordinary principal ACL or creates
+a revocable invitation. Delivery receipts and retries remain separate from access.
+Stable memory IDs 26–35 extend the existing single-canister architecture.
+See the [contract and remaining limits](cloud-drive-roadmap.md#email-sharing--implementation-contract-18-oct-2026).
+
+The portal provides **Minu e-postid**, verification/resume, transfer/removal,
+email-or-principal sharing, pending invitations and delivery retry/revoke controls.
+The shared Rust facade exposes the typed methods; Craft editor binaries were not
+rebuilt for this email-only stage. Main local backend upgrade and frontend sync
+succeeded on the existing port-61304 deployment, preserving local canister IDs and
+data. Browser inspection found that deployment signed out; no user authentication
+or address binding was fabricated to claim a manual end-to-end test.
+
+Validation: 49 backend unit tests; Clippy with warnings denied; 110 JavaScript
+locale/portal/shell tests; four Python localization tests; two real PocketIC email
+tests, including a populated pre-email Wasm upgrade and controller authorization;
+six operator-provisioning tests; and the served portal/trust/cache verification.
+Test evidence: `.local/email-service-tests.log`, `email-clippy.log`,
+`email-js-tests.log`, `email-upgrade-test.log`, `email-final-verify.log`.
+
+One explicitly authorized real test email was accepted by Resend, and the user
+confirmed receiving it. It was a delivery test tied to a test principal/request,
+not a verification of the user's account. No address binding was created. The
+disposable PocketIC runtime needed the official beta-feature configuration for
+HTTP pricing v2; the main local runtime has no live provider key and sending stays
+disabled until a compatible runtime is configured. The disposable replica and its
+historical checkpoints were removed after the test; the user's main state remains.
+
+The API key is provisioned into the backend's environment variables by the owner's
+signed standard ICP management call. `configure-mail.py` supports explicit local
+or remote backend targets, rotation, removal and redacted status; no app admin role
+or custom secret API was added. The script requires the sole private controller
+and controller-only status/snapshot/log visibility. A regression test captures the
+CLI's merge semantics: omission during sync cannot remove a key. Removal uses the
+explicit remove-variable operation and validates the result. The real local
+redacted status and explicit removal commands passed. Remote provisioning was not performed.
+
+The supplied `resend.rtf` was moved into native macOS Keychain and deleted. The local
+controller identity also moved into ICP CLI's Keychain storage; its old plaintext
+identity and project PEM were removed. Provisioning uses a private system temporary
+configuration outside the project and cleans it on success/error. A value-based
+scan found no real key in project source, assets, logs or retained replica state
+(build caches, tool installs, Git internals and editor checkouts were excluded).
+This does not claim production SEV confidentiality or isolation from processes
+already authorized as the same macOS user. Provider bounce webhooks, preferences
+and a shared cross-project mail service remain deferred.
+
+The HTML feature review now reflects implemented account/mail flows, the successful
+delivery check, and the remaining local-runtime/production-configuration work.
+
+## Reliable transfers and organization — 18 October 2026
+
+Implemented the seven next-stage groups from the HTML feature review: folder upload,
+per-item upload/copy outcomes and retry/cancel, explicit file collision choices,
+hierarchical folder ZIPs and multi-file copy, standard clipboard/internal drag,
+reviewed access-changing moves, and new Craft documents in the current folder.
+The same single canister, canonical catalog and permission evaluator remain.
+See [architecture and limits](cloud-drive-roadmap.md#reliable-transfers-and-organization--implementation-contract-18-oct-2026).
+
+The shared backend move planner compares effective rights and expiry durations,
+including redundant grants and agent/sponsor intersections. Preview and mutation
+use the same rules; changing access requires the owner even through the older
+direct move call. Reviewed mutations bind to a catalog version, and committed
+retries still return their receipt. No new stable memory layout is introduced.
+
+The portal's extracted job controller retains each request and resolved destination.
+SDK cancellation drains in-flight chunks and aborts uncommitted staging; a committed
+result remains completed. Failed/cancelled folder dependencies cannot be recreated
+implicitly by their children. The browser clipboard uses standard copy/cut/paste
+events, so macOS system commands work. Account changes clear private queued work.
+The hierarchical ZIP encoder is checked with Python's independent zipfile reader.
+
+Validation: 37 service unit tests; 17 SDK tests; 10 shared UI tests; 116 combined
+JavaScript tests, followed by 97 portal/queue/locale tests after the final dependency
+fix; four localization tests; Candid equality; focused Clippy/Wasm checks; the actual
+pre-suggestions populated-state PocketIC upgrade; all eight SDK snapshots and release
+builds. Logs are `.local/next-*.log`. Final portal-only assembly follows the fleet
+assembly, preserving all eight rebuilt packages. No production deployment or Git
+publication is part of this work.
+
+Final local sync published 244 assets with state hash
+`62231c2e894666ce1f3753b5949c32ba91a759ebfb93f61297f95f4df174b2b1`
+on both local networks. `python3 scripts/verify.py all --timings` passed for the
+portal, all eight editors, trust/discovery configuration and missing-asset handling
+on the user’s port-61304 environment. Logs: `.local/next-main-dependency-sync.log`
+and `.local/next-final-verify.log`.
+
+Real local browser checks on the isolated port-51488 canisters: nested folder upload
+and per-item outcomes; Cmd+C/V and destination copy; a shared-folder move's access
+loss preview; denied access for the former recipient while a retained shared sibling
+stays visible; and new-in-folder save with explicit ownership. All eight rebuilt
+native editors saved and reopened actual changes: Word text, Grid B1, a ninth Deck
+slide, a second Photo stroke, PDF drawing annotation, Sound Kick mute, a second CAD
+rectangle, and a new Fig rectangle in Transfer QA. Proof: `.local/drive-browser-qa/
+next-*-reopened.png`, `next-new-in-folder.png`, `next-transfer-complete.png`, and
+`next-move-access-preview.jpg`.
+
+The all-editor checks are manual native round trips, not an exhaustive automated
+editor matrix. Folder-picker empty directories, persistent reload recovery,
+recursive folder copy and unified download jobs remain outside this milestone.
+The deployment target's SEV properties are not established by localhost tests.
+Email UX and supported II verified-attribute/Resend integration are recorded as the
+next proposal, not as delivered email functionality. The HTML review remains at
+`http://127.0.0.1:61305/` with all 31 feature groups and their remaining differences.
+
+## Suggested Home and familiar file workflows — 18 October 2026
+
+Completed the milestone begun on 17 October. Home derives file/folder suggestions
+from the canonical authorized catalog and bounded private viewer summaries, with
+truthful reasons and seven-day dismissal. Successful foreground opens are recorded
+after portal preview/native decoding; selection, downloads and background reads do
+not create a new successful-open signal. Background refresh preserves displayed
+file and folder order; explicit refresh reranks and coalesces while already running.
+
+Sharing now has Viewer/Editor presets, Advanced capabilities, versioned direct-role
+changes and inherited read-only rows. Restricted file/folder links survive sign-in
+and confer no permission. Single-file Make a copy reuses verified download/staged
+upload, explicit name/destination, durable retry IDs and quota refresh. All data stays
+in the same platform-owned canister, with one catalog and permission evaluator.
+Architecture and accepted/deferred scope: [drive roadmap](cloud-drive-roadmap.md).
+
+Validation passed: 36 service unit tests, 16 SDK tests, 10 shared UI tests, 110 combined
+JavaScript tests (73 portal tests rerun after final refresh/quota fixes), four Python
+localization tests, strict service/facade Clippy, release backend/facade Wasm,
+exported Candid comparison, all eight canonical SDK snapshot checks and eight editor
+builds. The populated PocketIC test upgrades an actual pre-suggestions schema and
+preserves files/chunks, grants, viewer state, pending upload and retry receipts;
+new metadata survives another upgrade. Same-Wasm deployment is not that proof.
+
+Real browser flows used disposable accounts on the separate port-51488 QA network:
+stable selection geometry/double-click, inert text and image preview, truthful Home
+reasons, private dismissal versus Recent, explicit-name copy into a folder, Viewer
+copy, Viewer-to-Editor change, revocation, independent copy after source revocation,
+and signed-out restricted-link return. ET/EN and list/grid were checked. All eight
+current Craft builds saved and reopened native data through the common picker, and
+Home confirmed each successful open: Word paragraph, Grid cell, Deck sample slides,
+Photo stroke, one-page PDF, Sound's 63.1 MB sample session, CAD rectangle and Fig shape.
+Screenshots: `.local/drive-browser-qa/suggestions-*-reopened.jpg` and
+`suggestions-home-desktop.jpg`; detailed notes: `.local/suggestions-browser-proof.txt`.
+
+These are manual native round trips, not a complete automated per-editor conflict,
+offline and account-switch matrix. The IAB viewport override did not resize the hidden
+test tab, so no new 390 px proof is claimed for this milestone. Clipboard delivery
+was observed through the UI result; exact restricted URL construction is covered by
+unit tests, not a successful system-clipboard readback. Existing editor-wide lint
+limitations remain as previously recorded; targeted shared packages pass. SEV-enabled
+hosting is expected later and is not established by localhost evidence.
+
+Commands/evidence: `cargo test --manifest-path services/sovereign-cloud/Cargo.toml
+--lib --locked`; shared SDK tests; `RUSTUP_TOOLCHAIN=1.95.0 cargo test --manifest-path
+packages/sovereign-cloud-ui/Cargo.toml --lib`; Node/Python logs under
+`.local/suggestions-*.log`; `python3 scripts/sync-sdk.py all --check`; `python3
+scripts/build.py all` (resumed explicit remaining apps); `python3 scripts/assemble.py
+all`. The upgrade test uses `SUGGESTIONS_BASELINE_WASM=.local/suggested-home-baseline.wasm`
+and the current service Wasm via `PHOTOCRAFT_CLOUD_WASM` (absolute paths), then
+`cargo test --manifest-path services/sovereign-cloud/Cargo.toml --test browse
+suggested_home_upgrade -- --nocapture`. Rust 1.95.0 is required by the shared UI.
+
+The backend was upgraded on the original local network at port 61304 with its state
+preserved. `ICP_CLI_PLUGIN_COMPUTE_LIMIT_SECS=900 icp sync frontend -e local`
+published 243 local assets (state hash
+`e46775d3e5f3ca9964d9d83172cf61be408ee3ba62a679e2a52f5f5ab7412289`).
+`python3 scripts/verify.py all --timings` passed for the portal, all eight editors,
+exact payloads, runtime/discovery configuration, caching and missing assets.
+QA account-fixture assets were removed by syncing the clean frontend and their
+HTML/JS endpoints were confirmed to return 404;
+their previous local build remains in ignored QA storage. No source commit, push,
+mainnet deployment or user data reset was requested or performed.
+
+The requested feature reassessment is in the roadmap and the standalone
+[HTML review](cloud-drive-feature-review.html), with 31 filterable feature groups,
+official Google references, next-milestone acceptance scenarios and explicit data
+boundaries. Browser checks exercised its stage filters, search and architecture tab.
+The owner will provide project-wide email support later; no separate provider was
+selected. Broader implementation remains proposed, not authorized by this review.
+
+## Inline folder name editing — 15 October 2026
+
+Editable folders now use the same single-click name editor and double-click opening
+as files. Folder names are selected in full, including dots; Enter/blur saves and
+Escape cancels. Read-only folder links and picker navigation are preserved. No new
+backend operation or component was needed. Validation: 75 Node tests, three Python
+localization tests, native browser rename/navigation and local HTTP verification.
+Only the local frontend was updated. Proof: `.local/resource-browser/folder-rename.png`.
+
+## Inline filename editing — 15 October 2026
+
+Editable file names now enter inline rename on a single click. Double-click still
+opens the file; Enter or blur saves, Escape cancels, and F2 is available from a row.
+The basename is selected without the extension. Read-only files, Trash, folders
+and editor picker navigation retain their existing behavior. Rename uses the
+existing authenticated, version-checked operation and resource progress.
+
+Validation: 73 Node tests and three localization tests passed. Native browser QA
+verified single/double click, basename selection, Enter commit and unchanged sibling
+rows using isolated in-memory test data. The local frontend was synced and HTTP
+verified; production was not deployed. Decision: [resource updates](resource-updates.md).
+
+## Resource-scoped file updates — 15 October 2026
+
+File actions now keep the cloud space visible and usable: pending state belongs to
+the affected resource, metadata refresh is silent, and unchanged rows retain their
+DOM nodes. Rename, move, Trash/restore/purge, folders and uploads preserve loaded
+pages. Uploads and purges refresh storage usage through the existing SDK account
+method instead of restoring identity/home. Read ordering and session guards reject
+stale results; refresh failures retain the current list unless access was revoked.
+Architecture evidence: [resource updates](resource-updates.md).
+
+Validation: 68 Node tests across cloud UI, locale and shared shell/loading, three
+Python localization tests, portal Wasm build/assembly and `git diff --check` passed.
+New regressions cover pending rename, unchanged menu/focus/rows, loaded pagination,
+concurrent success/failure, out-of-order reads, move/Trash/restore, creation,
+cross-tab updates, upload progress/quota and account/navigation changes.
+
+Native browser QA at 1280×720 used the actual portal code with an isolated in-memory
+fixture: pending rename kept other file actions enabled; completion replaced exactly
+one of three rows. Screenshot: `.local/resource-browser/pending-rename.png`.
+The fixture does not access user files or claim a live Internet Identity proof.
+`python3 scripts/dev.py` synced only the local frontend and `python3 scripts/verify.py`
+passed at `http://frontend.local.localhost:61304/`. No new backend method, editor
+package or production deployment was required.
+
+## Permanent Trash deletion — 15 October 2026
+
+The portal now offers owner-only **Kustuta jäädavalt / Delete permanently** on
+trashed rows and **Tühjenda prügikast / Empty trash** for all owned entries across
+all pages. Both require confirmation, preserve file names across language changes,
+leave other owners' shared items alone, and refresh quota after success. The shared
+service removes nested content, revisions, grants and targeted pending uploads in
+one version-checked update with persistent retry receipts. No stable IDs or existing
+method contracts changed. Architecture evidence is in [Trash deletion](trash-deletion.md).
+
+Validation: 28 service unit tests, 16 SDK tests, 54 Node locale/shared-shell tests,
+three Python localization tests and service Clippy with `-D warnings` passed. The
+portal and service Wasm builds passed. The new PocketIC test upgraded the old indexed
+storage baseline, purged a full 256 MiB account in one update, verified ownership,
+anonymous rejection, zero usage, inaccessible content, subsequent file creation and
+retry behavior after another upgrade. `git diff --check` passed.
+
+Commands: `cargo +1.95.0 test --manifest-path services/sovereign-cloud/Cargo.toml --lib --locked`,
+SDK `cargo test --locked`, `node --test scripts/cloud-i18n.test.mjs scripts/i18n.test.mjs
+scripts/craft-shell.test.mjs scripts/craft-loading.test.mjs`, localization unittest,
+`python3 scripts/build.py portal --assemble`, and the service `--test trash` with
+`PHOTOCRAFT_CLOUD_WASM`, `PHOTOCRAFT_BASELINE_WASM=.local/drive-pre-index.wasm` and
+`POCKET_IC_BIN=/tmp/subnet-trash-tools/pocket-ic` (use absolute Wasm paths).
+
+Native browser QA checked the actual portal code with a separate in-memory visual
+fixture at 1280×720 and 390×844: owned/shared controls, individual/all confirmations,
+cancel focus, and ET/EN switching. Mutations were disabled in that visual fixture;
+actual destructive behavior was verified against disposable PocketIC data, not a
+real user's browser session. No production deployment was performed.
+
+Local deployment: `RUSTUP_TOOLCHAIN=1.95.0 icp deploy cloud -e local` passed the
+Candid compatibility check and upgraded the existing local backend, followed by
+`python3 scripts/dev.py` and `python3 scripts/verify.py`. The portal/shared-site
+verifier passed at `http://frontend.local.localhost:61304/`; existing editor packages
+were reused. The visual fixture is isolated under `.local/trash-browser/` and is
+not part of the deployed assets.
+
+## ICP MCP connection wording — 15 October 2026
+
+The English and Estonian connection guide now presents both access modes and
+identifies the browsing restriction as a limitation of Subnet's current API.
+The MCP guide explains that metadata reads use consensus updates; folder grants
+still restrict what the connected account can change. This is a copy change.
+
+Checked the current ICP skill index and the service-discoverability,
+agent-web-identity, internet-identity and canister-security skills linked in
+[the setup decision](mcp.md#setup-decision--2026-10-15), plus the official connector
+instructions, on 15 October 2026. The existing connector supports both modes;
+the documentation gap was presenting only one. No integration extension was needed.
+
+Validation: 50 existing Node locale/shared-shell tests and three Python localization
+tests passed; `git diff --check` passed. No deployment was performed.
+
 ## Responsive landing images — 15 October 2026
 
 Requirement: keep originals in Git and generate a few image sizes during the build,
@@ -715,3 +1242,208 @@ The fork commit `c49c108f09dec11d2223b15347e95fd81673432d` was pushed to
 SHA was verified. The other seven editor commits and binaries were reused.
 The subnet integration is committed locally. No production deployment was
 performed. Existing unrelated workspace changes remain untouched.
+
+## 2026-10-15 — Refine the cloud space workspace
+
+Removed the workspace's bottom promotional section, footer slogans and ICP sidebar
+label. The header now holds the subnet identity and account actions. Navigation
+separates files/shared work from applications/AI, with Trash and language/home
+utilities below. Mobile uses one header row and an explicit navigation panel;
+Escape, outside interaction, keyboard focus and route selection dismiss it.
+
+The app launcher reuses the landing page's original icon language in compact cards:
+four columns on a wide desktop, horizontal cards on intermediate screens and two
+compact columns on phones. Eight tools fit the tested 390 × 844 phone viewport.
+The signed-out drive offers sign-in and application browsing; file actions appear
+with a signed-in account. Account-ID copying now lives in the account menu, and
+the sharing instructions identify its new location. Existing AI connection copy
+edits in the working tree are preserved.
+
+Architecture review: the requirement is frontend navigation/layout, with no new
+identity, storage or transport behavior. The session's
+[static-site skill](https://skills.internetcomputer.org/.well-known/skills/static-site/SKILL.md)
+(retrieved 2026-10-15) supports the existing certified-assets hosting unchanged.
+There is no platform gap. The smallest addition is a lightweight workspace
+navigation controller, independent of the cloud client's startup. Existing
+session, permissions, file operations and picker protocol are reused. No Craft
+source or binaries, canonical SDK, backend or stable schema changed.
+
+Validation: 36 JavaScript locale/drive/navigation tests and 13 Python localization
+and scoped-workflow tests passed. Assembly reused all eight packaged editors.
+`python3 scripts/verify.py portal --timings` passed the local served-byte,
+certification, configuration and cache checks, including the new controller and
+SVG sprite. Native browser checks covered desktop, 390-pixel and 320-pixel views,
+ET/EN switching, navigation dismissal, signed-in/out states, the account menu and
+an actual FigCraft picker open after switching its language. The narrow-screen
+check caught and fixed account-menu positioning. Test sessions used the isolated
+local canister hostname; temporary fixture pages were removed from the final sync.
+Screenshots and logs are in `.local/workspace-ux-qa/` and `.local/workspace-ux-*`.
+This is a local frontend update; no production deployment or Git push was made.
+
+## 2026-10-15 — Craft artwork and quieter application cards
+
+Requirement: remove the "LOO MIDAGI UUT" eyebrow, keep Alpha and the ArtCraft
+provenance together, and give the compact application cards more of the original
+Craft character. The redundant "Choose a tool" instruction is also removed.
+The attribution text itself now links to ArtCraft, alongside
+the subnet cloud credit; there is no detached "About the project" link.
+
+The cards use eight unmodified upstream app-icon PNG exports, with the existing
+small tool glyphs next to their categories. Source revisions and original MIT
+license notices are preserved in `portal/assets/crafts/`. The 256-pixel exports
+cover the 48–72 CSS-pixel display sizes through 3× density and total 240,078 bytes;
+no editor checkout is read during portal assembly and no Craft source is changed.
+
+Architecture evidence: the [static-site skill](https://skills.internetcomputer.org/.well-known/skills/static-site/SKILL.md),
+retrieved 15 October 2026, supports the existing certified static-asset hosting.
+There is no platform gap. This is a portal markup, CSS and local-image change;
+an image service, new dependency or larger app banners would add complexity or
+scrolling without meeting an additional requirement.
+
+Validation: three localization and ten scoped-workflow tests passed. Portal
+assembly reused all eight packaged editors. Local certified-asset sync and
+`verify.py portal --timings` passed, including the eight app-image payloads.
+Browser checks at 320, 390, 1063 and 1280 CSS pixels showed all images loaded,
+both locales translated, and no horizontal overflow or browser warnings/errors.
+The 1280 × 720 view fits all eight cards and their provenance. Screenshots are
+in `.local/workspace-ux-qa/art-apps-*`; sync/verification logs use
+`.local/workspace-art-*`. No production deployment or Git push was performed.
+
+## 2026-10-15 — Refresh control and uploads in the file area
+
+Requirement: make My files and Shared with me equally restrained on desktop and
+mobile, keep manual refresh as a quiet fallback, and accept dropped files in the
+existing content surface rather than a separate upload zone. The toolbar now uses
+an accessible refresh icon, and the file panel contains a small drag hint. Only
+an active file drag reveals the full-panel upload cue and the target folder name.
+Touch users retain the upload button; coarse pointers do not show a drag hint.
+
+Architecture evidence: the [static-site](https://skills.internetcomputer.org/.well-known/skills/static-site/SKILL.md)
+and [canister-security](https://skills.internetcomputer.org/.well-known/skills/canister-security/SKILL.md)
+skills, consulted from the session's 15 October 2026 retrieval. Existing certified
+static hosting, CloudPortal upload/checkpoint logic and server-side capability
+checks meet the requirements. The gap was the portal interaction: native browser
+file-drop events now call the existing upload function, with the same limits,
+progress and destination snapshot. No new upload service, dependency or Craft
+fork change is required. Folder-tree uploads are explicitly rejected rather than
+silently importing only part of a drop.
+
+Only an authenticated, validated writable folder accepts a drop, including shared
+Create-only folders. Shared overview, trash, read-only folders, editor pickers,
+pending navigation and changed sessions cannot receive uploads. Text/link drags
+are left alone; file drops outside the panel cannot navigate the browser away.
+Nested drag events, cancellation, navigation and focus loss clear the overlay.
+
+Background refresh retains the visible rows and all loaded pages and avoids
+restarting identity restoration. Identical responses preserve DOM focus. Foreground
+refresh is deferred briefly so it does not consume the click that reactivates a
+window. These changes are integrated with the concurrent work on per-file
+operations and incremental row rendering; those changes have their own validation.
+
+Validation: 71 Node locale, drive, shared-shell/loading and workspace tests pass,
+including drop permission boundaries, multiple files, nested drag events, directory
+rejection, unchanged/paginated refresh, late responses and the foreground-click
+race. Three Python localization and ten scoped-workflow tests pass. The portal
+runtime builds in release mode; assembly reuses all eight editor packages.
+The final local certified-asset sync and `verify.py portal --timings` pass.
+
+Browser QA used an isolated disposable local account: multi-file drops succeeded
+in the root and an open subfolder, including after integrating per-file updates;
+the quota and list reflected the committed uploads. Shared overview does not offer
+an upload target. Desktop and 390/320-pixel layouts and both languages were checked
+without horizontal overflow or browser errors. Test pages were removed from the
+final sync, the test session was signed out and temporary tabs were closed. Logs
+and screenshots are in `.local/file-area-qa/`. No production deployment or Git push.
+
+## 2026-10-16 — Drive UX mainnet release
+
+User-authorized publication of permanent Trash deletion (one entry or all owned
+entries), resource-scoped progress and incremental rows, and single-click inline
+renaming/double-click opening for editable files and folders. The assembled portal
+also publishes the previously validated workspace navigation, Craft artwork and
+file-area refinements described above. Existing editor packages were reused.
+
+The release follows the session's ICP CLI, static-site, canister-security and
+stable-memory guidance recorded in the feature specifications. The cloud canister
+was stopped briefly, snapshotted, upgraded in place with the normal Candid check,
+and restarted. Snapshot: `0000000000000002000000000041310d0101` (214,459,446 bytes).
+Earlier snapshots were retained. Running backend SHA-256:
+`0a62f6a6a8216b4298a53f1266284adb9880281a65f2fe9de70eaf125b947089`.
+Published Candid exactly matches the source and `get_api_doc` includes the new
+`drive_purge_trash` method. Both canisters are running.
+
+The standard v0.4.0 sync plugin reached its 60-second compute limit during Brotli
+compression, before committing assets. The existing native adapter around the
+same unchanged DFINITY sync-core and canonical compressors completed the sync:
+55 assets encoded, 187 reused, 242 total. Finalized frontend state, separately
+read back after publication:
+`e88e96d921346118d9b04b03633ef1fb2221b03f100e37ce1e8669a9f5c8741d`.
+
+Release checks: 28 backend unit tests and 79 JavaScript tests passed before
+publication. The earlier local 256 MiB upgrade/purge/re-upgrade and authenticated
+browser proofs remain the functional validation. `verify.py portal --environment
+ic` passed on both the certified canister gateway and `https://www.subnet.ee`:
+exact portal and shared-shell bytes (including the portal Wasm), certification
+headers, CSP, cache rules, runtime identity settings, discovery and missing paths.
+Production browser smoke checks passed in ET/EN with no observed console warnings
+or errors. Production user files were not mutated as a test. Editor engines were
+not rebuilt or downloaded again for this portal release.
+
+The candidate Wasm, asset hashes, snapshot receipt, before/after status, deployment
+and verification logs, test output and browser screenshot are retained under
+`.local/releases/2026-10-15-drive-ux/` (preparation began before local midnight).
+The source remains in the working tree; no Git commit or push was requested.
+
+## 2026-10-17 — Familiar cloud drive browsing and selection
+
+Implemented the first drive milestone in the canonical Rust backend/SDK/facade
+and shared portal. Authenticated browse queries cover folders, Shared, Recent,
+Starred, Trash and metadata search, with complete authorized sorting before
+pagination. Private stars, recent opens and view preferences use new stable-memory
+regions; existing file records, transfers, permission evaluation and editor formats
+remain canonical. The session's required ICP skill evidence and implementation
+boundaries are recorded in `cloud-drive-roadmap.md`.
+
+The owner's visual references guide a distinct default Home (welcome, search,
+real folder shortcuts and recently opened files) and My files folder browser.
+The sidebar has New and storage usage; type, owner, modified-date and location
+filters expose existing queries. Compact sortable columns, list/grid, breadcrumb
+navigation and muted gold stars complete the familiar browsing surface.
+
+Selection uses click, Cmd/Ctrl, Shift-range and keyboard navigation. Its action
+bar replaces controls in reserved space, so rows do not move on selection or
+double-click. Actions include principal sharing, same-space move, recoverable
+Trash/restore, stars, single-item rename and download. Multi-file downloads produce
+one ZIP; partial failures are reported. Batch mutations retain per-item request
+IDs, skip successful retries, group selected descendants and stop on account
+changes. Existing backend authorization remains authoritative.
+
+Validation: 104 Node tests (locale, portal flows, shared shell/loading, workspace
+and ZIP interoperability), four Python localization tests and ten scoped-workflow
+tests pass. The Rust service's 33 unit tests and 16 SDK tests pass; service/facade
+Clippy and release Wasm builds pass. PocketIC upgraded the actual pre-milestone
+Wasm and re-upgraded the final build, preserving file bytes, grants, staged uploads,
+retry receipts and private viewer state. Logs are under `.local/drive-*`.
+
+Browser QA used disposable accounts on the isolated port-51488 network. It covered
+cross-account private state, nested metadata search, sort/pagination behavior,
+range/toggle selection, menus, rename focus, three-file move/Trash/restore, Home,
+filter chips and list/grid. Three selected files arrived in one ZIP and Python's
+standard reader verified its entries and CRCs. Actual desktop and 390px taps left
+row positions/heights unchanged, with no mobile horizontal overflow. Native Save
+As/reopen passed in all eight packaged Craft apps; GridCraft's shared picker was
+checked again after the Home refactor. Editor packages were reused, not rebuilt.
+
+The user's existing local environment at port 61304 received the backend upgrade
+and final frontend assets without resetting data. Test fixture pages were removed
+from the QA canister. No production deployment or Git push was performed. Local
+disposable-identity checks do not prove Internet Identity issuance or SEV hosting.
+Search remains metadata-only; Recent records explicit portal/shared-picker opens.
+ZIP buffering has a 256 MiB browser bound; folder archives and streaming are deferred.
+
+Final `python3 scripts/verify.py portal --timings` passed against the existing local
+gateway, checking exact shared assets, certification, cache rules, discovery and
+missing/test paths. The separate architecture review retained only the browse/
+selection and bounded archive modules: no replacement transport, permission layer,
+search service or editor-specific picker was needed. Packaged native editors still
+emit their existing eframe viewport/theme warnings; no portal error was observed.

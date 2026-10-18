@@ -6,9 +6,13 @@
 pub mod browser;
 pub mod config;
 pub mod drive;
+pub mod email;
+pub mod id;
 pub mod launch;
+pub mod people;
 pub mod protocol;
 pub mod transfer;
 
+pub use id::ObjectId;
 pub use protocol::CloudResult;
 pub use transfer::{FileClient, TransferEvent, Transport, UploadState, args};

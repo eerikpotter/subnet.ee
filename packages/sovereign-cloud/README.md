@@ -9,8 +9,8 @@ fork. Builds use `--check-pinned` to verify the fork's own snapshot; `--check` c
 it with the current canonical source. Other forks may stay on their existing version.
 A future published crate/git release can replace vendoring.
 
-* `protocol`: the existing Candid/serde contract, unchanged for old data and clients.
-* `drive`: draft shared-drive capabilities and typed payloads; portal/Craft client adoption is in progress.
+* `protocol` and `id`: file/revision types and one canonical UUID v4 object identity.
+* `drive`: shared-drive capabilities, typed commands and opaque paginated queries.
 * `config`: explicit gateway, canister and trusted root key; optional derivation origin.
 * `transfer`: create, chunked save/retry, consensus manifests and verified download.
 * `browser` feature: shared, storage-aware Internet Identity session adapter and guarded IC transport.
@@ -19,19 +19,23 @@ A future published crate/git release can replace vendoring.
 
 The SDK never knows egui, `.pcraft`, editor revisions, menus or document serialization.
 PhotoCraft retains those responsibilities and maps SDK progress into its current UI.
-`Project` still means a single file in the legacy wire contract. Do not rename wire
-fields or repurpose stable-memory IDs. `FileMetadata` and `FileRef` are client vocabulary.
+`Project` describes a file's immutable content revision chain; `DriveObject`
+describes its catalog metadata. They use the same UUID key, not separate identities.
+`FileMetadata` and `FileRef` are client vocabulary. Numeric revision/upload IDs are
+not file IDs. Editor-local document IDs remain inside each host's native adapter.
+The canonical shared controller owns conversion to/from cloud object references.
 
 One trusted application family shares the same origin. Subpaths do not change its
 principal. The SDK defaults to the current origin and never silently switches existing
 accounts to subnet.ee. Alternative origins require explicit setup and data migration.
 An app ID is metadata, not an authorization credential.
 
-`BrowserClient::at_endpoint` is the seam for future service/space resolution. V1 file
-IDs are only unique within a service: `FileRef.service` identifies that logical service,
-not a canister. Mapping it to an endpoint belongs to deployment/resolver configuration.
-Per-user canister provisioning, user-owned canisters, grants, encryption, alternate blob stores,
-cross-reload resumable uploads and multi-file projects are future work, not implemented.
+`BrowserClient::at_endpoint` is the seam for future service/space resolution.
+File UUIDs are globally unique and independent of an owner or storage canister.
+`FileRef.service` identifies the logical service; endpoint resolution currently
+selects one configured canister. Per-user provisioning, user-owned canisters,
+distributed placement and alternate blob stores remain deferred. Current sharing
+is checked by the backend on every operation, including retries and pagination.
 The current server retains its prototype quotas, including 64 MiB per document.
 
 Save retry expects the same immutable bytes and UploadState. Checkpoints must be retained

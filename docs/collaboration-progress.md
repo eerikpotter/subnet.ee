@@ -8,6 +8,38 @@ The current reconciliation below supersedes historical status
 statements in the chronological implementation notes; those notes retain the
 evidence and limitations of each earlier step. No independent security audit is claimed.
 
+## Local Suggested Home milestone — 18 October 2026
+
+The local development build now includes deterministic Suggested Home, successful
+open acknowledgements across eight Craft clients, private dismissal, Viewer/Editor
+role editing, restricted item links and single-file copies. It retains one data
+canister and canonical authorization. Backend/SDK/UI tests, real old-schema upgrade
+and eight native browser round trips pass; see [history](history.md) for exact
+commands and coverage limits. This local work is not included in the older mainnet
+publication recorded below.
+
+The [current roadmap](cloud-drive-roadmap.md#feature-reassessment--18-october-2026)
+supersedes the old product-backlog statuses below. The browser-readable
+[feature review](cloud-drive-feature-review.html) distinguishes current functionality,
+remaining everyday workflows and larger collaboration/offline/enterprise milestones.
+Email will integrate the owner's future cross-project delivery service. Sharding,
+user-owned canisters and embedded Intelligence Gateway AI remain deferred.
+
+## Drive UX mainnet release — 16 October 2026
+
+The user authorized mainnet publication of the current drive changes: permanent
+Trash deletion, resource-scoped updates, and inline file/folder renaming. The
+current assembled portal also includes the locally validated workspace navigation,
+Craft artwork and file-area refinements recorded in the development history.
+The backend was upgraded with data preserved after creating snapshot
+`0000000000000002000000000041310d0101`; its running module hash is
+`0a62f6a6a8216b4298a53f1266284adb9880281a65f2fe9de70eaf125b947089`.
+The finalized frontend state is
+`e88e96d921346118d9b04b03633ef1fb2221b03f100e37ce1e8669a9f5c8741d`
+(242 assets). Both public origins pass portal verification. See
+[the release history](history.md) for validation scope and deployment logs.
+This publication does not change the previously recorded GitHub source release.
+
 ## Complete GitHub and mainnet publication — 15 October 2026
 
 The user authorized publishing all accumulated changes, including the previously

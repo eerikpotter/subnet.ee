@@ -1,0 +1,11 @@
+<svg xmlns="http://www.w3.org/2000/svg"><defs>
+<symbol id="icon-photocraft" viewBox="0 0 48 48"><rect x="6" y="7" width="36" height="34" rx="4"/><circle cx="32" cy="17" r="3" fill="currentColor" stroke="none"/><path d="m8 36 11-13 9 10 6-6 7 9"/><path d="m8 36 11-13 9 10 6-6 7 9v4H8Z" fill="currentColor" stroke="none"/></symbol>
+<symbol id="icon-pdfcraft" viewBox="0 0 48 48"><path d="M12 5h18l9 10v26a2 2 0 0 1-2 2H12a2 2 0 0 1-2-2V7a2 2 0 0 1 2-2Z"/><path d="M29 5v11h10M18 24h13M18 30h13M18 36h9"/></symbol>
+<symbol id="icon-wordcraft" viewBox="0 0 48 48"><path d="M12 5h18l9 10v26a2 2 0 0 1-2 2H12a2 2 0 0 1-2-2V7a2 2 0 0 1 2-2Z"/><path d="M29 5v11h10M18 23h8M18 29h14M18 35h14"/></symbol>
+<symbol id="icon-deckcraft" viewBox="0 0 48 48"><rect x="4" y="9" width="40" height="27" rx="3"/><path d="M24 36v7M16 43h16"/><circle cx="24" cy="22" r="4" fill="currentColor" stroke="none"/></symbol>
+<symbol id="icon-soundcraft" viewBox="0 0 48 48"><path d="M5 21v7M14 14v20M24 5v38M34 13v22M43 21v7" stroke-width="4.5"/></symbol>
+<symbol id="icon-cadcraft" viewBox="0 0 48 48"><path d="m8 39 31-31v31ZM22 32h10V22M9 9l7 7M6 12l6-6M32 42v-3M24 42v-3M16 42v-3"/></symbol>
+<symbol id="icon-gridcraft" viewBox="0 0 48 48"><rect x="5" y="7" width="38" height="34" rx="4"/><path d="M5 18h38M5 29h38M18 18v23M31 18v23"/></symbol>
+<symbol id="icon-figcraft" viewBox="0 0 48 48"><rect x="5" y="6" width="25" height="29" rx="4"/><path d="M5 14h25M12 21h11M12 27h6"/><rect x="24" y="23" width="19" height="19" rx="3"/><path d="m30 36 7-7m-6 0h6v6"/></symbol>
+<symbol id="icon-application" viewBox="0 0 48 48"><rect x="6" y="6" width="36" height="36" rx="7"/><path d="M16 24h16M24 16v16"/></symbol>
+</defs></svg>

@@ -1,4 +1,4 @@
-//! Shared uploads reuse the legacy immutable chunk/revision store. ID 13 is staging only.
+//! Shared uploads use the immutable chunk/revision store. Memory 13 holds staging records.
 use super::collaboration::{decoded, encoded, name, retry};
 use super::*;
 use crate::permissions::{AccessGraph, Actor};
@@ -7,23 +7,15 @@ use sovereign_cloud::drive::*;
 
 const UPLOAD_TTL: u64 = 24 * 60 * 60 * 1_000_000_000;
 #[derive(Clone, Serialize, Deserialize)]
-struct Stage {
-    upload: DriveUpload,
-    request: DriveUploadRequest,
-    uploader: Principal,
-    owner: Principal,
-    space: u64,
+pub(super) struct Stage {
+    pub(super) upload: DriveUpload,
+    pub(super) request: DriveUploadRequest,
+    pub(super) uploader: Principal,
+    pub(super) owner: Principal,
+    space: ObjectId,
     created_at: u64,
 }
 impl<M: Memory> Store<M> {
-    pub(super) fn migrate_upload_indexes(&mut self) -> DriveResult<()> {
-        let stages: Vec<Stage> = self.drive_uploads.iter().map(|e| decoded(&e.value())).collect::<DriveResult<_>>()?;
-        for stage in stages.into_iter().filter(|s| s.upload.committed.is_none()) {
-            self.pending_owners.insert((stage.owner, stage.upload.id), 0);
-            self.pending_uploaders.insert((stage.uploader, stage.upload.id), 0);
-        }
-        Ok(())
-    }
     fn stage(&self, actor: &Actor, id: u64) -> DriveResult<Stage> {
         let stage: Stage = decoded(&self.drive_uploads.get(&id).ok_or(DriveError::Expired)?)?;
         if stage.uploader != actor.sponsor {
@@ -47,7 +39,7 @@ impl<M: Memory> Store<M> {
         match &request.target {
             UploadTarget::New { parent, name: value, format } => {
                 let value = name(value)?;
-                Self::check_new_name(graph, *parent, &value)?;
+                self.check_new_name(*parent, &value, None)?;
                 if format.media_type.is_empty() || format.media_type.len() > 160 || format.media_type.chars().any(char::is_control) {
                     return Err(DriveError::InvalidInput("Invalid media type".into()));
                 }
@@ -68,7 +60,10 @@ impl<M: Memory> Store<M> {
                 if project.revisions.last().map(|r| r.id) != Some(*expected_revision) || project.pending_upload.is_some() {
                     return Err(DriveError::Conflict);
                 }
-                if project.revisions.len() >= MAX_REVISIONS {
+                let can_prune = request.automatic == Some(true)
+                    && project.revisions.iter().filter(|r| self.revisions.get(*file, r.id).is_ok_and(|p| p.automatic && !p.keep && p.label.is_empty())).count()
+                        >= 20;
+                if project.revisions.len() >= MAX_REVISIONS && !can_prune {
                     return Err(DriveError::Limit("Revision limit reached".into()));
                 }
             }
@@ -90,7 +85,7 @@ impl<M: Memory> Store<M> {
             }
             let upload = self.stage(actor, id)?.upload;
             if upload.committed.is_some() {
-                graph.require(actor, upload.file, Capabilities::READ, now, false)?;
+                self.drive_get(actor, upload.file, now)?;
             }
             return Ok(upload);
         }
@@ -111,9 +106,9 @@ impl<M: Memory> Store<M> {
             return Err(DriveError::Limit("Cloud storage quota reached".into()));
         }
         let (id, next) = self.next_id().map_err(|_| DriveError::Internal)?;
-        let (file, next) = match request.target {
-            UploadTarget::New { .. } => (next, next.checked_add(1).ok_or(DriveError::Internal)?),
-            UploadTarget::Replace { file, .. } => (file, next),
+        let file = match request.target {
+            UploadTarget::New { .. } => self.next_object_id().map_err(|_| DriveError::Internal)?,
+            UploadTarget::Replace { file, .. } => file,
         };
         let upload = DriveUpload { id, file, committed: None };
         let stage = Stage { upload: upload.clone(), request, uploader: actor.sponsor, owner: object.owner, space: object.space, created_at: now };
@@ -152,10 +147,14 @@ impl<M: Memory> Store<M> {
     }
     pub(crate) fn drive_commit(&mut self, actor: &Actor, id: u64, now: u64) -> DriveResult<DriveUpload> {
         let mut stage = self.stage(actor, id)?;
-        let mut graph = self.graph_for_owner(stage.owner)?;
+        let target = match stage.request.target {
+            UploadTarget::New { parent, .. } => parent,
+            UploadTarget::Replace { file, .. } => file,
+        };
+        let mut graph = self.graph_for_object(target)?;
         let target = self.upload_access(&graph, actor, &stage.request.target, now)?;
         if stage.upload.committed.is_some() {
-            graph.require(actor, stage.upload.file, Capabilities::READ, now, false)?;
+            self.drive_get(actor, stage.upload.file, now)?;
             return Ok(stage.upload);
         }
         if now.saturating_sub(stage.created_at) > UPLOAD_TTL {
@@ -204,6 +203,7 @@ impl<M: Memory> Store<M> {
             }
         };
         project.revisions.push(revision.clone());
+        let retention = self.prepare_retention(&mut project, revision.id, stage.request.automatic == Some(true))?;
         stage.upload.committed = Some(revision.clone());
         let upload = Upload {
             id,
@@ -224,14 +224,18 @@ impl<M: Memory> Store<M> {
             Attribution { actor: actor.subject.clone(), sponsor: None, credential: actor.credential.clone(), mutation: stage.request.request_id.clone() };
         graph.tree_version = graph.tree_version.checked_add(1).ok_or(DriveError::Internal)?;
         let (gb, pb, ub, sb, ab, kb) = (
-            self.prepare_graph(&graph)?,
+            self.prepare_graph_size(&graph, Some((project.id, stage.request.bytes)))?,
             encoded(&project)?,
             encoded(&upload)?,
             encoded(&stage)?,
             encoded(&attribution)?,
             kind.as_ref().map(encoded).transpose()?,
         );
+        let event_kind = if kind.is_some() { ActivityKind::Created } else { ActivityKind::ContentSaved };
+        let event = self.activity.prepare(project.owner, project.id, actor, event_kind, now)?;
+        self.apply_retention(&project, retention);
         self.apply_graph(gb);
+        self.activity.apply(event);
         self.projects.insert(project.id, pb);
         self.project_owners.insert((project.owner, project.id), 0);
         self.uploads.insert(id, ub);
@@ -287,12 +291,12 @@ impl<M: Memory> Store<M> {
             .collect()
     }
 
-    pub(crate) fn drive_history(&self, actor: &Actor, file: u64, now: u64) -> DriveResult<Vec<Revision>> {
+    pub(crate) fn drive_history(&self, actor: &Actor, file: ObjectId, now: u64) -> DriveResult<Vec<Revision>> {
         self.indexed_graph(file)?.require(actor, file, Capabilities { edit: true, ..Capabilities::READ }, now, false)?;
         let project: Project = decoded(&self.projects.get(&file).ok_or(DriveError::Inaccessible)?)?;
         Ok(project.revisions)
     }
-    pub(crate) fn drive_revision_chunk(&self, actor: &Actor, file: u64, revision: u64, index: u64, now: u64) -> DriveResult<Vec<u8>> {
+    pub(crate) fn drive_revision_chunk(&self, actor: &Actor, file: ObjectId, revision: u64, index: u64, now: u64) -> DriveResult<Vec<u8>> {
         let entry = self.drive_get(actor, file, now)?;
         let current = entry.latest.ok_or(DriveError::Inaccessible)?;
         let manifest = if current.id == revision {
@@ -307,33 +311,18 @@ impl<M: Memory> Store<M> {
     }
     /// Recovery entries are paginated and require live Read + Delete rights.
     pub(crate) fn drive_trash(&self, actor: &Actor, cursor: Option<DriveCursor>, limit: u32, now: u64) -> DriveResult<DrivePage> {
-        let graph = self.visible_graph(actor, now)?;
-        let after = match cursor {
-            Some(c) if c.actor == actor.sponsor && c.scope == Some(0) && c.tree_version == graph.tree_version => c.after,
-            Some(_) => return Err(DriveError::Conflict),
-            None => 0,
+        let query = BrowseQuery {
+            scope: BrowseScope::Trash,
+            text: String::new(),
+            file_type: String::new(),
+            owner: None,
+            modified_after: None,
+            modified_before: None,
+            sort: SortField::Name,
+            descending: false,
         };
-        let limit = limit.clamp(1, 50) as usize;
-        let mut entries = graph
-            .objects
-            .values()
-            .filter(|o| {
-                o.id > after && o.trashed_at.is_some() && graph.require(actor, o.id, Capabilities { delete: true, ..Capabilities::READ }, now, true).is_ok()
-            })
-            .take(limit + 1)
-            .map(|o| {
-                let latest = self.projects.get(&o.id).map(|b| decoded::<Project>(&b)).transpose()?.and_then(|p| p.revisions.last().cloned());
-                Ok(DriveEntry { object: o.clone(), capabilities: graph.effective(actor, o.id, now, true)?, latest, attribution: None, sharing: None })
-            })
-            .collect::<DriveResult<Vec<_>>>()?;
-        let more = entries.len() > limit;
-        entries.truncate(limit);
-        let next = if more {
-            entries.last().map(|e| DriveCursor { scope: Some(0), actor: actor.sponsor, tree_version: graph.tree_version, after: e.object.id })
-        } else {
-            None
-        };
-        Ok(DrivePage { entries, next })
+        let page = self.drive_query(actor, query, cursor, limit, now)?;
+        Ok(DrivePage { entries: page.items.into_iter().map(|i| i.entry).collect(), next: page.next })
     }
 }
 
@@ -345,8 +334,9 @@ mod tests {
     fn actor(n: u8) -> Actor {
         Actor::user(Principal::self_authenticating([n; 32])).unwrap()
     }
-    fn request(parent: u64, name: &str, data: &[u8], token: &str) -> DriveUploadRequest {
+    fn request(parent: ObjectId, name: &str, data: &[u8], token: &str) -> DriveUploadRequest {
         DriveUploadRequest {
+            automatic: None,
             target: UploadTarget::New { parent, name: name.into(), format: FileFormat { media_type: "text/plain".into(), craft: None } },
             bytes: data.len() as u64,
             sha256: Sha256::digest(data).to_vec(),
@@ -406,6 +396,7 @@ mod tests {
         )
         .unwrap();
         let replacement = DriveUploadRequest {
+            automatic: None,
             target: UploadTarget::Replace { file: done.file, expected_revision: stage.id },
             bytes: 3,
             sha256: Sha256::digest(b"new").to_vec(),
@@ -482,6 +473,7 @@ mod tests {
         assert_eq!(s.usage.get(&a.sponsor), Some(3));
         assert_eq!(s.usage.get(&b.sponsor), None);
         let replace = DriveUploadRequest {
+            automatic: None,
             target: UploadTarget::Replace { file: result.file, expected_revision: stage.id },
             bytes: 1,
             sha256: Sha256::digest(b"x").to_vec(),
@@ -513,13 +505,14 @@ mod tests {
         put(&mut s, &a, initial.id, b"first");
         s.drive_commit(&a, initial.id, 21).unwrap();
         let req = DriveUploadRequest {
+            automatic: None,
             target: UploadTarget::Replace { file: initial.file, expected_revision: initial.id },
             bytes: 1,
             sha256: Sha256::digest(b"x").to_vec(),
             request_id: "concurrent-first-01".into(),
         };
         let one = s.drive_begin(&a, req.clone(), 22).unwrap();
-        let two = s.drive_begin(&a, DriveUploadRequest { request_id: "concurrent-second-1".into(), ..req }, 22).unwrap();
+        let two = s.drive_begin(&a, DriveUploadRequest { automatic: None, request_id: "concurrent-second-1".into(), ..req }, 22).unwrap();
         put(&mut s, &a, one.id, b"x");
         put(&mut s, &a, two.id, b"x");
         s.drive_commit(&a, one.id, 23).unwrap();

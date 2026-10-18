@@ -1,0 +1,394 @@
+<!doctype html>
+<html lang="et">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width,initial-scale=1">
+<title>Pilveruum · funktsioonide ülevaade</title>
+<style>
+:root{color-scheme:light;--bg:#f7f8fa;--paper:#fff;--ink:#17283b;--muted:#596977;--line:#dce2e7;--accent:#245ba1;--soft:#e9f0f9;--green:#38634f}
+*{box-sizing:border-box}body{margin:0;background:var(--bg);color:var(--ink);font:15px/1.6 system-ui,-apple-system,BlinkMacSystemFont,"Segoe UI",sans-serif}a{color:var(--accent);text-underline-offset:3px}button,input{font:inherit}button{cursor:pointer}button:focus-visible,a:focus-visible,input:focus-visible,summary:focus-visible{outline:3px solid var(--accent);outline-offset:3px}button:disabled{cursor:default}header{padding:20px max(24px,calc((100vw - 1180px)/2));border-bottom:1px solid var(--line);display:flex;gap:20px;align-items:center;justify-content:space-between;background:var(--paper)}.brand{font-weight:750;font-size:18px;letter-spacing:-.4px}.brand span{font-weight:450;color:var(--muted);margin-left:14px;font-size:14px}.date{font-size:13px;color:var(--muted)}main{max-width:1228px;margin:auto;padding:42px 24px 64px}.eyebrow{font-size:12px;text-transform:uppercase;letter-spacing:.1em;color:var(--accent);font-weight:650}h1{font-size:30px;line-height:1.2;letter-spacing:-.8px;margin:10px 0 16px;max-width:850px}h2{font-size:22px;line-height:1.3;letter-spacing:-.4px;margin:0 0 10px}h3{font-size:16px;margin:0 0 5px}p{margin:0 0 12px}.lead{font-size:17px;color:var(--muted);max-width:880px}.overview{display:grid;grid-template-columns:1.35fr 1fr;gap:36px;margin:30px 0 36px;align-items:start}.next{background:var(--paper);border:1px solid var(--line);border-radius:14px;padding:24px}.next ol{padding-left:21px;margin:12px 0 0}.next li{padding:3px 0}.ready{padding:12px 0}.ready small{display:block;color:var(--muted)}.facts{display:flex;flex-wrap:wrap;gap:8px;margin-top:16px}.fact{border:1px solid var(--line);border-radius:7px;padding:5px 10px;font-size:12px}.section-nav{display:flex;gap:26px;border-bottom:1px solid var(--line);margin:14px 0 24px}.section-nav button{background:none;border:0;border-bottom:3px solid transparent;padding:9px 0;color:var(--muted)}.section-nav button[aria-pressed=true]{color:var(--ink);border-bottom-color:var(--accent);font-weight:650}.controls{display:flex;gap:16px;justify-content:space-between;align-items:center;flex-wrap:wrap;margin:20px 0}.filters{display:flex;gap:8px;flex-wrap:wrap}.filters button{border:1px solid var(--line);background:var(--paper);border-radius:24px;padding:6px 13px;color:var(--muted);font-size:13px}.filters button[aria-pressed=true]{background:var(--soft);border-color:var(--accent);color:var(--accent)}.filters button span{margin-left:6px;opacity:.75}.search{display:flex;gap:9px;align-items:center;color:var(--muted);font-size:13px}.search input{width:205px;max-width:100%;border:1px solid var(--line);background:var(--paper);border-radius:7px;padding:8px 10px;color:var(--ink);font-size:13px}.small{font-size:12px;color:var(--muted)}.result-count{margin-bottom:12px;min-height:20px}.feature-head,.feature{display:grid;grid-template-columns:1fr 1.25fr 1.4fr;gap:24px}.feature-head{font-size:12px;color:var(--muted);padding:9px 18px}.feature{padding:20px 18px;border-top:1px solid var(--line);background:var(--paper)}.feature p{font-size:14px;margin:0;color:var(--muted)}.feature strong{font-size:15px;line-height:1.4;display:block}.status{display:inline-block;font-size:11px;margin:9px 0 7px;padding:2px 7px;background:var(--bg);border-radius:4px;color:var(--muted)}.status.done{color:var(--green)}.evidence{display:block;font-size:11px;line-height:1.5;color:var(--muted);margin-top:10px}.source{display:block;font-size:11px}.features{border:1px solid var(--line);border-radius:10px;overflow:hidden}.feature:first-child{border-top:0}.mobile-label{display:none}.detail{padding:20px 0;border-top:1px solid var(--line)}details{border-top:1px solid var(--line);padding:18px 0}summary{font-weight:650;cursor:pointer}details p,details ul{margin-top:12px;color:var(--muted)}.architecture{display:grid;grid-template-columns:1fr 1fr;gap:0 36px}.architecture article{padding:22px 0;border-top:1px solid var(--line)}.architecture p{color:var(--muted);font-size:14px}.boundary{border-left:3px solid var(--accent);padding:3px 0 3px 18px;margin:20px 0 26px;max-width:950px}.sources{display:flex;flex-wrap:wrap;gap:8px 18px;font-size:12px;margin-top:16px}footer{border-top:1px solid var(--line);margin-top:34px;padding-top:20px;color:var(--muted);font-size:12px}footer a{margin-right:16px}.hidden,[hidden]{display:none!important}@media(max-width:760px){header{padding:15px 18px}.brand span{display:none}main{padding:28px 18px 40px}h1{font-size:26px}.overview,.architecture{grid-template-columns:1fr;gap:20px}.overview{margin:24px 0}.ready{padding:0}.feature-head{display:none}.feature{grid-template-columns:1fr;gap:13px;padding:18px}.mobile-label{display:block;font-size:11px;color:var(--ink);font-weight:650;margin-bottom:4px}.feature strong{font-size:17px}.status{margin:5px 8px 0 0}.source{display:inline}.search{width:100%}.search input{flex:1}.date{font-size:11px}.section-nav{gap:20px;font-size:14px}}
+@media(prefers-color-scheme:dark){:root{color-scheme:dark;--bg:#151b23;--paper:#1c2530;--ink:#e5edf6;--muted:#acb9c7;--line:#344150;--accent:#9ac4fa;--soft:#23384f;--green:#a4ceaf}}
+</style>
+</head>
+<body>
+<header><div class="brand">subnet.ee <span>Pilveruumi teekaart</span></div><span class="date">Seis: 18. oktoober 2026</span></header>
+<main>
+<div class="eyebrow">Google Drive’i kogemuse võrdlus</div>
+<h1>Igapäevased failivood.<br>Täpne ülevaade 36 funktsioonirühmast.</h1>
+<p class="lead">Failide korraldamine, jagamine, eelvaated ja taastamine kasutavad ühist kataloogi ning õiguste kontrolli. Ülevaade eristab töötavat põhivoogu, osalist teostust ja eraldi tulevasi etappe. Sisuotsing jääb praegusest skoobist välja.</p>
+<div class="overview">
+ <section class="next"><h2>Valmis: igapäevased failivood</h2><ol><li>Eelvaated, PDF-i leheküljed ja suum; Office’i lihtsustatud sisu.</li><li>Ligipääsutaotlused, jagamise mugavused, otseteed ja teavitused.</li><li>Ühine automaatsalvestus, kohalik mustanditaaste ja versioonide säilitamine.</li><li>Tegevuste ajalugu, salvestusruumi vaade ja klaviatuurivood.</li></ol><small>„Olemas” tähendab allpool kirjeldatud põhivoogu. Iga rühma piirangud on kirjas eraldi; see ei ole väide täielikust Google Drive’i pariteedist.</small></section>
+ <section class="ready"><h3>Mis jääb edasi?</h3><p>Avalike linkide ja jagamispoliitikate otsused, kommentaarid/koostöö, offline-sünkroonimine, tiimide omand ning põhjalikum ligipääsetavuse audit. Need ei ole peidetud „valmis” rühmade sisse.</p><small>Sisuotsing vajab eraldi mahu- ja päringudisaini. 100k kasutajat on arhitektuuri siht, mitte juba mõõdetud läbilaskevõime.</small><div class="facts" id="status-counts"></div><div class="facts"><span class="fact">Üks andmekanister</span><span class="fact">Üks UUID objekti kohta</span><span class="fact">Ühine Rusti adapter</span></div></section>
+</div>
+<nav class="section-nav" aria-label="Ülevaate osad"><button data-tab="features" aria-pressed="true">Funktsioonid</button><button data-tab="architecture" aria-pressed="false">Andmepiirid ja kontrollid</button></nav>
+<section id="features-panel">
+ <h2>Funktsioonide seis ja puuduvad osad</h2>
+ <div class="controls"><div class="filters" aria-label="Etapi filter"></div><label class="search">Otsi<input id="search" type="search" placeholder="Näiteks: offline, jagamine"></label></div>
+ <p class="small result-count" id="result-count" role="status" aria-live="polite"></p>
+ <div class="feature-head" aria-hidden="true"><span>Funktsioon ja seis</span><span>Praegune teostus</span><span>Järgnev töö või teadlik erinevus</span></div>
+ <div class="features" id="feature-list"></div>
+ <p class="small" id="empty" hidden>Vasteid pole. Vali teine etapp või muuda otsingut.</p>
+ <p class="small" style="margin-top:16px">„Olemas” tähendab kontrollitud põhivoogu, mitte Google’i iga alamfunktsiooni täielikku vastet. Võimalused sõltuvad Google’i paketist ja platvormist. Protsendilist parity-hinnangut ei ole.</p>
+ <details><summary>Selle etapi kontrollid ja tõendi piirid</summary><ul><li>UUID-kausta üleslaadimise päringupiir; e-posti kutse korduskatse ja tühistamine kasutavad õiget Candid-tüüpi.</li><li>Päris kanistrisse laaditud DOCX, XLSX, PPTX, PNG ning kahe tekstileheküljega PDF. Eelmine/järgmine, suum, inertne sisu ja PDF-i sulgemise/kontovahetuse testid.</li><li>Kaks kontot: keelatud link → ligipääsutaotlus → omaniku Vaataja-otsus → lubatud fail → õiguse eemaldamine → ligipääs keelatud.</li><li>WordCraft ühise adapteriga: automaatsalvestus ja taasavamine; uue salvestamata dokumendi kohalik mustand taastub teises redaktoriaknas koopiana.</li><li>185 portaali/JavaScripti testi, 2 Rusti päringupiiri testi ja 4 lokaliseerimise testi läbivad; portaali Wasm-ehitus ja clippy läbivad.</li><li>390 px failimenüü mahub ekraanile; lõigatud faili tuhmistus ei muuda menüüd poolläbipaistvaks.</li></ul><p>Koormuskatse 100k kasutajaga, täielik ekraanilugejate audit ja kõigi Office’i variantide ühilduvus ei ole nende kontrollidega tõendatud. Redaktorite mootorite teste selles etapis ei korratud: native-redaktoreid ei muudetud.</p></details>
+ <details><summary>Varasemate failitoimingute vastuvõtukontrollid</summary><ul><li>Pesastatud kaustad ja samanimelised failid; katkestus ja ebaselge commit’i tulemus.</li><li>Osaline edu, korduskatse ainult ebaõnnestunud failidele, konto vahetamine ja õiguse tühistamine töö ajal.</li><li>Keelatud alamkausta liigutamine; jagatud kausta liigutamisel muutuv ligipääs.</li><li>Klaviatuuriga kasutamine; puuduv või hõivatud taastamiskoht; uute andmete korral päris skeemiuuenduse test.</li></ul><p>Ühe faili katkestamine ei tohi eemaldada juba edukalt salvestatud naaberfaile. Katkestatud pooleliolev fail ei tohi muutuda nähtavaks.</p></details>
+</section>
+<section id="architecture-panel" hidden>
+ <h2>Puhtad andmepiirid, ilma ette ehitatud keerukuseta</h2>
+ <p class="boundary">Kõik andmed jäävad praegu ühte meie kanistrisse. Identiteet, loogiline omand ja füüsiline asukoht on eri mõisted. Mitme kanistri kasutus ja kasutajale kuuluv kanister on tulevased etapid.</p>
+ <div class="architecture">
+ <article><h3>Identiteet ja õigused</h3><p>Internet Identity rakenduse principal määrab tegutseja. Brauser, MCP ja tulevane AI kasutavad sama õiguste hindajat. Ühel principal’il võib olla mitu Subnetis kinnitatud e-posti. Üks aadress kuulub korraga ühele kontole; aadressi ületoomine ei liiguta vanu failiõigusi.</p></article>
+ <article><h3>Üks kataloog</h3><p>Space, objekt, vanem, sisuversioon ja õigused jäävad kanooniliseks seisuks. Kaustapuu ja infopaneel loevad sama kataloogi. Füüsiline kanistri asukoht lahendatakse teenuse piiril; UI ei seo kasutajat püsivalt ühe kanistri aadressiga.</p></article>
+ <article><h3>Isiklik kasutusinfo</h3><p>Tärnid, avamise kokkuvõte, peitmine ja eelistused kuuluvad vaatajale. Soovitused arvutatakse kataloogist; puudub eraldi soovituste andmebaas ja kõigi tegevuste kogumise logi.</p></article>
+ <article><h3>Ülekanded ja korduskatsed</h3><p>Ühine SDK haldab tükkide saatmist, sisukontrolli ja korduskatseid. Vahelehe järjekord korraldab töid ning kaustade sõltuvusi. Kataloog ja õiguste reeglid jäävad backend’i.</p></article>
+ <article><h3>E-post ja tulevane AI</h3><p>E-post kasutab Resendi kitsast saatmisadapterit. Aadress kinnitatakse Subneti kontol koodiga; II e-posti sidumist ei nõuta. Kutse olek ja õigused jäävad rakendusse. Sisseehitatud AI tuleb Intelligence Gateway kasutuselevõtul sama domeeni-API peale.</p></article>
+ <article><h3>Undo on kontrollitud uus toiming</h3><p>Tagasivõtmine kontrollib uuesti faili versiooni, õigusi, sihtkohta ja ligipääsu muutusi. Vana kataloogi või ACL-i koopiaga ei kirjutata praegust seisu üle. Uuem kõrvaline muudatus tekitab konflikti.</p></article>
+ <article><h3>Tegevused ja teavitused</h3><p>Tüübitud sündmus kirjeldab õnnestunud muudatust; see ei asenda kataloogi. Isiklik avamiskokkuvõte, ligipääsutaotlus ja teavituse lugemisolek on eraldi. Säilitus on piiratud; iga päring kontrollib praeguseid õigusi.</p></article>
+ <article><h3>Sisuotsing: teadlikult eraldi disain</h3><p>Metaandmete otsing jääb tööle. Sisuotsingu lahendust praegu ei valita ega ehitata. Hilisem keyword- või AI-kiht peab arvestama suurte mahtude, ruumi/objekti/versiooni piiride, õiguste tühistamise ning piiratud päringutööga. Kogu failivaramu läbiskannimist ei lisata.</p></article>
+ </div>
+ <div class="detail"><h3>Soovituste läbipaistev loogika</h3><p>Hiljuti avatud faili uuem revisjon → hiljutine edukas avamine → tärn → loomise aeg. Kuni 20 faili ja 6 kausta, privaatne peitmine seitsmeks päevaks. Taustavärskendus säilitab esituse järjekorra; kasutaja värskendus järjestab uuesti.</p><p>Google kirjeldab Home’i signaalidena avamist, jagamist, muutmist ja tulevasi koosolekuid, kuid ei avalda täielikku järjestusvalemit. Meie reeglid on teadlik tootevalik. <a href="https://support.google.com/drive/answer/2424384?hl=en" target="_blank" rel="noopener">Google’i ametlik kirjeldus</a></p></div>
+ <div class="detail"><h3>Teostuse tõendid ja piirid</h3><p>Igapäevaste failivoogude etapp: 185 portaali/JavaScripti testi, 2 Rusti päringupiiri testi ja 4 lokaliseerimise testi läbivad. Portaali Wasm-ehitus ja clippy läbivad. Kahe konto ligipääsutaotlus/otsus/tühistamine, eelvaated ning WordCrafti ühise adapteri automaatsalvestus ja mustanditaaste on kontrollitud päris kohaliku kanistriga.</p><p>390 px brauserivaates on kontrollitud failimenüü ekraanile mahtumist ja lõigatud faili menüü loetavust. See on kitsas brauserikontroll, mitte telefoni puutežestide, kõigi redaktorite ega ekraanilugejate täielik audit.</p><p>Varasema UUID-etapi kontrollid: 68 teenuse ühiktesti, 19 SDK testi, 12 ühise UI testi ja 15 PocketIC integratsioonivoogu. Selle etapi backend’i ega redaktorite native-koodi ei muudetud; nende teste uuesti ei käivitatud. Varasemate etappide täpsed käsud ja tulemused on projekti arendusajaloos.</p><p class="small">100k kasutaja koormustest on tegemata. Suurte kontode salvestusruumi koondarvestus vajab edasist tööd. SEV-toega sihtmajutus on hilisem etapp; kohalik test ei tõenda sihtsubneti konfidentsiaalsust. Mainneti avaldamine ei kuulu sellesse etappi.</p></div>
+</section>
+<footer><p>Allikad: projekti lähtekood ja kohalikud kasutusvood; Google’i ametlikud juhendid kontrollitud 18.10.2026. See on suuremate tootevõimaluste ülevaade, mitte kõigi Workspace’i pakettide ammendav audit.</p><div class="sources" id="sources"></div><p style="margin-top:18px"><a href="http://frontend.local.localhost:61304/pilveruum/" target="_blank" rel="noopener">Ava kohalik pilveruum</a><button id="print" type="button">Prindi / salvesta PDF</button></p></footer>
+</main>
+<script type="application/json" id="review-data">{
+  "features": [
+    {
+      "name": "Kodu ja soovitused",
+      "status": "Olemas",
+      "phase": "Valmis",
+      "current": "Soovitatud failid ja kaustad, põhjendus, seitsmepäevane isiklik peitmine. Avamine loetakse pärast õnnestumist.",
+      "next": "Lihtne deterministlik järjestus; sagedusloendurit, ML-i ega kalendrit ei lisatud.",
+      "source": "home"
+    },
+    {
+      "name": "Navigeerimine ja vaated",
+      "status": "Olemas",
+      "phase": "Valmis",
+      "current": "Minu failid, minuga jagatud, hiljutised, tärniga, prügikast, asukoharada, loend/ruudustik ja isiklikud eelistused.",
+      "next": "Vaated ja avanev kaustapuu kasutavad sama kataloogi; puu ei lae kogu kontot korraga.",
+      "source": "organize"
+    },
+    {
+      "name": "Valimine ja hulgitegevused",
+      "status": "Olemas",
+      "phase": "Valmis",
+      "current": "Shift-vahemik, Cmd/Ctrl-valik, klaviatuur, kontekstimenüü ja paigal püsiv tööriistariba. Liigutamine, jagamine, tärnid, prügikast/taastamine.",
+      "next": "Kopeeri/lõika/kleebi ja viimase nime muutmise, liigutamise või prügikasti viimise Undo on olemas.",
+      "source": "organize"
+    },
+    {
+      "name": "Metaandmete otsing ja sortimine",
+      "status": "Olemas",
+      "phase": "Valmis",
+      "current": "Failinimi, tüüp, omanik, asukoht ja kuupäev; kausta/konto piires sortimine. Päringul piiratud töömaht ja jätkukursor, ka tühja vahelehe korral.",
+      "next": "See on metaandmete otsing. Suurte mahtude päringuplaanid ja koormustestid vajavad eraldi tööd; sisuotsing on praegusest skoobist väljas.",
+      "source": "search"
+    },
+    {
+      "name": "Viewer / Editor ja faililingid",
+      "status": "Olemas",
+      "phase": "Valmis",
+      "current": "Vaataja ja Muutja; otsesed ning kaustast päritud õigused. Failil ja kaustal on üks UUID, puhas püsilink ning avamisel värske õigusekontroll.",
+      "next": "Link ei anna iseenesest ligipääsu. Omandi üleandmine, avalikud lingid ja Commenter-roll ei ole selles põhivoos.",
+      "source": "share"
+    },
+    {
+      "name": "Ühe faili koopia",
+      "status": "Olemas",
+      "phase": "Valmis",
+      "current": "Nimi ja sihtkaust on selged. Kontrollitud allalaadimine ja etapiviisiline üleslaadimine, uus identiteet ning sihtkoha õigused.",
+      "next": "Mitme faili koopia kasutab sama töövoogu; rekursiivne kaustakoopia on hilisem."
+    },
+    {
+      "name": "Versioonid ja prügikast",
+      "status": "Olemas",
+      "phase": "Valmis",
+      "current": "Versiooni allalaadimine, vana sisu taastamine uue versioonina, prügikasti taastamine ja omaniku lõplik kustutamine.",
+      "next": "Taastamisel saab valida uue asukoha ja nime. Versioonide säilitamise valikud on kirjeldatud eraldi rühmas; prügikasti automaatne tühjendamine jääb teadlikult välja.",
+      "source": "history"
+    },
+    {
+      "name": "Kaheksa Crafti pilvevood",
+      "status": "Olemas",
+      "phase": "Valmis",
+      "current": "Kaheksa Crafti kasutavad sama Rusti SDK-d ja UI-adapterit: pilve avamine, Save/Save As, kaustavalik, konfliktid ja kontoeraldus.",
+      "next": "Muudatused tehakse ühises adapteris. Staatiliselt seotud redaktoreid pakendatakse vajadusel uuesti; sama pilvereeglit ei rakendata kaheksa korda.",
+      "evidence": "Adapteri lepingutestid; eelmise etapi kaheksa Wasm-ehitust. Selle etapi brauserikontroll kasutab WordCrafti."
+    },
+    {
+      "name": "Kaustade üleslaadimine",
+      "status": "Olemas",
+      "phase": "Valmis",
+      "current": "Kaustavalik ja kaustade lohistamine säilitavad alamkaustad ning suhtelised teed. Igal failil on eraldi tulemus.",
+      "next": "Brauseri kaustavalik ei edasta tühje kaustu; kausta lohistamisel need säilivad. Üks ülekanne on piiratud.",
+      "source": "upload"
+    },
+    {
+      "name": "Ülekannete järjekord",
+      "status": "Olemas",
+      "phase": "Valmis",
+      "current": "Faili edenemine, tühistamine, osaline edu ja korduskatse sama päringu ID-ga. Kausta tõrge või tühistamine ei käivita selle sisu salaja uuesti.",
+      "next": "Järjekord elab vahelehes. Pärast sulgemist tuleb kohalikud failid uuesti valida; püsiv taustasünkroonimine jääb hilisemaks.",
+      "source": "upload"
+    },
+    {
+      "name": "Samanimeliste failide valikud",
+      "status": "Olemas",
+      "phase": "Valmis",
+      "current": "Asenda / Säilita mõlemad / Jäta vahele. Kaustade ühendamine on eraldi valik. Asendamine kontrollib olemasolevat versiooni.",
+      "next": "Edukaid naaberfaile ei laadita ebaõnnestunud faili korduskatsega uuesti.",
+      "source": "upload"
+    },
+    {
+      "name": "Kausta allalaadimine ja hulgikoopia",
+      "status": "Olemas",
+      "phase": "Valmis",
+      "current": "Kausta ZIP säilitab hierarhia, Unicode-nimed ja tühjad kaustad. Mitme faili kopeerimine kasutab ülekannete järjekorda.",
+      "next": "ZIP on piiratud suurusega brauseris koostatud arhiiv; allalaadimine ei kasuta veel sama tööjärjekorda. Rekursiivne kaustakoopia on hilisem."
+    },
+    {
+      "name": "Lõika / kopeeri / kleebi ja lohistamine",
+      "status": "Olemas",
+      "phase": "Valmis",
+      "current": "Menüü, Cmd/Ctrl+C/X/V ning faili lohistamine sihtkausta. Kopeerimine ja liigutamine kasutavad samu kontrollitud töövooge.",
+      "next": "Lõikelaua valik kehtib aktiivses kontos ja vahelehes. Liigutamine eri pilveruumide vahel jääb eraldi etapiks.",
+      "source": "organize"
+    },
+    {
+      "name": "Liigutamise mõju õigustele",
+      "status": "Olemas",
+      "phase": "Valmis",
+      "current": "Enne liigutamist kuvatakse ligipääsu muutused. Muutunud õigused või nende kestus nõuavad omanikku; backend kontrollib eelvaate versiooni uuesti.",
+      "next": "Sama reegel kehtib ka otse API kaudu. Eelvaade näitab kuni 100 saaja kokkuvõtet; koguarv arvestab kõiki.",
+      "source": "teams"
+    },
+    {
+      "name": "Loo dokument sellesse kausta",
+      "status": "Olemas",
+      "phase": "Valmis",
+      "current": "Uus-menüü annab praeguse kausta Crafti esimesele salvestusele kaasa. Ühine dialoog näitab ka sihtkausta omanikku.",
+      "next": "Kõigi kaheksa uuendatud Crafti salvestamine ja taasavamine on kohalikus brauseris kontrollitud."
+    },
+    {
+      "name": "Toimingu tagasivõtmine (Undo)",
+      "status": "Olemas",
+      "phase": "Valmis",
+      "current": "Nime muutmise, liigutamise ja prügikasti viimise Undo nupu või Cmd/Ctrl+Z kaudu. Värske versiooni- ja õigusekontroll, osalise edu ning ebaselge vastuse korduskatsed.",
+      "next": "Üks viimane toiming või hulgitoiming aktiivses kontos ja vahelehes. Redo ja püsiv toiminguajalugu puuduvad; muutuv ligipääs vajab kinnitamist.",
+      "source": "keyboard"
+    },
+    {
+      "name": "Otseteed ja kaustade värvid",
+      "status": "Olemas",
+      "phase": "Valmis",
+      "current": "Salvestatud otsetee viitab UUID-ga sihtobjektile. Sihtkoha õigusi kontrollitakse avamisel uuesti. Kausta värv on vaataja isiklik eelistus.",
+      "next": "Otsetee ei anna ligipääsu. Selle eemaldamine ei eemalda sihtfaili; ZIP-is otsetee sihtandmeid automaatselt kaasa ei võeta.",
+      "source": "shortcut",
+      "evidence": "Portaali taaskatse- ja keelatud sihtkoha testid; backend’i otsetee, värvi ning kontoeraldatuse testid."
+    },
+    {
+      "name": "Küsi ligipääsu",
+      "status": "Olemas",
+      "phase": "Valmis",
+      "current": "Ligipääsuta lingil saab saata taotluse. Omaniku teavituskeskuses on eraldi rolli, aegumise ja kinnitamise valik.",
+      "next": "Keelatud objekti nimi ja omanik ei leki taotluse esitajale. Taotlus ise ei muuda õigusi.",
+      "source": "request",
+      "evidence": "Kahe kohaliku konto brauserivoog: keelatud link → taotlus → omaniku otsus → saaja lubatud fail. Õiguse eemaldamisel kaob saaja ligipääs."
+    },
+    {
+      "name": "Inimesed ja jagamise mugavused",
+      "status": "Olemas",
+      "phase": "Valmis",
+      "current": "Mitu saajat korraga, isiklikud kontaktisildid, Vaataja/Muutja ja õiguse lõppaeg. Otsese õiguse muutmine/eemaldamine, kordusteade ning e-posti kutsed.",
+      "next": "Ebaõnnestunud saaja korduskatse ei korda õnnestunuid. Päritud õigusi muudetakse nende allikas; isiklikke kontaktisilte ei avaldata saajatele.",
+      "source": "share",
+      "evidence": "Portaali mitme saaja, osalise edu, aegumise ja külmutatud korduskatse testid; backend’i õigusekontrollid."
+    },
+    {
+      "name": "Faili infopaneel ja ligipääsu päritolu",
+      "status": "Olemas",
+      "phase": "Valmis",
+      "current": "Külgpaneel näitab tüüpi, suurust, loomise/muutmise aega, versioonide arvu, lubatud asukoharada ning minu rolli ja selle päritolu.",
+      "next": "Andmed loetakse sama kataloogi ja õiguste hindaja kaudu. Teiste saajate andmeid ega keelatud ülemkaustade nimesid ei avaldata; prügikasti objektidel paneeli ei avata.",
+      "source": "history"
+    },
+    {
+      "name": "Eelvaated, pisipildid ja Open with",
+      "status": "Olemas",
+      "phase": "Valmis",
+      "current": "Pilt, heli, video, inertne tekst ning PDF-i leheküljed ja suum. DOCX/XLSX/PPTX lihtsustatud sisu. Eelmine/järgmine fail, pildisuum, laisalt laetavad pildipisipildid ja sobiva Crafti avamine.",
+      "next": "Office: tekst ja salvestatud lahtriväärtused, mitte algne küljendus, pildid ega valemiarvutus. Piiratud eelvaatemaht; import/export sõltub redaktorist. Kõigi vormingute pisipilte pole.",
+      "evidence": "Päris kanistrisse üleslaaditud PDF/DOCX/XLSX/PPTX/PNG. ZIP/XML piirangute, renderduse, konto vahetuse ja klaviatuurifookuse testid."
+    },
+    {
+      "name": "Automaatne salvestus ja mustandite taastamine",
+      "status": "Olemas",
+      "phase": "Valmis",
+      "current": "Ühine adapter salvestab avatud muudetava pilvefaili automaatselt pärast kirjutamispausi. Olek näitab salvestust, tõrget või konflikti. Kohalikud mustandid on konto ja rakenduse piires ning taastatakse koopiana.",
+      "next": "Uus dokument vajab esimest Save As toimingut. Ebaselget salvestust korratakse sama päringuga; konflikti ei kirjutata pimesi üle. Brauseri mustand pole pilvevarukoopia ega seadmeteülene offline-sünkroonimine.",
+      "evidence": "Ühise adapteri brauserivoog: automaatsalvestus → taasavamine; salvestamata mustand → uus redaktoriaken → taastamine koopiana. Ajastuse ja muutumatu salvestuskatse testid."
+    },
+    {
+      "name": "Sisuotsing ja OCR",
+      "status": "Edasi lükatud",
+      "phase": "Skoobist väljas",
+      "current": "Sisuotsingut, OCR-i, kogu kataloogi skaneerimist, masinõpet ega AI-otsingut selles etapis ei lisata. Olemas on metaandmete otsing.",
+      "next": "Enne teostust eraldi disain: 100k kasutajat, suured mahud, konto/piirkonna piirid, inkrementaalne uuendamine, õiguste muutumine, latentsus ja kulud. Keyword- ja AI-kihte saab hinnata koos. Objekt, ruum, versioon ja õigused on selle alus.",
+      "source": "search"
+    },
+    {
+      "name": "Kommentaarid ja reaalaja koostöö",
+      "status": "Puudu",
+      "phase": "Eraldi etapp",
+      "current": "Ühine pilvekiht ei paku kommentaare, mainimisi, ülesandeid, kohalolu ega samaaegset redigeerimist. Propose on reserveeritud.",
+      "next": "Eraldi dokumendi/koostöö domeen; Commenter-roll alles koos töötava kommenteerimisega.",
+      "source": "collaborate"
+    },
+    {
+      "name": "Offline ja arvuti sünkroonimine",
+      "status": "Puudu",
+      "phase": "Eraldi etapp",
+      "current": "Konto- ja rakenduspõhine kohalik mustanditaaste on olemas. Pilvefailide automaatset offline-kättesaadavust ega seadmeteülest sünkroonimist pole.",
+      "next": "Eraldi sünkroonimisprotokoll ja konfliktipoliitika; seejärel Finder/Explorer, varundamine ning mobiilne skannimine. Kohalikku mustandit ei loeta selle funktsiooni täielikuks teostuseks.",
+      "source": "sync"
+    },
+    {
+      "name": "Tiimi kettad ja administreerimine",
+      "status": "Puudu",
+      "phase": "Eraldi etapp",
+      "current": "Jagatud kaustal on üks omanik. Organisatsiooni, liikmesust ja grupiõigusi ei ole.",
+      "next": "Tiimi omand, grupid, admin-poliitikad, klassifikaatorid, kooskõlastused ja säilitamine eraldi nõuetena.",
+      "source": "teams"
+    },
+    {
+      "name": "Avalikud lingid ja täiendavad jagamispoliitikad",
+      "status": "Hilisem otsus",
+      "phase": "Eraldi etapp",
+      "current": "Praegu ainult autentitud piiratud ligipääs ja omanikupoolne jagamine; Read lubab ka koopia.",
+      "next": "Avalikud/organisatsioonilingid, omandi üleandmine, piiratud alamkaustad ja edasi-jagamine vajavad eraldi tooteotsust.",
+      "source": "share"
+    },
+    {
+      "name": "Soovimatu jagamine ja teavitused",
+      "status": "Olemas",
+      "phase": "Valmis",
+      "current": "Rakendusesisesed teavitused ja lugemisolek; jagamisteavituste eelistus. Jagatud faili peitmine enda vaatest, saatja blokeerimine ja eraldi raporteerimine.",
+      "next": "Blokeerimine takistab uusi jagamisi/taotlusi; see ei tühista varasemaid õigusi. Raport läheb operaatori käsitlusse, automaatset modereerimist pole. Säilib kuni 100 teadet.",
+      "source": "spam",
+      "evidence": "Portaali eraldi peitmise/blokeerimise/raporti vood ja hiliste vastuste tõrje; backend’i kahepoolne blokeerimine."
+    },
+    {
+      "name": "Ligipääsetavus ja mobiilne kasutus",
+      "status": "Osaliselt",
+      "phase": "Täiendused",
+      "current": "Klaviatuurivalik, vahemik, fookus, Enter/F2/Delete/Escape, lõikamine/kopeerimine/kleepimine ja Undo. Otseteede abi, ET/EN, kohanduv paigutus ja eelvaate juhtnuppude fookuse kaitse.",
+      "next": "Laiem VoiceOver/NVDA, puuteseadmete ja kõigi redaktorite ligipääsetavuse audit on veel vajalik. Telefoni failihaldus ei tähenda redaktorite täielikku mobiilipariteeti.",
+      "evidence": "Klaviatuurivoogude regressioonitestid; selle etapi telefoni laiusega brauserikontroll."
+    },
+    {
+      "name": "E-post",
+      "status": "Olemas",
+      "phase": "Valmis",
+      "current": "Mitu kontol kinnitatud e-posti, aadressi selge ületoomine, principal’i failiõigused ja Resendi saatmine. Saatja saladus on taustakanistri seadistuses, ainult kontrolleri hallata.",
+      "next": "Saatmispiir eristab ooteaega ja päevapiiri. Bounce-teated ning projektideülene e-posti teenus on hilisemad. E-posti kutse ID on toimingunumber, faili ID on UUID.",
+      "source": "mail",
+      "evidence": "Varasem tegelik Resendi saatmine; e-posti PocketIC-vood; selles etapis kutse korduskatse/tühistamise Candid-piiri testid."
+    },
+    {
+      "name": "AI, migratsioon ja tulevane paigutus",
+      "status": "Hilisem otsus",
+      "phase": "Eraldi etapp",
+      "current": "Üks andmekanister. Typed Candid/MCP juba olemas; sisseehitatud AI vestlust ja kasutaja enda kanistrit mitte.",
+      "next": "Intelligence Gateway, viidatud vastused ja migreerimise abiline hiljem. Sharding ja kasutaja kanister eraldi etapid."
+    },
+    {
+      "name": "Külgriba kaustapuu",
+      "status": "Olemas",
+      "phase": "Valmis",
+      "current": "Minu failide avanev kaustapuu, alamkaustade laadimine avamisel, leheküljed ja klaviatuuriga liikumine. Konto vahetamine puhastab puu oleku.",
+      "next": "Laaditakse ainult avatud harud; laienemise olek on brauseriseansis. Minuga jagatud kaustades liikumine kasutab jätkuvalt olemasolevat failivaadet.",
+      "source": "organize"
+    },
+    {
+      "name": "Taastamine teise nime või kausta alla",
+      "status": "Olemas",
+      "phase": "Valmis",
+      "current": "Prügikasti „Taasta mujale…” laseb valida samas pilveruumis uue nime ja sihtkausta. Eelvaade näitab asukohta, omanikku ning ligipääsu muutusi.",
+      "next": "Sama liigutamise reeglistik kontrollib sihtkohta, nimekonflikti, õigusi ja värsket versiooni. Nõuab muutmise ja kustutamise õigust; muutuv ligipääs nõuab omanikku.",
+      "source": "history"
+    },
+    {
+      "name": "Tegevuste ajalugu",
+      "status": "Olemas",
+      "phase": "Valmis",
+      "current": "Loomise, sisu muutmise, nime/kausta, prügikasti ja jagamise õnnestunud muudatuste ajalugu. Konto vaade ning faili infopaneelist avanev ajalugu; leheküljed ja värske õigusefilter.",
+      "next": "Kuni 100 viimast sündmust objekti kohta. Konto voog puudutab oma ruumi; jagatud faili ajalugu avatakse objekti kaudu. See ei ole tähtajatu auditilogi ega iga lugemise jälgimine.",
+      "source": "history",
+      "evidence": "Portaali lehekülje/kontovahetuse testid; backend’i idempotentsus, nähtavus, säilitamine ja andmetega uuendustest."
+    },
+    {
+      "name": "Versioonide säilitamise valikud",
+      "status": "Olemas",
+      "phase": "Valmis",
+      "current": "Versioonile saab anda nime või märkida püsivaks. Käsitsi salvestatud versioone automaatselt ei kustutata; automaatsest salvestusest säilivad viimased 20 kaitsmata kontrollpunkti.",
+      "next": "Omanik saab vana kaitsmata versiooni eraldi kinnitusega kustutada. Praegust versiooni ei kustutata. Nimega ja püsiv versioon säilib; vana sisu taastamine loob uue versiooni.",
+      "source": "history",
+      "evidence": "Portaali kinnituse ja täpse korduskatse testid; backend’i säilituspoliitika, mahuarvestus ning uuendustest."
+    },
+    {
+      "name": "Salvestusruumi ülevaade",
+      "status": "Olemas",
+      "phase": "Valmis",
+      "current": "Omaniku vaade eristab praegust sisu, vanu versioone, prügikasti ja pooleliolevaid üleslaadimisi. Failid on mahu järgi; sealt pääseb versioonide haldusse.",
+      "next": "Praegune ülevaade koondab ühe konto failid. Väga suurte kontode jaoks vajab see lehekülgi ja inkrementaalset mahuindeksit enne laia kasutust. See ei tõenda veel 100k kasutaja tootmisvalmidust.",
+      "evidence": "Portaali mahukategooriate test; backend’i versiooni/puhastuse mahuarvestus. Suurkoormuse test on veel tegemata."
+    }
+  ],
+  "sources": {
+    "home": "https://support.google.com/drive/answer/2424384?hl=en",
+    "upload": "https://support.google.com/a/users/answer/9310458?hl=en",
+    "organize": "https://support.google.com/drive/answer/2375091?co=GENIE.Platform%3DDesktop&hl=en",
+    "shortcut": "https://support.google.com/drive/answer/9700156?hl=en",
+    "share": "https://support.google.com/drive/answer/7166529?hl=en",
+    "history": "https://support.google.com/drive/answer/2409045?hl=en",
+    "search": "https://support.google.com/drive/answer/2375114?co=GENIE.Platform%3DDesktop&hl=en",
+    "sync": "https://support.google.com/drive/answer/13401938?hl=en",
+    "teams": "https://support.google.com/a/users/answer/12380484?hl=en",
+    "collaborate": "https://support.google.com/a/users/answer/9305685?hl=en",
+    "labels": "https://support.google.com/a/users/answer/13005112?hl=en&rd=1",
+    "identity": "https://skills.internetcomputer.org/.well-known/skills/internet-identity/SKILL.md",
+    "mail": "https://resend.com/docs/dashboard/emails/idempotency-keys",
+    "keyboard": "https://support.google.com/drive/answer/2563044?co=GENIE.Platform%3DDesktop&hl=en",
+    "request": "https://support.google.com/drive/answer/16722399?hl=en",
+    "spam": "https://support.google.com/drive/answer/13305033?hl=en"
+  }
+}</script>
+<script>
+'use strict';
+const {features,sources}=JSON.parse(document.getElementById('review-data').textContent);
+let phase='Kõik';
+const phases=['Kõik','Valmis','Täiendused','Eraldi etapp','Skoobist väljas'];
+const list=document.getElementById('feature-list');
+const search=document.getElementById('search');
+const labelMap={keyboard:'Klaviatuur ja Undo',request:'Ligipääsu taotlemine',spam:'Soovimatu jagamine',identity:'Internet Identity',mail:'Resendi korduskatsed',home:'Home',upload:'Üleslaadimine',organize:'Korraldamine',shortcut:'Otseteed',share:'Jagamine',history:'Tegevused ja versioonid',search:'Otsing',sync:'Arvuti sünkroonimine',teams:'Tiimi kettad',collaborate:'Koostöö',labels:'Klassifikaatorid'};
+function el(tag,className,text){const node=document.createElement(tag);if(className)node.className=className;if(text)node.textContent=text;return node;}
+function link(url,text){const a=el('a','source',text);a.href=url;a.target='_blank';a.rel='noopener';return a;}
+for(const state of [...new Set(features.map(f=>f.status))])document.getElementById('status-counts').append(el('span','fact',features.filter(f=>f.status===state).length+' · '+state.toLocaleLowerCase('et')));
+for(const value of phases){const b=el('button','',value);b.type='button';b.dataset.phase=value;b.append(el('span','',String(features.filter(f=>value==='Kõik'||f.phase===value).length)));b.addEventListener('click',()=>{phase=value;render();});document.querySelector('.filters').append(b);}
+function render(){
+ document.querySelectorAll('[data-phase]').forEach(b=>b.setAttribute('aria-pressed',String(b.dataset.phase===phase)));
+ const term=search.value.trim().toLocaleLowerCase('et');
+ const rows=features.filter(f=>(phase==='Kõik'||phase===f.phase)&&[f.name,f.current,f.next,f.status].join(' ').toLocaleLowerCase('et').includes(term));
+ list.replaceChildren();
+ for(const f of rows){const row=el('article','feature');const name=el('div');name.append(el('strong','',f.name),el('span','status'+(f.status==='Olemas'?' done':''),f.status));if(f.source)name.append(link(sources[f.source],f.source==='identity'?'II juhend':f.source==='mail'?'Resendi juhend':'Google’i juhend'));row.append(name);for(const [label,value] of [['Praegu',f.current],['Järgnev',f.next]]){const cell=el('div');cell.append(el('span','mobile-label',label),el('p','',value));if(label==='Praegu'&&f.evidence)cell.append(el('small','evidence','Kontroll: '+f.evidence));row.append(cell);}list.append(row);}
+ document.getElementById('result-count').textContent=rows.length+(rows.length===1?' funktsioonirühm · ':' funktsioonirühma · ')+phase.toLocaleLowerCase('et');
+ list.hidden=rows.length===0;document.querySelector('.feature-head').hidden=rows.length===0;document.getElementById('empty').hidden=rows.length!==0;
+}
+search.addEventListener('input',render);
+document.querySelectorAll('[data-tab]').forEach(b=>b.addEventListener('click',()=>{document.querySelectorAll('[data-tab]').forEach(other=>other.setAttribute('aria-pressed',String(other===b)));document.getElementById('features-panel').hidden=b.dataset.tab!=='features';document.getElementById('architecture-panel').hidden=b.dataset.tab!=='architecture';}));
+for(const [key,url] of Object.entries(sources))document.getElementById('sources').append(link(url,labelMap[key]));
+document.getElementById('print').addEventListener('click',()=>window.print());
+render();
+</script>
+</body>
+</html>

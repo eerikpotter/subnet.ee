@@ -12,6 +12,15 @@ DEST = ROOT / 'apps/photocraft/icp/backend'
 def sync(check=False):
     files = {str(p.relative_to(SOURCE)): p.read_bytes() for p in sorted((SOURCE / 'src').rglob('*.rs'))}
     files['cloud.did'] = (SOURCE / 'cloud.did').read_bytes()
+    files['api.md'] = (SOURCE / 'api.md').read_bytes()
+    # Keep dependencies part of the same snapshot; only deployment packaging
+    # differs in PhotoCraft's independent ICP workspace.
+    cargo = (SOURCE / 'Cargo.toml').read_text()
+    cargo = cargo.replace('name = "sovereign-cloud-service"', 'name = "photocraft-cloud"')
+    cargo = cargo.replace('[workspace]\n\n', '')
+    cargo = cargo.replace('../../packages/sovereign-cloud', '../../vendor/sovereign-cloud')
+    cargo = cargo.split('[profile.release]')[0].rstrip() + '\n'
+    files['Cargo.toml'] = cargo.encode()
     manifest = {name: hashlib.sha256(data).hexdigest() for name, data in files.items()}
     for name, data in files.items():
         path = DEST / name

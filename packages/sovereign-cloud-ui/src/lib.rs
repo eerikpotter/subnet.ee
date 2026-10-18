@@ -2,9 +2,11 @@
 #![forbid(unsafe_code)]
 #![deny(clippy::unwrap_used, clippy::expect_used, clippy::panic, clippy::unimplemented, clippy::todo, clippy::unreachable)]
 
+pub mod autosave;
 #[cfg(target_arch = "wasm32")]
 mod controller;
 pub mod flow;
+mod locale;
 pub mod presentation;
 #[cfg(target_arch = "wasm32")]
 pub use controller::Cloud;
@@ -78,6 +80,7 @@ pub trait Editor {
 pub enum Request {
     Save,
     SaveAs,
+    Autosave,
     Open,
 }
 
@@ -105,7 +108,7 @@ impl MenuHandle {
         presentation::header(ui);
         for (label, request) in [("Save", Request::Save), ("Save As…", Request::SaveAs), ("Open…", Request::Open)] {
             let enabled = request == Request::Open || (has_document && self.enabled.get());
-            if ui.add_enabled(enabled, egui::Button::new(label)).clicked() {
+            if ui.add_enabled(enabled, egui::Button::new(locale::tr(label))).clicked() {
                 self.request(request);
                 ui.close();
             }

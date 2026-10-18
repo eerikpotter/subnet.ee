@@ -12,3 +12,6 @@
 .env.*
 !.env.example
 !.env.*.example
+
+# Local Resend credential supplied by the project owner.
+/resend.rtf

@@ -2,7 +2,7 @@
 (() => {
   const key = 'subnet.language';
   const supported = value => value === 'et' || value === 'en';
-  const publicPath = path => /^\/(?:en\/)?(?:(?:tooruum|pilveruum)\/)?$/.test(path);
+  const publicPath = path => /^\/(?:en\/)?(?:(?:tooruum|pilveruum)\/)?$/.test(path) || /^\/(?:en\/)?pilveruum\/(?:file|folder)\/[0-9a-f-]{36}\/?$/i.test(path);
   const english = window.SubnetEnglish;
   const dynamic = new WeakMap();
   let language;

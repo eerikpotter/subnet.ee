@@ -1,12 +1,12 @@
 //! A same-origin portal picker. Messages select IDs only; the SDK reauthorizes them.
 use crate::AppSpec;
-use sovereign_cloud::CloudResult;
+use sovereign_cloud::{CloudResult, ObjectId};
 use std::{cell::Cell, rc::Rc};
 use wasm_bindgen::{JsCast, JsValue, closure::Closure};
 
 pub(super) enum Selection {
-    Open { principal: String, space: u64, file: u64, revision: Option<u64> },
-    Save { principal: String, parent: u64, name: String },
+    Open { principal: String, space: ObjectId, file: ObjectId, revision: Option<u64> },
+    Save { principal: String, parent: ObjectId, name: String },
     Cancel,
 }
 
@@ -24,16 +24,19 @@ fn error(value: impl Into<JsValue>) -> String {
 fn string(value: &JsValue, key: &str) -> Option<String> {
     js_sys::Reflect::get(value, &key.into()).ok()?.as_string()
 }
-fn id(value: &JsValue, key: &str) -> Option<u64> {
+fn id<T: std::str::FromStr>(value: &JsValue, key: &str) -> Option<T> {
     let text = string(value, key)?;
-    if !text.bytes().all(|b| b.is_ascii_digit()) {
-        return None;
-    }
-    text.parse().ok().filter(|id| *id > 0)
+    text.parse().ok()
 }
 
 impl Picker {
-    pub fn open(spec: AppSpec, save_name: Option<&str>, dark: bool, selected: impl Fn(Selection) + 'static) -> CloudResult<Self> {
+    pub fn open(
+        spec: AppSpec,
+        save_name: Option<&str>,
+        initial_destination: Option<(ObjectId, ObjectId)>,
+        dark: bool,
+        selected: impl Fn(Selection) + 'static,
+    ) -> CloudResult<Self> {
         let window = web_sys::window().ok_or("Browser unavailable")?;
         let document = window.document().ok_or("Document unavailable")?;
         let previous_focus = document.active_element().and_then(|e| e.dyn_into().ok());
@@ -47,6 +50,10 @@ impl Picker {
         params.append("theme", if dark { "dark" } else { "light" });
         if let Some(name) = save_name {
             params.append("name", name);
+            if let Some((space, parent)) = initial_destination {
+                params.append("space", &space.to_string());
+                params.append("parent", &parent.to_string());
+            }
         }
         let current = web_sys::UrlSearchParams::new_with_str(&window.location().search().map_err(error)?).map_err(error)?;
         let language = current.get("lang").unwrap_or_else(|| "en".into());

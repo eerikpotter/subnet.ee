@@ -8,6 +8,7 @@ publish = false
 [workspace]
 
 [dependencies]
+candid = "0.10"
 sovereign-cloud = { path = "../sovereign-cloud", features = ["browser"] }
 wasm-bindgen = "0.2"
 wasm-bindgen-futures = "0.4"

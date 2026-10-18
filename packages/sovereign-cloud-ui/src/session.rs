@@ -7,10 +7,13 @@ impl Cloud {
         }
         self.session_loading = true;
         self.session_owner = None;
+        self.initial_destination = None;
         *self.auth.borrow_mut() = None;
         self.busy = false;
         self.signing_in = false;
         self.pending_save = None;
+        self.background_save = false;
+        self.autosave.reset();
         self.pending_open = None;
         self.attempt = None;
         self.picker = None;

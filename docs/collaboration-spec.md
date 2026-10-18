@@ -58,7 +58,7 @@ Team or Organization setup. A shared folder remains the same folder, not a copy 
 a second storage location. Space is an internal ownership/quota boundary with one
 owner; collaborators' new files belong to the destination space.
 
-Use three clear views: **My files**, **Shared with me**, and **Trash**. Shared with
+Use **Home**, **My files**, **Shared with me**, **Recent**, **Starred**, and **Trash**. Shared with
 me shows directly shared roots and lets users navigate inherited descendants without
 exposing private ancestor names or siblings. The views themselves are not folders.
 
@@ -99,7 +99,8 @@ Four usable capabilities apply to users and to their AI's actions in this MVP:
   ownership action, never implied by this capability.
 
 Read is required for every other capability. Create applies only to folders.
-The portal exposes Create, Edit and Delete as separate options in addition to Read.
+The portal exposes Viewer/Editor presets over these capabilities and Advanced
+Create, Edit and Delete options in addition to Read.
 The existing Propose field is reserved for later use and must not be presented as
 a working capability. Do not remove stable fields or change Candid compatibility
 merely because the proposal workflow is deferred.
@@ -116,11 +117,11 @@ scope can remove access; moving it into a shared folder can add access. An expli
 move-access preview remains a UX follow-up; never expose identities/locations the
 caller cannot inspect.
 
-Known sharing UI limitation: adding another grant does not replace an earlier one.
-To narrow direct access in the current portal, remove the older grant and add the
-narrower grant; inherited rights still apply. The backend already supports versioned
-grant edits. A clearer per-recipient editor and effective-rights display are follow-up
-work. Do not describe a newly added narrower grant as revoking existing access.
+Direct grants can now be changed to Viewer/Editor or revoked in the portal using
+their versions; inherited rows are read-only. Adding another grant does not replace
+an earlier one. Other direct and inherited grants still apply, so a narrower role
+on one grant is not a revocation of all effective rights. Grouped per-recipient
+effective-rights display, custom-grant editing and an expiry picker remain follow-up.
 
 Each grant has a stable ID, subject, root, explicit capabilities, status, optional
 expiry and version. Recheck current rights on every operation, including commit,
@@ -169,8 +170,11 @@ the displayed spelling. Do not let client platform path conventions determine ID
 Rename requires Read + Edit. Move requires Read + Edit + Delete throughout the
 source subtree and Read + Create on the destination. Moves are atomic, within one
 owning space, and reject roots, self/descendant destinations and depth violations.
-A same-parent move is a no-op. General file/folder copy is deferred; Craft Save As
-already creates a new native document with the destination's ownership/inheritance.
+A same-parent move is a no-op. The portal supports a single-file copy with an
+explicit name and destination through verified download and staged upload. The copy
+gets a new identity and destination ownership/inheritance, without copying source
+grants. Folder/multi-file copy is deferred. Craft Save As also creates a new native
+document with the destination's ownership/inheritance.
 
 Folder Trash/restore checks Read + Delete throughout the subtree. Keep the original
 parent and identity, and distinguish descendants independently trashed before their
@@ -217,11 +221,15 @@ for technical recovery. Future automatic cleanup must remove abandoned staging
 in the background without interrupting active/retriable uploads or deleting a
 committed file. That cleanup is deferred for this demo. Trash currently has
 no automatic 30-day purge: do not display or promise that deadline. The portal
-offers restore, but no permanent-delete/empty-Trash control yet. Manual Trash purge
-is a small possible follow-up, not a requirement to expand this demo. Existing
-legacy owner-only permanent-deletion APIs are irreversible and also available to
-the owner's AI; the alpha does not claim a human-only safeguard. A future purge
-must be explicitly destructive, owner-authorized and reference-aware.
+offers restore, owner-only **Delete permanently**, and **Empty trash**, each purge
+requiring an explicit irreversible-action confirmation. Empty trash collects every
+page and sends the confirmed owned IDs/versions in one atomic request; shared items
+owned by others remain. A restored or changed item rejects the entire request.
+Folder purge includes descendants, retained revisions and targeted unfinished
+uploads, removes sharing, and releases storage/file/object quotas. New unrelated
+Trash entries are not added to a confirmed snapshot. See [Trash deletion](trash-deletion.md)
+for architecture evidence and validation. Owner-authorized APIs are also available
+to AI using that owner's account credential; this is not a human-only safeguard.
 
 Staging, Trash and retained revisions count toward the owning space's
 quota. Initial existing limits are 64 MiB/file, 256 MiB/space, 2 GiB/service, 20 files
@@ -231,7 +239,7 @@ or referenced bytes. Backups and controller-level recovery are not implied by Un
 
 ## Craft app integration
 
-All seven registered Craft web apps use the shared cloud experience. Open/Save/Save
+All eight registered Craft web apps use the shared cloud experience. Open/Save/Save
 As/history must respect the selected user's live permissions. Saving a
 snapshot marks only that unchanged editor revision clean. Conflict or lost access
 preserves local work and offers Save As where permitted. Switching accounts cannot
@@ -263,7 +271,7 @@ MCP-to-cloud functionality. Record actual commands, artifacts and limitations.
    and verify the same bytes/history in the UI. Repeat under a collaborator's account
    and demonstrate denial outside their share. Record the negotiated MCP/client
    versions. Do not describe direct Candid calls alone as this test.
-5. **Shared UI and Craft**: native shared save/open has been checked in all seven
+5. **Shared UI and Craft**: native shared save/open has been checked in all eight
    apps. The canonical SDK/backend tests cover format, conflict and permission
    boundaries; browser negative-path evidence is strongest in Word, plus Grid's
    quota recovery. The full per-app matrix of conflict, history, permission loss,

@@ -61,16 +61,30 @@ def main():
         raise RuntimeError("Deployed bundle must include every registered app in order")
     portal = (ROOT / "dist/index.html").read_text()
     workspace = (ROOT / "dist/pilveruum/index.html").read_text()
-    if '__APP_COUNT' in portal + workspace or f"{len(registered)} tööriista" not in workspace:
+    if '__APP_COUNT' in portal + workspace or f"{len(registered)} rakendust" not in workspace:
         raise RuntimeError("Portal application count does not match the registry")
     checks = [("/", ROOT / "dist/index.html"), ("/style.css", ROOT / "dist/style.css"), ("/apps.json", ROOT / "dist/apps.json")]
     checks.extend((route, ROOT / "dist" / path) for route, path in [
         ("/pilveruum/", "pilveruum/index.html"), ("/en/", "en/index.html"), ("/en/pilveruum/", "en/pilveruum/index.html")])
+    # Certified SPA rewrites must also work on fresh deep-link loads.
+    route_id = "01234567-89ab-4cde-8fab-0123456789ab"
+    for locale in ("", "en/"):
+        for kind in ("file", "folder"):
+            checks.append((f"/{locale}pilveruum/{kind}/{route_id}", ROOT / "dist" / locale / "pilveruum/index.html"))
     checks.extend(("/" + name, ROOT / "dist" / name) for name in ["landing.css", "landing.js", "pilveruum/index.html", "assets/brand/subnet.png", "assets/landing/estonian-lakes.png", "assets/landing/cloud-of-estonia.png", "assets/landing/creative-workspace.jpg"])
     checks.extend(("/" + name, ROOT / "dist" / name) for name in ["agent-workflow.css", "agent-workflow.js", "assets/landing/sovereign-cloud.png"])
     image_assets = json.loads((ROOT / "dist/image-assets.json").read_text())
     checks.extend((url, ROOT / "dist" / url.lstrip('/')) for url in image_assets)
-    checks.append(("/cloud.js", ROOT / "dist/cloud.js"))
+    shared_modules = ["cloud.js", "account-email.js", "drive-browser.js", "drive-transfers.js", "download-archive.js",
+                      "drive-navigation.js", "drive-recovery.js", "drive-insights.js", "drive-people.js", "drive-preview.js", "drive-pdf.js"]
+    checks.extend(("/" + name, ROOT / "dist" / name) for name in shared_modules + ["workspace.js", "assets/brand/craft-icons.svg"])
+    # PDF rendering uses local code, fonts, character maps and codecs. Check the
+    # actual deployed payloads/MIME so a passing unit test cannot hide a missing worker.
+    checks.extend(("/" + path.relative_to(ROOT / "dist").as_posix(), path)
+                  for path in sorted((ROOT / "dist/vendor/pdfjs").rglob("*"))
+                  if path.is_file() and path.suffix in {".mjs", ".js", ".wasm", ".bcmap", ".pfb", ".ttf"})
+    checks.extend(("/" + path.relative_to(ROOT / "dist").as_posix(), path)
+                  for path in sorted((ROOT / "dist/assets/crafts").glob("*.png")))
     if "portal" in options.apps or "all" in options.apps:
         checks.extend(("/" + name, ROOT / "dist" / name) for name in manifest["portalAssets"])
     checks.extend(("/" + name, ROOT / "dist" / name) for name in manifest["shellAssets"])
@@ -104,6 +118,10 @@ def main():
         status, headers, data = get(route)
         if status != 200 or data != file.read_bytes(): raise RuntimeError(f"Wrong payload/status: {route} ({status})")
         if not headers.get("ic-certificate"): raise RuntimeError(f"Missing certification header: {route}")
+        if (route.lstrip('/') in shared_modules or route.startswith('/vendor/pdfjs/')) and "no-cache" not in headers.get("cache-control", ""):
+            raise RuntimeError(f"The shared browse/preview asset must revalidate after an update: {route}")
+        if file.suffix == ".mjs" and headers.get("content-type", "").split(';')[0] not in {"text/javascript", "application/javascript"}:
+            raise RuntimeError(f"Wrong module MIME: {route}")
         if file.suffix == ".wasm" and headers.get("content-type") != "application/wasm": raise RuntimeError(f"Wrong Wasm MIME: {route}")
         if route in image_assets:
             if not headers.get("content-type", "").startswith("image/webp"):
@@ -111,7 +129,7 @@ def main():
             directives = {value.strip() for value in headers.get("cache-control", "").split(",")}
             if not {"immutable", "max-age=31536000"} <= directives or directives & {"no-cache", "no-store", "max-age=0"}:
                 raise RuntimeError(f"Wrong image cache policy: {route}")
-        if file.suffix in (".js", ".wasm") and file.parent != ROOT / "dist" and file.name not in ("craft-wasm.js", "craft-cache-sw.js"):
+        if file.suffix in (".js", ".wasm") and route.startswith(("/apps/", "/cloud/")) and file.name not in ("craft-wasm.js", "craft-cache-sw.js"):
             directives = {value.strip().lower() for value in headers.get("cache-control", "").split(",")}
             if not {"immutable", "max-age=31536000"} <= directives or directives & {"no-cache", "no-store", "max-age=0"}:
                 raise RuntimeError(f"Missing or conflicting versioned cache rule: {route}")

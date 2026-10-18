@@ -3,22 +3,54 @@ type AccessGrant = record {
   active : bool;
   subject : Participant;
   capabilities : Capabilities;
-  root : nat64;
+  root : text;
   version : nat64;
   expires_at : opt nat64;
 };
+type AccessSource = record {
+  capabilities : Capabilities;
+  inherited : bool;
+  expires_at : opt nat64;
+  location : opt ObjectLocation;
+};
 // Account IDs and space IDs are stable within a logical service, not a deployment address.
 type Account = record {
-  id : nat64;
+  id : text;
   owner : principal;
   created_at : nat64;
-  personal_space : nat64;
+  personal_space : text;
 };
 type AccountContext = record {
   used_bytes : nat64;
   quota_bytes : nat64;
   account : Account;
 };
+type ActivityEvent = record {
+  at : nat64;
+  id : nat64;
+  object : text;
+  actor : Participant;
+  kind : ActivityKind;
+};
+type ActivityItem = record {
+  name : text;
+  event : ActivityEvent;
+  trashed : bool;
+};
+// Successful mutations, separate from private read/open summaries. Names and
+// locations are resolved with current authority at read time, never snapshotted.
+type ActivityKind = variant {
+  ContentSaved;
+  RevisionLabeled;
+  Renamed;
+  RevisionDeleted;
+  Trashed;
+  Moved;
+  Restored;
+  Created;
+  SharingChanged;
+};
+type ActivityPage = record { before : opt nat64; items : vec ActivityItem };
 type Attribution = record {
   actor : Participant;
   credential : opt text;
@@ -29,8 +61,49 @@ type BeginUpload = record {
   request_id : text;
   sha256 : blob;
   bytes : nat64;
-  project_id : nat64;
+  project_id : text;
   expected_revision : opt nat64;
+};
+type BrowseHome = record { page : BrowsePage; account : AccountContext };
+type BrowseItem = record {
+  starred : bool;
+  opened_at : opt nat64;
+  color : opt text;
+  entry : DriveEntry;
+};
+type BrowsePage = record {
+  next : opt PageCursor;
+  preferences : BrowsePreferences;
+  breadcrumbs : vec DriveEntry;
+  items : vec BrowseItem;
+  folder : opt DriveEntry;
+};
+type BrowsePreferences = record {
+  descending : bool;
+  sort : SortField;
+  view : ViewMode;
+};
+type BrowseQuery = record {
+  descending : bool;
+  owner : opt principal;
+  sort : SortField;
+  "text" : text;
+  // Empty means any; folder, file, image, audio, video, pdf, text or a Craft app ID.
+  file_type : text;
+  scope : BrowseScope;
+  modified_after : opt nat64;
+  modified_before : opt nat64;
+};
+// A single retrieval contract for browsing, metadata search and personal views.
+type BrowseScope = variant {
+  All;
+  Starred;
+  Folder : text;
+  Item : text;
+  Recent;
+  Shared;
+  Trash;
+  Subtree : text;
 };
 type Capabilities = record {
   edit : bool;
@@ -39,7 +112,22 @@ type Capabilities = record {
   create : bool;
   propose : bool;
 };
-type CreateFolder = record { request_id : text; name : text; parent : nat64 };
+type CreateFolder = record { request_id : text; name : text; parent : text };
+type CreateShortcut = record {
+  request_id : text;
+  name : text;
+  target : text;
+  parent : text;
+};
+type DeliveryStatus = variant {
+  Queued;
+  Failed;
+  Sending;
+  Retryable;
+  Accepted;
+  Unknown;
+  Expired;
+};
 // A consistent folder view from one authorized consensus call.
 type DriveBrowse = record {
   page : DrivePage;
@@ -50,14 +138,13 @@ type DriveBrowse = record {
 // Bounded metadata prefetch; completeness is explicit, never inferred from absence.
 type DriveCatalog = record {
   entries : vec DriveEntry;
-  complete_folders : vec nat64;
+  complete_folders : vec text;
 };
-// Opaque to callers: scope and actor are validated on each page request.
-type DriveCursor = record {
-  actor : principal;
-  after : nat64;
-  scope : opt nat64;
-  tree_version : nat64;
+type DriveDetails = record {
+  access : vec AccessSource;
+  revision_count : nat64;
+  entry : DriveEntry;
+  locations : vec ObjectLocation;
 };
 type DriveEntry = record {
   object : DriveObject;
@@ -78,7 +165,7 @@ type DriveError = variant {
 // Initial personal-drive view and account usage in one consensus response.
 type DriveHome = record { view : DriveBrowse; account : AccountContext };
 type DriveObject = record {
-  id : nat64;
+  id : text;
   updated_at : nat64;
   owner : principal;
   kind : ObjectKind;
@@ -86,24 +173,54 @@ type DriveObject = record {
   created_at : nat64;
   trashed_at : opt nat64;
   version : nat64;
-  space : nat64;
-  parent : opt nat64;
+  space : text;
+  parent : opt text;
 };
-type DrivePage = record { next : opt DriveCursor; entries : vec DriveEntry };
-type DriveUpload = record {
-  id : nat64;
-  file : nat64;
-  committed : opt Revision;
-};
+type DrivePage = record { next : opt PageCursor; entries : vec DriveEntry };
+type DriveUpload = record { id : nat64; file : text; committed : opt Revision };
 type DriveUploadRequest = record {
   request_id : text;
   sha256 : blob;
+  automatic : opt bool;
   target : UploadTarget;
   bytes : nat64;
 };
+type EmailInvitation = record {
+  id : nat64;
+  object : text;
+  active : bool;
+  role : EmailRole;
+  email : text;
+  grant_expires_at : opt nat64;
+  delivery : DeliveryStatus;
+  accepted : bool;
+  expires_at : nat64;
+};
+type EmailProfile = record {
+  pending : opt EmailVerification;
+  emails : vec text;
+  enabled : bool;
+};
+type EmailRequest = record { request_id : text; email : text };
+type EmailRole = variant { Viewer; Editor };
+type EmailShare = record {
+  request_id : text;
+  object : text;
+  role : EmailRole;
+  email : text;
+  grant_expires_at : opt nat64;
+};
+type EmailVerification = record {
+  id : nat64;
+  transfer_required : bool;
+  email : text;
+  delivery : DeliveryStatus;
+  expires_at : nat64;
+};
+type EmailVerified = variant { TransferRequired; Added };
 type FileDetails = record {
   kind : FileKind;
-  space_id : nat64;
+  space_id : text;
   project : Project;
 };
 type FileFormat = record { media_type : text; craft : opt FileKind };
@@ -112,14 +229,14 @@ type FileKind = record {
   format_version : nat32;
   created_by_app : text;
 };
-type FilePage = record { files : vec FileSummary; next_cursor : opt nat64 };
+type FilePage = record { files : vec FileSummary; next_cursor : opt text };
 type FileSummary = record {
-  id : nat64;
+  id : text;
   kind : FileKind;
   name : text;
   version_count : nat64;
   latest : Revision;
-  space_id : nat64;
+  space_id : text;
 };
 type GrantRequest = record {
   id : opt nat64;
@@ -127,7 +244,7 @@ type GrantRequest = record {
   active : bool;
   subject : Participant;
   capabilities : Capabilities;
-  root : nat64;
+  root : text;
   expires_at : opt nat64;
   expected_version : opt nat64;
 };
@@ -135,53 +252,93 @@ type InlineFile = record {
   request_id : text;
   name : text;
   bytes : blob;
-  parent : nat64;
+  parent : text;
   format : FileFormat;
 };
-type MutationReceipt = record { object : nat64; version : nat64 };
-type ObjectKind = variant { Folder; File : FileFormat };
+// Derived owner-visible impact. No grants or ACL snapshots are persisted.
+type MoveAccessChange = record {
+  subject : Participant;
+  loses : bool;
+  objects : nat64;
+  gains : bool;
+};
+type MovePreview = record {
+  affected_subjects : nat64;
+  affected_objects : nat64;
+  changes : vec MoveAccessChange;
+  object_version : nat64;
+  tree_version : nat64;
+};
+type MutationReceipt = record { object : text; version : nat64 };
+type ObjectKind = variant { Folder; File : FileFormat; Shortcut : text };
+// Caller-visible references only; inaccessible ancestors never supply names.
+type ObjectLocation = record { id : text; name : text };
 type OrganizationChange = variant {
-  Move : nat64;
+  RestoreReviewed : record { name : text; parent : text; tree_version : nat64 };
+  MoveReviewed : record { parent : text; tree_version : nat64 };
+  Move : text;
   Restore;
   Rename : text;
   Trash;
 };
 type OrganizeRequest = record {
   request_id : text;
-  object : nat64;
+  object : text;
   change : OrganizationChange;
   expected_version : nat64;
 };
+// Opaque continuation. Only the service interprets or authenticates its bytes.
+type PageCursor = record { token : blob };
 type Participant = variant { User : principal; Agent : nat64 };
 type Project = record {
-  id : nat64;
+  id : text;
   revisions : vec Revision;
   owner : principal;
   name : text;
   created_at : nat64;
   pending_upload : opt nat64;
 };
+type PurgeReceipt = record { freed_bytes : nat64; deleted_objects : nat64 };
+// Explicitly trashed roots and the versions the owner confirmed. Descendants
+// are included; objects trashed after this snapshot are not implicitly added.
+type PurgeRequest = record { request_id : text; items : vec MutationReceipt };
 type Result = variant { Ok : Upload; Err : text };
 type Result_1 = variant { Ok : Revision; Err : text };
-type Result_10 = variant { Ok : vec Revision; Err : DriveError };
-type Result_11 = variant { Ok : DriveHome; Err : DriveError };
-type Result_12 = variant { Ok : DrivePage; Err : DriveError };
-type Result_13 = variant { Ok : MutationReceipt; Err : DriveError };
-type Result_14 = variant { Ok : vec DriveUpload; Err : DriveError };
-type Result_15 = variant { Ok : AccessGrant; Err : DriveError };
-type Result_16 = variant { Ok : blob; Err : text };
-type Result_17 = variant { Ok : FileDetails; Err : text };
-type Result_18 = variant { Ok : AccountContext; Err : text };
-type Result_19 = variant { Ok : vec Project; Err : text };
+type Result_10 = variant { Ok : blob; Err : DriveError };
+type Result_11 = variant { Ok : MutationReceipt; Err : DriveError };
+type Result_12 = variant { Ok : DriveDetails; Err : DriveError };
+type Result_13 = variant { Ok : vec AccessGrant; Err : DriveError };
+type Result_14 = variant { Ok : vec Revision; Err : DriveError };
+type Result_15 = variant { Ok : DriveHome; Err : DriveError };
+type Result_16 = variant { Ok : RevisionProperties; Err : DriveError };
+type Result_17 = variant { Ok : DrivePage; Err : DriveError };
+type Result_18 = variant { Ok : MovePreview; Err : DriveError };
+type Result_19 = variant { Ok : vec DriveUpload; Err : DriveError };
 type Result_2 = variant { Ok : Project; Err : text };
-type Result_20 = variant { Ok : FilePage; Err : text };
+type Result_20 = variant { Ok : BrowsePreferences; Err : DriveError };
+type Result_21 = variant { Ok : PurgeReceipt; Err : DriveError };
+type Result_22 = variant { Ok : BrowsePage; Err : DriveError };
+type Result_23 = variant { Ok : AccessGrant; Err : DriveError };
+type Result_24 = variant { Ok : StorageOverview; Err : DriveError };
+type Result_25 = variant { Ok : SuggestedHome; Err : DriveError };
+type Result_26 = variant { Ok : vec RevisionInfo; Err : DriveError };
+type Result_27 = variant { Ok : text; Err : text };
+type Result_28 = variant { Ok : EmailVerified; Err : text };
+type Result_29 = variant { Ok : vec EmailInvitation; Err : text };
 type Result_3 = variant { Ok; Err : text };
+type Result_30 = variant { Ok : EmailProfile; Err : text };
+type Result_31 = variant { Ok : EmailInvitation; Err : text };
+type Result_32 = variant { Ok : blob; Err : text };
+type Result_33 = variant { Ok : FileDetails; Err : text };
+type Result_34 = variant { Ok : AccountContext; Err : text };
+type Result_35 = variant { Ok : vec Project; Err : text };
+type Result_36 = variant { Ok : FilePage; Err : text };
 type Result_4 = variant { Ok; Err : DriveError };
-type Result_5 = variant { Ok : DriveUpload; Err : DriveError };
-type Result_6 = variant { Ok : DriveBrowse; Err : DriveError };
-type Result_7 = variant { Ok : DriveEntry; Err : DriveError };
-type Result_8 = variant { Ok : blob; Err : DriveError };
-type Result_9 = variant { Ok : vec AccessGrant; Err : DriveError };
+type Result_5 = variant { Ok : ActivityPage; Err : DriveError };
+type Result_6 = variant { Ok : DriveUpload; Err : DriveError };
+type Result_7 = variant { Ok : DriveBrowse; Err : DriveError };
+type Result_8 = variant { Ok : BrowseHome; Err : DriveError };
+type Result_9 = variant { Ok : DriveEntry; Err : DriveError };
 type Revision = record {
   id : nat64;
   sha256 : blob;
@@ -190,7 +347,66 @@ type Revision = record {
   chunk_count : nat64;
   bytes : nat64;
 };
+type RevisionDeleteRequest = record {
+  request_id : text;
+  object : text;
+  expected_properties_version : nat64;
+  expected_object_version : nat64;
+  revision : nat64;
+};
+type RevisionInfo = record {
+  properties : RevisionProperties;
+  revision : Revision;
+};
+type RevisionLabelRequest = record {
+  request_id : text;
+  object : text;
+  keep : bool;
+  label : text;
+  revision : nat64;
+  expected_version : nat64;
+};
+type RevisionProperties = record {
+  keep : bool;
+  automatic : bool;
+  label : text;
+  version : nat64;
+};
 type SharingStatus = record { inherited : bool; direct : bool };
+type SortField = variant { Name; Size; Opened; Modified };
+type StorageItem = record {
+  object : text;
+  revision_count : nat64;
+  name : text;
+  current_bytes : nat64;
+  trashed : bool;
+  history_bytes : nat64;
+};
+type StorageOverview = record {
+  files : vec StorageItem;
+  used_bytes : nat64;
+  trash_bytes : nat64;
+  current_bytes : nat64;
+  pending_bytes : nat64;
+  quota_bytes : nat64;
+  history_bytes : nat64;
+};
+type SuggestedHome = record {
+  files : vec SuggestedItem;
+  folders : vec SuggestedItem;
+};
+type SuggestedItem = record {
+  item : BrowseItem;
+  reason_at : nat64;
+  reason : SuggestionReason;
+};
+// Derived explanations, not stored scores or permission-bearing records.
+type SuggestionReason = variant {
+  Starred;
+  UpdatedSinceOpened;
+  RecentlyOpened;
+  RecentlyCreated;
+};
 type Upload = record {
   id : nat64;
   request : BeginUpload;
@@ -199,42 +415,74 @@ type Upload = record {
 };
 // Uploads remain private staging data until commit. A replacement keeps its format.
 type UploadTarget = variant {
-  New : record { name : text; parent : nat64; format : FileFormat };
-  Replace : record { file : nat64; expected_revision : nat64 };
+  New : record { name : text; parent : text; format : FileFormat };
+  Replace : record { file : text; expected_revision : nat64 };
 };
+type ViewMode = variant { Grid; List };
 service : () -> {
   begin_upload : (BeginUpload) -> (Result);
   commit_upload : (nat64) -> (Result_1);
   create_file : (text, FileKind) -> (Result_2);
   create_project : (text) -> (Result_2);
-  delete_project : (nat64) -> (Result_3);
+  delete_project : (text) -> (Result_3);
   delete_revision_or_upload : (nat64) -> (Result_3);
   drive_abort_upload : (nat64) -> (Result_4);
-  drive_begin_upload : (DriveUploadRequest) -> (Result_5);
-  drive_browse : (nat64, opt DriveCursor, nat32) -> (Result_6);
-  drive_commit_upload : (nat64) -> (Result_5);
-  drive_create_file : (InlineFile) -> (Result_7);
-  drive_create_folder : (CreateFolder) -> (Result_7);
-  drive_current_chunk : (nat64, nat64, nat64) -> (Result_8) query;
-  drive_get : (nat64) -> (Result_7);
-  drive_grants : (nat64) -> (Result_9);
-  drive_history : (nat64) -> (Result_10);
-  drive_home : () -> (Result_11);
-  drive_initialize : () -> (Result_7);
-  drive_list : (opt nat64, opt DriveCursor, nat32) -> (Result_12);
-  drive_organize : (OrganizeRequest) -> (Result_13);
-  drive_pending_uploads : () -> (Result_14);
+  drive_acknowledge_open : (text, opt nat64) -> (Result_4);
+  drive_activity : (opt text, opt nat64, nat32) -> (Result_5);
+  drive_begin_upload : (DriveUploadRequest) -> (Result_6);
+  drive_browse : (text, opt PageCursor, nat32) -> (Result_7);
+  drive_browser_home : () -> (Result_8);
+  drive_commit_upload : (nat64) -> (Result_6);
+  drive_create_file : (InlineFile) -> (Result_9);
+  drive_create_folder : (CreateFolder) -> (Result_9);
+  drive_create_shortcut : (CreateShortcut) -> (Result_9);
+  drive_current_chunk : (text, nat64, nat64) -> (Result_10) query;
+  drive_delete_revision : (RevisionDeleteRequest) -> (Result_11);
+  drive_details : (text) -> (Result_12);
+  drive_dismiss_suggestion : (text) -> (Result_4);
+  drive_folder_color : (text, opt text) -> (Result_4);
+  drive_get : (text) -> (Result_9);
+  drive_grants : (text) -> (Result_13);
+  drive_history : (text) -> (Result_14);
+  drive_home : () -> (Result_15);
+  drive_initialize : () -> (Result_9);
+  drive_label_revision : (RevisionLabelRequest) -> (Result_16);
+  drive_list : (opt text, opt PageCursor, nat32) -> (Result_17);
+  drive_move_preview : (text, text) -> (Result_18);
+  drive_open : (text) -> (Result_9);
+  drive_organize : (OrganizeRequest) -> (Result_11);
+  drive_pending_uploads : () -> (Result_19);
+  drive_preferences : () -> (Result_20);
+  drive_purge_trash : (PurgeRequest) -> (Result_21);
   drive_put_chunk : (nat64, nat64, blob) -> (Result_4);
-  drive_revision_chunk : (nat64, nat64, nat64) -> (Result_8) query;
-  drive_set_grant : (GrantRequest) -> (Result_15);
-  drive_trash : (opt DriveCursor, nat32) -> (Result_12);
+  drive_query : (BrowseQuery, opt PageCursor, nat32) -> (Result_22);
+  drive_restore_preview : (text, text, text) -> (Result_18);
+  drive_revision_chunk : (text, nat64, nat64) -> (Result_10) query;
+  drive_set_grant : (GrantRequest) -> (Result_23);
+  drive_set_preferences : (BrowsePreferences) -> (Result_4);
+  drive_shortcut_target : (text) -> (Result_9);
+  drive_star : (text, bool) -> (Result_4);
+  drive_storage : () -> (Result_24);
+  drive_suggested_home : () -> (Result_25);
+  drive_trash : (opt PageCursor, nat32) -> (Result_17);
+  drive_versions : (text) -> (Result_26);
+  email_accept : (nat64) -> (Result_27);
+  email_confirm_transfer : (nat64) -> (Result_28);
+  email_invitations : (text) -> (Result_29);
+  email_profile : () -> (Result_30);
+  email_remove : (text) -> (Result_3);
+  email_request : (EmailRequest) -> (Result_30);
+  email_retry : (nat64) -> (Result_3);
+  email_revoke_invitation : (nat64) -> (Result_3);
+  email_share : (EmailShare) -> (Result_31);
+  email_verify : (nat64, text) -> (Result_28);
   get_api_doc : () -> (text) query;
-  get_chunk : (nat64, nat64, nat64) -> (Result_16) query;
-  get_file : (nat64, nat64) -> (Result_17);
-  get_or_create_account : () -> (Result_18);
-  get_revision : (nat64, nat64) -> (Result_1);
-  list_app_files : (FileKind) -> (Result_19);
-  list_files : (nat64, opt nat64, nat32) -> (Result_20);
-  list_projects : () -> (Result_19);
+  get_chunk : (text, nat64, nat64) -> (Result_32) query;
+  get_file : (text, text) -> (Result_33);
+  get_or_create_account : () -> (Result_34);
+  get_revision : (text, nat64) -> (Result_1);
+  list_app_files : (FileKind) -> (Result_35);
+  list_files : (text, opt text, nat32) -> (Result_36);
+  list_projects : () -> (Result_35);
   put_chunk : (nat64, nat64, blob) -> (Result_3);
 }
