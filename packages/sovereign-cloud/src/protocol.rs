@@ -64,6 +64,9 @@ pub struct Upload {
 /// Account IDs and space IDs are stable within a logical service, not a deployment address.
 #[derive(Clone, Debug, CandidType, Deserialize, Serialize, PartialEq, Eq)]
 pub struct Account {
+    /// Editable account label, never an identifier or authorization credential.
+    #[serde(default)]
+    pub display_name: Option<String>,
     pub id: ObjectId,
     pub owner: Principal,
     pub personal_space: ObjectId,

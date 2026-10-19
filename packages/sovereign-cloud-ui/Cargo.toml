@@ -21,7 +21,7 @@ js-sys = "0.3"
 futures = "0.3"
 serde = {version="1",features=["derive"]}
 serde_json = "1"
-web-sys = { version = "0.3", features = ["Window", "Location", "Document", "Element", "HtmlElement", "HtmlDialogElement", "HtmlIFrameElement", "Node", "Event", "EventTarget", "MessageEvent", "Crypto", "UrlSearchParams", "IdbFactory", "IdbOpenDbRequest", "IdbDatabase", "IdbObjectStore", "IdbTransaction", "IdbTransactionMode", "IdbRequest", "IdbKeyRange", "DomStringList"] }
+web-sys = { version = "0.3", features = ["Window", "Storage", "Location", "Document", "Element", "HtmlElement", "HtmlDialogElement", "HtmlIFrameElement", "Node", "Event", "EventTarget", "MessageEvent", "Crypto", "UrlSearchParams", "IdbFactory", "IdbOpenDbRequest", "IdbDatabase", "IdbObjectStore", "IdbTransaction", "IdbTransactionMode", "IdbRequest", "IdbKeyRange", "DomStringList"] }
 
 [dev-dependencies]
 egui_kittest = { version = "0.36", features = ["wgpu", "snapshot"] }

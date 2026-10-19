@@ -71,3 +71,13 @@ button:hover { background: var(--action-hover); }
   .home-link .subnet-wordmark { display: none; }
   dialog { padding: 24px; }
 }
+
+.craft-document-name { overflow:hidden; text-overflow:ellipsis; white-space:nowrap; font-size:12px; min-width:0; }
+.craft-save-status { font-size:11px; color:var(--muted); white-space:nowrap; }
+@media(max-width:700px) { .craft-bar nav { gap:6px; } .craft-bar .subnet-wordmark, .craft-bar .divider, .craft-bar h1 { display:none; } .craft-save-status { max-width:140px; overflow:hidden; text-overflow:ellipsis; } }
+
+button.craft-document-name { border:1px solid transparent; background:transparent; color:inherit; padding:4px 7px; border-radius:5px; font-family:inherit; }
+button.craft-document-name:enabled { cursor:pointer; }
+button.craft-document-name:enabled:hover { border-color:var(--muted); }
+button.craft-document-name:focus-visible { outline:2px solid currentColor; outline-offset:2px; }
+button.craft-document-name:disabled { opacity:1; }

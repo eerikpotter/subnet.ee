@@ -5,6 +5,8 @@ impl Cloud {
     pub fn ui(&mut self, ctx: &egui::Context, app: &mut impl Editor) {
         self.check_session(ctx);
         self.poll(app, ctx);
+        self.refresh_profile(ctx);
+        self.sync_identity(app);
         self.prepare_save(ctx);
         self.schedule_autosave(app, ctx);
         self.recovery.tick(self.principal(), self.spec, app, ctx, !self.busy && self.pending_open.is_none() && self.picker.is_none());
@@ -21,11 +23,25 @@ impl Cloud {
                 Some(b) if !b.editable => "Read-only cloud file",
                 Some(b) if b.document_revision == doc.revision => "Saved",
                 Some(_) => "Unsaved changes",
+                None if self.creation.is_some() => "Changes will save to your chosen folder",
                 None => "Save As to enable autosave",
             }
         } else {
             "Cloud space"
         };
+        // A small, read-only presentation contract for the shared outer shell.
+        // Names are text, never HTML; neither principal nor bytes are exported.
+        if let Some(root) = web_sys::window().and_then(|w| w.document()).and_then(|d| d.document_element()) {
+            let doc = app.document();
+            let name = doc
+                .as_ref()
+                .map(|d| self.bindings.get(&d.id).filter(|b| Some(b.actor) == self.principal()).map_or(d.name.as_str(), |b| b.name.as_str()))
+                .map(|name| self.spec.stem(name));
+            let value = serde_json::json!({"version":1,"name":name,"status":tr(status),"canRename":self.can_rename(app)}).to_string();
+            if root.get_attribute("data-subnet-document").as_deref() != Some(&value) {
+                let _ = root.set_attribute("data-subnet-document", &value);
+            }
+        }
         if self.recovery.ui(app, ctx, status, !self.busy && self.pending_open.is_none() && self.picker.is_none() && !self.session_loading) {
             self.visible = true;
         }
@@ -73,9 +89,10 @@ impl Cloud {
                 {
                     ui.add_space(12.0);
                     ui.strong(tr("Your document is safe in the editor"));
-                    ui.label(tr("Retry the captured save, or dismiss it and use Save As for a new copy."));
+                    let (help, retry) = crate::workspace::save_help(self.notice.as_ref().map_or("", |n| n.message.as_str()));
+                    ui.label(tr(help));
                     ui.horizontal(|ui| {
-                        if ui.button(tr("Retry save")).clicked() {
+                        if retry && ui.button(tr("Retry save")).clicked() {
                             self.run_save(attempt, ctx);
                         }
                         if ui.button(tr("Dismiss attempt")).clicked() {
@@ -98,7 +115,29 @@ impl Cloud {
             },
         );
         self.visible = visible && self.picker.is_none();
-        let enabled = !self.busy && self.attempt.is_none() && self.pending_open.is_none() && self.picker.is_none();
+        if !self.busy && self.naming.as_ref().is_some_and(|n| app.document().map(|d| d.id) != Some(n.document)) {
+            self.naming = None;
+        }
+        if let Some(mut naming) = self.naming.clone() {
+            let mut open = true;
+            egui::Window::new(tr("Document name")).open(&mut open).collapsible(false).resizable(false).show(ctx, |ui| {
+                ui.add_enabled_ui(!self.busy, |ui| {
+                    let input = ui.text_edit_singleline(&mut naming.name);
+                    let enter = input.lost_focus() && ui.input(|i| i.key_pressed(egui::Key::Enter));
+                    self.naming = Some(naming.clone());
+                    if ui.button(tr("Save")).clicked() || enter {
+                        self.name_existing(naming, ctx);
+                    }
+                });
+                if let Some(notice) = &self.notice {
+                    ui.label(&notice.message);
+                }
+            });
+            if !open && !self.busy {
+                self.naming = None;
+            }
+        }
+        let enabled = self.naming.is_none() && !self.busy && self.attempt.is_none() && self.pending_open.is_none() && self.picker.is_none();
         self.menu.set_enabled(enabled);
         app.set_save_enabled(enabled);
         if self.pending_open.is_some() {

@@ -273,7 +273,7 @@ h1 { font-family: var(--font-heading); font-size: clamp(28px, 2.6vw, 36px); line
 .dialog-heading { justify-content:space-between; margin-bottom:24px }
 .dialog-actions { justify-content:flex-end; margin-top:24px; padding-top:18px; border-top:1px solid #edf0f5 }
 .dialog-field { display:grid; gap:10px; font-size:13px; font-weight:600; margin-bottom:16px }
-.dialog-field input { font:inherit; font-size:15px; padding:12px 14px; border:1px solid #cdd6e3; border-radius:8px; width:100%; box-sizing:border-box }
+.dialog-field input,.dialog-field select { font:inherit; font-size:15px; padding:12px 14px; border:1px solid #cdd6e3; border-radius:8px; width:100%; box-sizing:border-box }
 #dialog-body { font-size:14px; line-height:1.6 }
 #dialog-body .muted { color:#68768b; font-size:12px }
 #dialog-error { font-size:13px; overflow-wrap:anywhere }
@@ -653,3 +653,38 @@ body:not(.cloud-picker) .file-size { width:78px; min-width:78px; text-align:left
 .file-detail p.content-snippet {display:block!important;white-space:normal;color:var(--text);line-height:1.5;margin:8px 0 4px;max-width:70ch;}
 .content-location {display:block;color:var(--muted);font-size:11px;margin-bottom:4px;}
 #content-search-help {font-size:12px;margin:8px 0;}
+
+/* Daily workspace: keep actions fixed while giving the files more space. */
+body:not(.cloud-picker) .is-home .files-heading {justify-content:flex-start;margin:0 0 16px;}
+body:not(.cloud-picker) .is-home .search-line {margin-inline:0;max-width:none;}
+body:not(.cloud-picker) .is-home .search-filter-fields {justify-content:flex-start;}
+body:not(.cloud-picker) .files-heading h1 {font-size:24px;}
+.home-folders {margin-block:16px;}
+.home-folders-heading {margin-bottom:8px;}
+.home-folder {padding:12px 16px;}
+.home-recent-heading {margin-top:16px;}
+.sharing-public {border-block:1px solid var(--line);padding:16px 0;margin:20px 0;}
+.sharing-public h3,.share-roster h3 {margin-top:0;}
+.new-apps .button {text-align:left;}
+.cloud-picker #inbox-nav,.cloud-picker #activity-nav {display:none;}
+
+.is-home:not(.show-filters) .search-filter-fields {display:none;}
+#home-filter-toggle {margin-right:8px;flex:none;}
+
+#new-apps a[aria-disabled=true] {opacity:.45;cursor:default;}
+.is-home:not(.show-filters) #content-search-help {display:none;}
+
+.search-line .search-scope {flex:none;margin-right:8px;}
+.search-line .search-scope select {max-width:150px;min-height:32px;background:transparent;border:0;color:inherit;font:inherit;font-size:13px;}
+@media(max-width:520px) {.search-line .search-scope select {max-width:110px;padding-inline:8px;} #home-filter-toggle {padding-inline:8px;}}
+@media(max-width:520px) {
+  .search-line {flex-wrap:wrap;gap:6px;align-items:center;}
+  .search-line .search-submit {flex:0 0 32px;}
+  .search-line input {flex:1 1 calc(100% - 44px);min-width:0;width:0;}
+  .search-line .search-scope {margin-left:38px;margin-right:0;}
+  .search-line .search-scope select {max-width:none;}
+  #search-clear {font-size:12px;padding:8px;}
+}
+
+.sharing-help {margin-block:8px;color:var(--muted);font-size:12px;}
+.sharing-public details {margin-block:10px;}

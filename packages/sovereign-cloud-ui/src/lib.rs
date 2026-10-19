@@ -9,6 +9,9 @@ pub mod flow;
 mod locale;
 pub mod presentation;
 #[cfg(target_arch = "wasm32")]
+mod title_action;
+pub mod workspace;
+#[cfg(target_arch = "wasm32")]
 pub use controller::Cloud;
 
 use sovereign_cloud::{CloudResult, protocol::FileKind};
@@ -63,7 +66,23 @@ pub struct Snapshot {
     pub encode: Box<dyn FnOnce() -> CloudResult<Vec<u8>>>,
 }
 
+/// Authenticated host identity, separate from document ownership and saved preferences.
+#[derive(Clone, Copy, Debug)]
+pub struct UserProfile<'a> {
+    pub id: &'a str,
+    pub display_name: &'a str,
+}
+
 pub trait Editor {
+    /// Optional native New command. Editors with a size/template chooser keep it.
+    fn create_document(&mut self) -> CloudResult<()> {
+        Ok(())
+    }
+    /// Runtime account ID from the host, alongside the editor's existing display name.
+    /// None clears authentication; never persist this in user preferences or infer it
+    /// from the document owner. Engines treat this as an opaque ID, not authority.
+    fn set_user_profile(&mut self, _profile: Option<UserProfile<'_>>) {}
+
     fn document(&self) -> Option<DocumentState>;
     fn capture(&self) -> CloudResult<Snapshot>;
     /// Returns the resulting revision only when this exact snapshot is still current.
@@ -80,6 +99,8 @@ pub trait Editor {
 pub enum Request {
     Save,
     SaveAs,
+    SaveCopy,
+    Rename,
     Autosave,
     Open,
 }
@@ -106,7 +127,7 @@ impl MenuHandle {
     pub fn ui(&self, ui: &mut egui::Ui, has_document: bool) {
         ui.separator();
         presentation::header(ui);
-        for (label, request) in [("Save", Request::Save), ("Save As…", Request::SaveAs), ("Open…", Request::Open)] {
+        for (label, request) in [("Save", Request::Save), ("Save As…", Request::SaveAs), ("Save a copy…", Request::SaveCopy), ("Open…", Request::Open)] {
             let enabled = request == Request::Open || (has_document && self.enabled.get());
             if ui.add_enabled(enabled, egui::Button::new(locale::tr(label))).clicked() {
                 self.request(request);
@@ -140,7 +161,7 @@ mod tests {
         assert_eq!(handle.queue.borrow_mut().pop_front(), Some(Request::Open));
         *h.state_mut() = true;
         h.run_steps(3);
-        for (label, request) in [("Save", Request::Save), ("Save As…", Request::SaveAs)] {
+        for (label, request) in [("Save", Request::Save), ("Save As…", Request::SaveAs), ("Save a copy…", Request::SaveCopy)] {
             h.get_by_label(label).click();
             h.run_steps(3);
             assert_eq!(handle.queue.borrow_mut().pop_front(), Some(request));

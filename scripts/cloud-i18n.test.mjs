@@ -60,8 +60,9 @@ function fixture(options={}) {
       }
     },
   });
+  if(options.returnState){host.context.sessionStorage={getItem:key=>options.returnState[key],removeItem:key=>delete options.returnState[key],setItem:(key,value)=>options.returnState[key]=value};host.context.requestAnimationFrame=fn=>fn();host.window.scrollTo=(x,y)=>{host.window.restoredScroll=y;};document.documentElement.scrollHeight=3000;}
   Object.defineProperty(host.context,'location',{get:()=>host.window.location,configurable:true});
-  host.start();for(const name of ['drive-public','drive-teams','drive-navigation','drive-recovery','drive-insights','drive-people','drive-preview'])vm.runInContext(readFileSync(new URL('../portal/'+name+'.js',import.meta.url),'utf8').replace(/^export /gm,'').replace(/^import .*;\n/gm,''),host.context);vm.runInContext(readFileSync(new URL('../portal/account-email.js',import.meta.url),'utf8').replace(/^export /gm,'').replace(/^import .*;\n/gm,''),host.context);vm.runInContext(readFileSync(new URL("../portal/drive-transfers.js",import.meta.url),"utf8").replace(/^export /gm,""),host.context);vm.runInContext(browserState,host.context);vm.runInContext(archiveSource,host.context);return {host,document,calls,urls,selections};
+  host.start();for(const name of ['workspace-context','drive-public','drive-teams','drive-navigation','drive-recovery','drive-insights','drive-people','drive-preview'])vm.runInContext(readFileSync(new URL('../portal/'+name+'.js',import.meta.url),'utf8').replace(/^export /gm,'').replace(/^import .*;\n/gm,''),host.context);vm.runInContext(readFileSync(new URL('../portal/account-email.js',import.meta.url),'utf8').replace(/^export /gm,'').replace(/^import .*;\n/gm,''),host.context);vm.runInContext(readFileSync(new URL("../portal/drive-transfers.js",import.meta.url),"utf8").replace(/^export /gm,""),host.context);vm.runInContext(browserState,host.context);vm.runInContext(archiveSource,host.context);return {host,document,calls,urls,selections};
 }
 
 const trashEntry=(id,owner='alice')=>({id,owner,spaceId:'1',name:`File ${id}`,version:'2',folder:false,bytes:50,updatedMs:1700000000000,capabilities:{read:true,delete:true}});
@@ -193,7 +194,7 @@ test('drive language switches preserve session, loaded pages, cursor, file names
   assert.equal(JSON.stringify(calls),before);assert.deepEqual(document.getElementById('file-list').children,rows);assert.equal(rows.length,2);
   assert.equal(rows[0].children[1].children[0].textContent,'Ideed');assert.equal(document.getElementById('account-status').textContent,'My account');
   assert.equal(rows[0].querySelector('summary').getAttribute('aria-label'),'File actions');
-  assert.equal(rows[0].querySelector('a').href,'/apps/gridcraft/?cloud_service=cloud&cloud_space=1&cloud_file=first&lang=en');
+  assert.equal(rows[0].querySelector('a').href,'/apps/gridcraft/?cloud_service=cloud&cloud_space=1&cloud_file=first&workspace_return=%2Fpilveruum%2F%23failid&lang=en');
   document.getElementById('more-files').dispatchEvent(new Event('click'));await tick();
   assert.equal(calls.at(-1)[1].cursor,'third-page');
 });
@@ -1010,13 +1011,13 @@ test('Home is distinct from Recent and displays service suggestions and truthful
     return {entries:[{...recent,reason:'opened'}],quickFolders:[{...trashEntry('folder'),folder:true,name:'Projects',reason:'starred'}],cursor:null};
   }});
   await vm.runInContext(`(async()=>{${source}})()`,host.context);
-  assert.equal(document.getElementById('files-title').textContent,'Tere tulemast pilveruumi');
+  assert.equal(document.getElementById('files-title').textContent,'Jätka pooleli jäänust');
   assert.equal(document.getElementById('home-folder-list').children[0].href,'/pilveruum/#folder/folder');
   assert.match(document.getElementById('file-list').textContent,/Opened.txt/);
   assert.equal(calls.some(([method])=>method==='suggestions'),true);
   assert.equal(calls.some(([method,p])=>method==='query' && p.scope==='recent'),false);
   assert.match(document.getElementById('home-folder-list').textContent,/Tärniga/);
-  host.i18n.setLanguage('en');assert.equal(document.getElementById('files-title').textContent,'Welcome to Cloud Space');
+  host.i18n.setLanguage('en');assert.equal(document.getElementById('files-title').textContent,'Pick up where you left off');
   host.context.location.hash='#failid';host.window.dispatchEvent(new Event('hashchange'));await tick();
   assert.equal(document.getElementById('home-folders').hidden,true);assert.equal(document.getElementById('files-title').textContent,'My files');
   assert.equal(vm.runInContext("browseRoute('', '1', 'alice', defaultPreferences()).view",host.context),'home');
@@ -1030,7 +1031,7 @@ test('New on Home creates in the account root and exposes the registered apps',a
   document.getElementById('dialog-body').querySelector('input').value='Home folder';
   document.getElementById('dialog-form').dispatchEvent(new Event('submit',{cancelable:true}));await tick();
   assert.equal(calls.find(([method])=>method==='folder')[1].parent,'1');
-  assert.equal(document.getElementById('new-apps').children[0].textContent,'GridCraft');
+  assert.equal(document.getElementById('new-apps').children[0].textContent,'Uus tabel');
   assert.match(document.getElementById('new-apps').children[0].href,/\/apps\/gridcraft\//);
 });
 
@@ -1332,7 +1333,7 @@ test('email sharing uses the selected role and only retryable deliveries offer r
   await vm.runInContext(`(async()=>{${source}})()`,host.context);
   findButton(document.getElementById('file-list'),'Jaga').dispatchEvent(new Event('click'));await tick();await tick();
   const body=document.getElementById('dialog-body');
-  const rows=body.querySelectorAll('.share-row');
+  const rows=body.querySelectorAll('.share-row').slice(1);
   assert.equal(findButton(rows[0],'Proovi saatmist uuesti'),undefined);
   assert.equal(findButton(rows[1],'Proovi saatmist uuesti'),undefined);
   assert.ok(findButton(rows[2],'Proovi saatmist uuesti'));
@@ -1630,11 +1631,10 @@ test('public sharing is explicit and retains the policy version and request on r
   const {host,document}=fixture({drive(method,p){if(['grants','contacts'].includes(method))return [];if(method==='publicLink')return {enabled:false,version:'7',allowed:true};if(method==='publicLinkSet'){sent.push(p);if(fail)throw new Error('Temporary error');return {};}}});
   await vm.runInContext(`(async()=>{${source}})()`,host.context);
   findButton(document.getElementById('file-list'),'Jaga').dispatchEvent(new Event('click'));await tick();
-  findButton(document.getElementById('dialog-body'),'Üldine ligipääs').dispatchEvent(new Event('click'));await tick();
-  const body=document.getElementById('dialog-body');body.querySelector('select').value='public';
-  assert.equal(sent.length,0);document.getElementById('dialog-form').dispatchEvent(new Event('submit',{cancelable:true}));await tick();
+  const body=document.getElementById('dialog-body').querySelector('.sharing-public');body.querySelector('select').value='public';
+  assert.equal(sent.length,0);findButton(body,'Salvesta lingi seaded').dispatchEvent(new Event('click'));await tick();
   assert.equal(document.getElementById('drive-dialog').open,true);fail=false;
-  document.getElementById('dialog-form').dispatchEvent(new Event('submit',{cancelable:true}));await tick();
+  assert.equal(findButton(body,'Salvesta lingi seaded').disabled,false);findButton(body,'Salvesta lingi seaded').dispatchEvent(new Event('click'));await tick();
   assert.equal(sent.length,2);assert.deepEqual(sent[0],sent[1]);assert.equal(sent[0].version,'7');assert.equal(sent[0].enabled,true);
 });
 
@@ -1652,7 +1652,7 @@ test('content search uses its bounded index route, preserves continuation and re
   document.getElementById('more-files').dispatchEvent(new Event('click'));await tick();
   assert.deepEqual(calls.filter(([m])=>m==='contentQuery').map(([,p])=>p),[{text:'needle',parent:'2',cursor:null},{text:'needle',parent:'2',cursor:'content-next'}]);
   const row=document.getElementById('file-list').children[0];assert.equal(row.querySelector('.content-snippet').textContent,'<script>needle</script>');assert.equal(row.querySelector('script'),null);
-  assert.match(row.textContent,/Lehekülg 2/);assert.match(row.textContent,/osaliselt/);
+  assert.match(row.textContent,/Lehekülg 2/);assert.match(row.textContent,/Otsing hõlmab osa/);
   document.getElementById('search-mode').value='name';document.getElementById('search-mode').dispatchEvent(new Event('change'));assert.match(host.window.location.hash,/^#search\?/);
 });
 
@@ -1671,7 +1671,7 @@ test('details retries failed indexing and discards a late status after closing',
     if(method==='contentRebuild')return new Promise(resolve=>{finish=resolve;});
   }});await vm.runInContext(`(async()=>{${source}})()`,host.context);
   findButton(document.getElementById('file-list'),'Faili teave').dispatchEvent(new Event('click'));await tick();
-  const body=document.getElementById('details-body');assert.match(body.textContent,/indekseerimine ebaõnnestus/);
+  const body=document.getElementById('details-body');assert.match(body.textContent,/Selle faili sisu pole praegu otsitav/);
   findButton(body,'Proovi uuesti').dispatchEvent(new Event('click'));await tick();assert.ok(calls.some(([m])=>m==='contentRebuild'));
   document.getElementById('details-close').dispatchEvent(new Event('click'));finish({state:'Ready'});await tick();assert.equal(body.textContent,'');
 });
@@ -1685,4 +1685,63 @@ test('ordinary selection and clearing never fade rows as cut files',async()=>{
     document.getElementById('selection-clear').dispatchEvent(new Event('click'));
   }
   assert.ok(rows.every(row=>!row.classList.contains('is-cut')));
+});
+
+
+test('returning to a folder restores only still-authorized selections for this account',async()=>{
+ const state={'subnet.workspace.return:alice:/pilveruum/#failid':JSON.stringify({ids:['first','revoked'],scroll:240,at:Date.now()})};
+ const {host,document}=fixture({returnState:state});
+ await vm.runInContext(`(async()=>{${source}})()`,host.context);
+ assert.equal(document.getElementById('selection-count').textContent,'1 valitud');
+ assert.equal(host.window.restoredScroll,240);assert.equal(Object.keys(state).length,0);
+});
+test('closing the unified sharing view and copying its link never grants access',async()=>{
+ const {host,document,calls}=fixture({drive(method){if(method==='grants')return [];if(method==='publicLink')return {enabled:false,version:'7',allowed:true};}});
+ await vm.runInContext(`(async()=>{${source}})()`,host.context);
+ findButton(document.getElementById('file-list'),'Jaga').dispatchEvent(new Event('click'));await tick();
+ const body=document.getElementById('dialog-body');assert.match(body.textContent,/Ligipääsuga inimesed/);assert.match(body.textContent,/Üldine ligipääs/);
+ findButton(body,'Kopeeri link').dispatchEvent(new Event('click'));await tick();
+ document.getElementById('dialog-form').dispatchEvent(new Event('submit',{cancelable:true}));await tick();
+ assert.equal(document.getElementById('drive-dialog').open,false);
+ assert.equal(calls.some(([m])=>['grant','publicLinkSet','emailShare'].includes(m)),false);
+});
+
+
+test('Home exposes filters on demand without changing file selection',async()=>{
+ const {host,document}=fixture({search:'#kodu'});await vm.runInContext(`(async()=>{${source}})()`,host.context);
+ const toggle=document.getElementById('home-filter-toggle');assert.equal(toggle.hidden,false);
+ toggle.dispatchEvent(new Event('click'));assert.equal(toggle.getAttribute('aria-expanded'),'true');assert.equal(document.getElementById('failid').classList.contains('show-filters'),true);
+ toggle.dispatchEvent(new Event('click'));assert.equal(toggle.getAttribute('aria-expanded'),'false');
+});
+
+
+test('new document links cannot silently create locally from a read-only folder',async()=>{
+ const {host,document}=fixture({root:{capabilities:{read:true,create:false,edit:false,delete:false}}});
+ await vm.runInContext(`(async()=>{${source}})()`,host.context);
+ const link=document.getElementById('new-apps').children[0];assert.equal(link.getAttribute('aria-disabled'),'true');
+ const click=new Event('click',{cancelable:true});link.dispatchEvent(click);assert.equal(click.defaultPrevented,true);
+});
+
+
+test('search visibly distinguishes names from content even with Home filters collapsed',async()=>{
+ const {host,document}=fixture({search:'#kodu'});await vm.runInContext(`(async()=>{${source}})()`,host.context);
+ const input=document.getElementById('search-text'),mode=document.getElementById('search-mode');
+ mode.value='name';mode.dispatchEvent(new Event('change'));assert.equal(input.placeholder,'Otsi failinimede järgi');
+ mode.value='content';mode.dispatchEvent(new Event('change'));assert.equal(input.placeholder,'Otsi failide sisust');
+ assert.ok(html.indexOf('id="search-mode"')<html.indexOf('id="search-filters"'));
+});
+
+test('native file rename shows a clean title and retains the same object and download suffix',async()=>{
+  const f={id:'2',version:'3',name:'Nimetu.scjson',spaceId:'1',owner:'alice',folder:false,format:{craft:{format_id:'grid',format_version:1}},capabilities:{read:true,edit:true,delete:true}};
+  const {host,document,calls}=fixture({file:f,query(){return {entries:[{...f}],cursor:null};},drive(method,p){if(method==='organize'){assert.equal(p.id,'2');assert.equal(p.version,'3');assert.equal(p.name,'Eelarve.scjson');f.name=p.name;f.version='4';return {id:'2',version:'4'};}}});
+  await vm.runInContext(`(async()=>{${source}})()`,host.context);
+  const row=document.getElementById('file-list').children[0];
+  assert.equal(row.querySelector('.file-name-button').textContent,'Nimetu');
+  row.dispatchEvent(keyEvent('F2'));
+  const input=row.querySelector('input.file-name-input');assert.equal(input.value,'Nimetu');
+  input.value='Eelarve';input.dispatchEvent(keyEvent('Enter'));await tick();
+  assert.equal(calls.filter(([method])=>method==='organize').length,1);
+  assert.equal(f.id,'2');assert.equal(f.name,'Eelarve.scjson');
+  assert.equal(document.getElementById('file-list').children.length,1);
+  assert.equal(document.getElementById('file-list').children[0].querySelector('.file-name-button').textContent,'Eelarve');
 });

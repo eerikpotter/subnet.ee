@@ -34,3 +34,21 @@ mod tests {
         assert_eq!(route(Some(4), 4, true), SaveRoute::Name);
     }
 }
+
+/// Naming changes the existing object only for the account and writable binding.
+/// Read-only/other-account documents and explicit copies always use a new object.
+pub fn names_existing(editable: bool, same_account: bool, copy: bool) -> bool {
+    editable && same_account && !copy
+}
+
+#[cfg(test)]
+mod naming_tests {
+    use super::*;
+    #[test]
+    fn naming_keeps_autosaved_and_reopened_files_but_copy_is_explicit() {
+        assert!(names_existing(true, true, false));
+        assert!(!names_existing(true, true, true));
+        assert!(!names_existing(false, true, false));
+        assert!(!names_existing(true, false, false));
+    }
+}

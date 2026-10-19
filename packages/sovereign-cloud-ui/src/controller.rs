@@ -40,10 +40,12 @@ enum Event {
     SessionLoaded(CloudResult<BrowserSession>),
     Scoped(String, Box<Event>),
     SignedIn,
+    Profile(Option<String>, CloudResult<AccountContext>),
     Error(String),
     Progress(String, Option<f32>),
     Selection(u64, picker::Selection),
     Saved(Attempt, DriveUpload),
+    Named(u64, ObjectId, String),
     Opened(DriveEntry, Revision, Vec<u8>),
 }
 struct Binding {
@@ -54,6 +56,14 @@ struct Binding {
     name: String,
     document_revision: u64,
     editable: bool,
+}
+#[derive(Clone)]
+struct Naming {
+    document: u64,
+    file: ObjectId,
+    actor: Principal,
+    original: String,
+    name: String,
 }
 struct PendingSave {
     snapshot: Snapshot,
@@ -68,6 +78,7 @@ struct Notice {
 pub struct Cloud {
     spec: AppSpec,
     menu: MenuHandle,
+    _title_action: Option<crate::title_action::TitleAction>,
     pending_open: Option<(DriveEntry, Revision, Vec<u8>)>,
     auth: Rc<RefCell<Option<BrowserSession>>>,
     tx: mpsc::Sender<Event>,
@@ -83,13 +94,19 @@ pub struct Cloud {
     attempt: Option<Attempt>,
     session_loading: bool,
     session_owner: Option<Principal>,
+    profile_name: Option<String>,
+    profile_loading: bool,
+    profile_marker: Option<String>,
+    next_profile_check: f64,
     next_session_check: f64,
     launch: Option<sovereign_cloud::launch::CloudLaunch>,
     after_login: Option<Request>,
     initial_destination: Option<(ObjectId, ObjectId)>,
+    creation: Option<(Principal, crate::workspace::Creation)>,
     picker: Option<picker::Picker>,
     picker_id: u64,
     picker_document: Option<u64>,
+    naming: Option<Naming>,
     autosave: crate::autosave::Schedule,
     recovery: recovery::Recovery,
     background_save: bool,
@@ -115,6 +132,7 @@ impl Cloud {
         let launch_error = launch.as_ref().err().cloned();
         Self {
             spec,
+            _title_action: crate::title_action::TitleAction::new(menu.clone()),
             menu,
             pending_open: None,
             auth: Rc::new(RefCell::new(None)),
@@ -131,13 +149,19 @@ impl Cloud {
             attempt: None,
             session_loading: true,
             session_owner: None,
+            profile_name: None,
+            profile_loading: false,
+            profile_marker: None,
+            next_profile_check: 0.0,
             next_session_check: 0.0,
             launch: launch.ok().flatten(),
             after_login: None,
             initial_destination: None,
+            creation: None,
             picker: None,
             picker_id: 0,
             picker_document: None,
+            naming: None,
             autosave: crate::autosave::Schedule::default(),
             recovery: recovery::Recovery::new(),
             background_save: false,
@@ -145,6 +169,13 @@ impl Cloud {
     }
     pub fn menu_handle(&self) -> MenuHandle {
         self.menu.clone()
+    }
+    /// Call before editor logic/input handling, including when no document is open.
+    /// BrowserSession validates persisted credentials and expiry on every call, so
+    /// logout/account changes clear the profile even before the periodic reload.
+    pub fn sync_identity(&self, app: &mut impl Editor) {
+        let id = self.principal().map(|principal| principal.to_text());
+        app.set_user_profile(id.as_deref().map(|id| crate::UserProfile { id, display_name: self.profile_name.as_deref().unwrap_or("Subnet user") }));
     }
     fn principal(&self) -> Option<Principal> {
         self.auth.borrow().as_ref().filter(|a| a.is_authenticated()).and_then(|a| a.principal().ok())
@@ -183,8 +214,20 @@ impl Cloud {
             }
         }
     }
+    fn can_rename(&self, app: &impl Editor) -> bool {
+        !self.busy
+            && self.attempt.is_none()
+            && self.pending_open.is_none()
+            && self.picker.is_none()
+            && self.naming.is_none()
+            && !self.session_loading
+            && self.principal().is_some()
+            && app.document().is_some_and(|doc| {
+                self.bindings.get(&doc.id).is_none_or(|binding| flow::names_existing(binding.editable, Some(binding.actor) == self.principal(), false))
+            })
+    }
     fn request(&mut self, request: Request, app: &impl Editor, ctx: &egui::Context) {
-        if self.busy || self.attempt.is_some() || self.pending_open.is_some() || self.picker.is_some() {
+        if self.busy || self.attempt.is_some() || self.pending_open.is_some() || self.picker.is_some() || self.naming.is_some() {
             self.visible = self.picker.is_none();
             return;
         }
@@ -204,6 +247,24 @@ impl Cloud {
             self.notify("Open or create a document first", true);
             return;
         };
+        if request == Request::Rename && !self.can_rename(app) {
+            return;
+        }
+        if matches!(request, Request::SaveAs | Request::Rename)
+            && let Some(binding) = self.bindings.get(&doc.id)
+            && flow::names_existing(binding.editable, Some(binding.actor) == self.principal(), false)
+        {
+            self.naming = Some(Naming {
+                document: doc.id,
+                file: binding.file,
+                actor: binding.actor,
+                original: binding.name.clone(),
+                name: self.spec.stem(&binding.name),
+            });
+            self.visible = false;
+            self.notice = None;
+            return;
+        }
         if matches!(request, Request::Save | Request::Autosave)
             && let Some(binding) = self.bindings.get(&doc.id)
         {
@@ -223,13 +284,101 @@ impl Cloud {
             self.save(app, ctx, target, name);
             return;
         }
+        if matches!(request, Request::Save | Request::Autosave) && self.creation_changed(&doc) {
+            if let Some((_, parent)) = self.initial_destination {
+                let kind = match self.spec.kind() {
+                    Ok(kind) => kind,
+                    Err(e) => {
+                        self.notify(e, true);
+                        return;
+                    }
+                };
+                // A human-readable provisional name without an unbounded folder scan.
+                let suffix = web_sys::window().and_then(|w| w.crypto().ok()).map(|c| c.random_uuid()).unwrap_or_default();
+                let name = self.spec.file_name(&format!("{} {}", tr("Untitled"), suffix.get(..8).unwrap_or(&suffix)));
+                self.background_save = request == Request::Autosave;
+                self.save(
+                    app,
+                    ctx,
+                    UploadTarget::New {
+                        parent,
+                        name: name.clone(),
+                        format: FileFormat {
+                            media_type: if self.spec.id == "pdfcraft" { "application/pdf" } else { "application/octet-stream" }.into(),
+                            craft: Some(kind),
+                        },
+                    },
+                    name,
+                );
+                return;
+            }
+        }
         if request == Request::Autosave {
             return;
         }
         self.background_save = false;
         let name = self.bindings.get(&doc.id).map_or(doc.name.as_str(), |b| b.name.as_str());
-        let name = if request == Request::SaveAs { format!("{} copy", self.spec.stem(name)) } else { self.spec.stem(name) };
+        let name = if matches!(request, Request::SaveAs | Request::SaveCopy) && self.bindings.contains_key(&doc.id) {
+            format!("{} copy", self.spec.stem(name))
+        } else {
+            self.spec.stem(name)
+        };
         self.show_picker(Some(&self.spec.file_name(&name)), Some(doc.id), ctx);
+    }
+    fn name_existing(&mut self, naming: Naming, ctx: &egui::Context) {
+        if Some(naming.actor) != self.principal() {
+            self.naming = None;
+            self.notify("Account changed. The captured file was not sent.", true);
+            return;
+        }
+        let name = self.spec.file_name(&naming.name);
+        if naming.name.trim().is_empty() || name.len() > 160 || name.contains(['/', '\\']) {
+            self.notify("Enter a valid file name", true);
+            return;
+        }
+        let api = match self.api() {
+            Ok(api) => api,
+            Err(e) => {
+                self.notify(e, true);
+                return;
+            }
+        };
+        let Some(request) = web_sys::window().and_then(|w| w.crypto().ok()).map(|c| c.random_uuid()) else {
+            return;
+        };
+        let stamp = self.stamp();
+        let (tx, ctx) = (self.tx.clone(), ctx.clone());
+        self.begin_operation("Saving name…");
+        wasm_bindgen_futures::spawn_local(async move {
+            let result: CloudResult<()> = async {
+                let entry: DriveEntry = api.drive_call("drive_get", args((naming.file,))?).await?;
+                // Retry after an ambiguous response is safe. A concurrent different
+                // rename is a conflict, never silently overwritten.
+                if entry.object.name != name {
+                    if entry.object.name != naming.original {
+                        return Err("The cloud file changed. Reopen it before renaming.".into());
+                    }
+                    let input = OrganizeRequest {
+                        object: naming.file,
+                        expected_version: entry.object.version,
+                        request_id: request,
+                        change: OrganizationChange::Rename(name.clone()),
+                    };
+                    let _: MutationReceipt = api.drive_call("drive_organize", args((input,))?).await?;
+                }
+                Ok(())
+            }
+            .await;
+            send_scoped(
+                &tx,
+                &ctx,
+                &stamp,
+                match result {
+                    Ok(()) => Event::Named(naming.document, naming.file, name),
+                    Err(e) => Event::Error(e),
+                },
+            );
+        });
     }
     fn show_picker(&mut self, name: Option<&str>, document: Option<u64>, ctx: &egui::Context) {
         self.picker_id = self.picker_id.wrapping_add(1);
@@ -415,6 +564,18 @@ impl Cloud {
                 event => event,
             };
             match event {
+                Event::Profile(marker, result) => {
+                    if marker != self.profile_marker {
+                        self.profile_loading = false;
+                        self.next_profile_check = 0.0;
+                        continue;
+                    }
+                    self.profile_loading = false;
+                    if let Ok(account) = result {
+                        self.profile_name = account.account.display_name;
+                        self.next_profile_check = f64::INFINITY;
+                    }
+                }
                 Event::SessionLoaded(result) => {
                     self.session_loading = false;
                     match result {
@@ -429,7 +590,17 @@ impl Cloud {
                                         sovereign_cloud::launch::CloudLaunch::File { space, file } => self.open(space, file, None, ctx),
                                         sovereign_cloud::launch::CloudLaunch::New { space, parent } => {
                                             self.initial_destination = Some((space, parent));
-                                            self.visible = false;
+                                            match app.create_document() {
+                                                Ok(()) => {
+                                                    let mut creation = crate::workspace::Creation::default();
+                                                    if let Some(doc) = app.document() {
+                                                        creation.observe(&doc);
+                                                    }
+                                                    self.creation = self.principal().map(|actor| (actor, creation));
+                                                    self.visible = false;
+                                                }
+                                                Err(e) => self.notify(e, true),
+                                            }
                                         }
                                     }
                                 } else if let Some(request) = self.after_login.take() {
@@ -493,6 +664,17 @@ impl Cloud {
                     }
                     self.picker_document = None;
                 }
+                Event::Named(document, file, name) => {
+                    self.busy = false;
+                    self.naming = None;
+                    if let Some(binding) = self.bindings.get_mut(&document).filter(|b| b.file == file) {
+                        binding.name = name;
+                    }
+                    browser::notify_files_changed();
+                    if app.document().is_some_and(|d| d.id == document) {
+                        self.request(Request::Save, app, ctx);
+                    }
+                }
                 Event::Saved(attempt, upload) => {
                     self.busy = false;
                     self.background_save = false;
@@ -500,6 +682,7 @@ impl Cloud {
                         self.notify("The upload was not committed. Retry the captured file.", true);
                         continue;
                     };
+                    self.creation = None;
                     self.recovery.saved(attempt.actor, attempt.doc_id, attempt.doc_revision);
                     browser::notify_files_changed();
                     self.attempt = None;
@@ -522,7 +705,7 @@ impl Cloud {
                         },
                     );
                     if !attempt.automatic && !self.notice.as_ref().is_some_and(|n| n.error) {
-                        self.notify(format!("{} {} · {}", tr("Saved"), attempt.name, timestamp(revision.created_at)), false);
+                        self.notify(format!("{} {} · {}", tr("Saved"), self.spec.stem(&attempt.name), timestamp(revision.created_at)), false);
                     }
                 }
                 Event::Opened(entry, revision, bytes) => {
@@ -536,16 +719,22 @@ impl Cloud {
             }
         }
     }
+    fn creation_changed(&mut self, doc: &crate::DocumentState) -> bool {
+        let principal = self.principal();
+        self.creation.as_mut().is_some_and(|(actor, creation)| Some(*actor) == principal && creation.observe(doc))
+    }
     fn schedule_autosave(&mut self, app: &impl Editor, ctx: &egui::Context) {
         let Some(doc) = app.document() else {
             return;
         };
+        let creating = self.creation_changed(&doc);
         let eligible = !self.busy
             && self.attempt.is_none()
             && self.pending_open.is_none()
             && self.picker.is_none()
+            && self.naming.is_none()
             && !self.session_loading
-            && self.bindings.get(&doc.id).is_some_and(|b| Some(b.actor) == self.principal() && b.editable && b.document_revision != doc.revision);
+            && (creating || self.bindings.get(&doc.id).is_some_and(|b| Some(b.actor) == self.principal() && b.editable && b.document_revision != doc.revision));
         if eligible {
             ctx.request_repaint_after(std::time::Duration::from_secs(1));
         }

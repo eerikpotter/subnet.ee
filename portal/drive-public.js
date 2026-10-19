@@ -1,32 +1,34 @@
 // Public reading has its own minimal projection; it cannot call account APIs.
-export function createPublicLinks({host,body,read,download,call,element,button,text,bind,error,dialog,dialogBody,submit,field,requestId,mutate,dialogCurrent,href,preview,size,canRequest,requestAccess}) {
+export function createPublicLinks({host,body,read,download,call,element,button,text,error,field,requestId,mutate,href,preview,size,canRequest,requestAccess}) {
   let epoch=0;
   const fail=(target,e)=>target.append(element('p','is-error',error(e)));
-  async function settings(file) {
-    let execute;dialog('Üldine ligipääs','Salvesta',()=>execute?.());const active=dialogCurrent(),target=dialogBody();
-    submit.disabled=true;
+  async function mountSettings(file,target,active) {
+    let execute;const saveButton=button('Salvesta lingi seaded',()=>execute?.());saveButton.disabled=true;
     target.append(element('p','','Laadin…'));
     try {
       const state=await call('publicLink',{id:file.id});if(!active())return;
-      target.replaceChildren();
-      const label=element('label','dialog-field'),mode=element('select');label.append(element('span','','Üldine ligipääs'),mode);target.append(label);
+      target.replaceChildren(element('h3','','Üldine ligipääs'));
+      const label=element('label','dialog-field'),mode=element('select');label.append(element('span','sr-only','Üldine ligipääs'),mode);target.append(label);
       for(const [value,title] of [['restricted','Piiratud'],['public','Kõik lingiga']]) {const option=element('option','',title);option.value=value;option.disabled=value==='public'&&!state.allowed;mode.append(option);}
       mode.value=state.enabled?'public':'restricted';
       if(!state.allowed)target.append(element('p','muted','Selle tiimi väline jagamine on keelatud.'));
       if(state.inherited)target.append(element('p','muted','Avalik ligipääs on päritud kaustast. Selle lõpetamiseks muuda ülemkausta jagamist.'));
-      target.append(element('p','muted','Kõik lingiga saavad vaadata ja alla laadida ilma kontota. Muutmine vajab nimelist õigust.'));
-      const expiry=field('Ligipääs kuni');expiry.type='datetime-local';expiry.required=false;
-      if(state.expiresAt){const d=new Date(Number(state.expiresAt)/1e6);expiry.value=new Date(d.getTime()-d.getTimezoneOffset()*60000).toISOString().slice(0,16);}
-      target.append(element('p','muted','Tühi kuupäev tähendab tähtajatut ligipääsu.'));
-      const link=element('a');link.textContent=file.name;link.href=href(file);target.append(link);
+      const explanation=element('p','muted');target.append(explanation);const explain=()=>{explanation.textContent=text(mode.value==='public'?'Kõik lingiga saavad vaadata ja alla laadida ilma kontota. Muutmine vajab nimelist õigust.':'Piiratud: link töötab ainult ligipääsuga inimestele. Lingi kopeerimine õigusi ei muuda.');};mode.addEventListener('change',explain);explain();
+      const expiry=field('Ligipääs kuni');expiry.type='datetime-local';expiry.required=false;const expiryDetails=element('details'),expirySummary=element('summary','','Lisa lõppkuupäev');expiryDetails.append(expirySummary,expiry.parentElement);target.append(expiryDetails);
+      if(state.expiresAt){expiryDetails.open=true;const d=new Date(Number(state.expiresAt)/1e6);expiry.value=new Date(d.getTime()-d.getTimezoneOffset()*60000).toISOString().slice(0,16);}
+      expiryDetails.append(element('p','muted','Tühi kuupäev tähendab tähtajatut ligipääsu.'));
       const token=requestId();let request;
-      // Replace the pending submit callback only after policy/version have arrived.
-      execute=()=>{
-        if(!request)request={id:file.id,enabled:mode.value==='public',expiresAt:expiry.value?String(BigInt(new Date(expiry.value).getTime())*1000000n):null,version:state.version,requestId:token};
-        mode.disabled=expiry.disabled=true;return mutate(()=>call('publicLinkSet',request),{ids:[file.id]});
+      // Enable the explicit policy write only after its version has arrived.
+      execute=async()=>{
+        if(!request) {
+          const expires=expiry.value?new Date(expiry.value).getTime():null;
+          if(expires!==null && (!Number.isFinite(expires)||expires<=Date.now())){fail(target,new Error('Ligipääsu lõpp peab olema tulevikus.'));return;}
+          request={id:file.id,enabled:mode.value==='public',expiresAt:expires===null?null:String(BigInt(expires)*1000000n),version:state.version,requestId:token};
+        }
+        if(!active())return;mode.disabled=expiry.disabled=saveButton.disabled=true;const saved=await mutate(()=>call('publicLinkSet',request),{ids:[file.id]});if(!saved && active())saveButton.disabled=false;return saved;
       };
-      submit.disabled=false;
-    }catch(e){if(active()){target.replaceChildren();fail(target,e);}}
+      saveButton.disabled=false;target.append(saveButton);
+    }catch(e){if(active()){target.replaceChildren(element('h3','','Üldine ligipääs'));fail(target,e);}}
   }
   async function save(file) {
     const turn=epoch;
@@ -53,5 +55,5 @@ export function createPublicLinks({host,body,read,download,call,element,button,t
       await load();
     }catch(e){if(turn===epoch){body.replaceChildren(element('h1','','Link ei ole kättesaadav'),element('p','muted','Ligipääs võib olla piiratud, aegunud või lõpetatud. Võid sisse logida oma kontoga.'));if(canRequest())body.append(button('Küsi ligipääsu',()=>requestAccess(id)));}}
   }
-  return {show,settings,save,hide(){epoch++;host.hidden=true;body.replaceChildren();}};
+  return {show,mountSettings,save,hide(){epoch++;host.hidden=true;body.replaceChildren();}};
 }

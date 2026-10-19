@@ -437,6 +437,10 @@ async fn get_or_create_account() -> CloudResult<AccountContext> {
     STORE.with(|s| s.borrow_mut().account(caller, time()))
 }
 #[ic_cdk::update]
+fn set_account_display_name(name: String) -> CloudResult<Account> {
+    STORE.with(|s| s.borrow_mut().set_display_name(msg_caller(), name))
+}
+#[ic_cdk::update]
 fn list_files(space: ObjectId, after: Option<ObjectId>, limit: u32) -> CloudResult<FilePage> {
     STORE.with(|s| s.borrow().files(msg_caller(), space, after, limit))
 }

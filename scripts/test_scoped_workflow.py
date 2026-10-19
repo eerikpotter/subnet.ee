@@ -34,7 +34,7 @@ class ScopedWorkflowTest(unittest.TestCase):
             "pilveruum/index.html": "<!-- APP_CARDS --> __APP_COUNT__ tööriista __APP_COUNT_PADDED__",
             "craft-shell.html": '<iframe id="craft-editor" data-leave="guard">__APP_NAME__</iframe>',
             "cloud.js": "__CLOUD_BINDINGS__ __CLOUD_WASM__", "tokens.css": "tokens",
-            "craft-shell.css": "shell", "craft-shell.js": "shell", "craft-loading.js": "loader", "craft-wasm.js": "wasm-loader", "style.css": "style", "i18n.js": "locale", "translations.js": 'window.SubnetEnglish = {"Ava tööruum":"Open workspace"};' ,
+            "craft-shell.css": "shell", "craft-shell.js": "shell", "workspace-context.js": "context", "craft-loading.js": "loader", "craft-wasm.js": "wasm-loader", "style.css": "style", "i18n.js": "locale", "translations.js": 'window.SubnetEnglish = {"Ava tööruum":"Open workspace"};' ,
         }.items():
             self.put("portal/" + name, content)
         for name in ("craft-cache.js", "craft-updates.js", "apps/craft-cache-sw.js"):

@@ -137,3 +137,14 @@ export function stableSuggestionOrder(previous,current) {
   const next=new Map(current.map(item=>[item.id,item]));
   return [...previous.filter(item=>next.has(item.id)).map(item=>{const value=next.get(item.id);next.delete(item.id);return value;}),...next.values()];
 }
+
+// Display only: the canonical stored/download name and format remain untouched.
+export function documentDisplayName(file, app) {
+  const suffix = app?.cloudExtension ? '.' + app.cloudExtension : '';
+  return !file.folder && suffix && file.name.toLowerCase().endsWith(suffix.toLowerCase())
+    ? file.name.slice(0, -suffix.length) : file.name;
+}
+export function documentStorageName(name, file, app) {
+  const suffix = !file.folder && app?.cloudExtension ? '.' + app.cloudExtension : '';
+  return suffix && !name.toLowerCase().endsWith(suffix.toLowerCase()) ? name + suffix : name;
+}

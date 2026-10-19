@@ -64,7 +64,7 @@ impl CloudPortal {
             if !session.is_authenticated() {
                 return Err(js_error("Session changed during account loading"));
             }
-            serde_json::json!({"authenticated":true, "principal":account.account.owner.to_text(), "accountId":account.account.id.to_string(), "spaceId":account.account.personal_space.to_string(), "usedBytes":account.used_bytes, "quotaBytes":account.quota_bytes, "home":query_json(home.page)?, "preferences":preferences_json(preferences)})
+            serde_json::json!({"authenticated":true, "principal":account.account.owner.to_text(), "displayName":account.account.display_name, "accountId":account.account.id.to_string(), "spaceId":account.account.personal_space.to_string(), "usedBytes":account.used_bytes, "quotaBytes":account.quota_bytes, "home":query_json(home.page)?, "preferences":preferences_json(preferences)})
         } else {
             serde_json::json!({"authenticated":false})
         };
@@ -539,9 +539,20 @@ impl CloudPortal {
                     .map_err(js_error)?;
                 entry_json(entry)
             }
+            "setDisplayName" => {
+                let name = p
+                    .get("name")
+                    .and_then(|v| v.as_str())
+                    .ok_or_else(|| js_error("Name required"))?;
+                let profile: sovereign_cloud::protocol::Account = client
+                    .update("set_account_display_name", args((name,)).map_err(js_error)?)
+                    .await
+                    .map_err(js_error)?;
+                serde_json::json!({"displayName":profile.display_name})
+            }
             "account" => {
                 let account = client.account().await.map_err(js_error)?;
-                serde_json::json!({"principal":account.account.owner.to_text(), "usedBytes":account.used_bytes, "quotaBytes":account.quota_bytes})
+                serde_json::json!({"principal":account.account.owner.to_text(), "displayName":account.account.display_name, "usedBytes":account.used_bytes, "quotaBytes":account.quota_bytes})
             }
             "initialize" | "get" | "folder" => {
                 let (method, input) = match operation.as_str() {

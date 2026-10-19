@@ -29,7 +29,9 @@
  <div class="features" id="feature-list"></div>
  <p class="small" id="empty" hidden>Vasteid pole. Vali teine etapp või muuda otsingut.</p>
  <p class="small" style="margin-top:16px">„Olemas” tähendab kontrollitud põhivoogu, mitte Google’i iga alamfunktsiooni täielikku vastet. Võimalused sõltuvad Google’i paketist ja platvormist. Protsendilist parity-hinnangut ei ole.</p>
- <details><summary>19.10 redaktorite uuendus ja kontrollide ulatus</summary><p>Kõik kaheksa Crafti on uuendatud üle vaadatud upstream’i versioonideni. Pilvesalvestus ja taasavamine läbisid igas rakenduses; jagatud adapteri lepinguid kontrollitakse ühises kihis. DeckCrafti brauseri käivitustõrge parandati kitsalt.</p><p>Edaspidi: mõjutatud mooduli testid, vajalik ehitus ja muutunud kasutajavoo kontroll. Ülesvoolu tuhandete mootoritestide kordamine ei ole tavapärane nõue. Selle uuenduse kuue redaktori täis-CI peatus muutmata upstream’i Clippy hoiatustel; PDF-i ja Soundi täis-CI läbis. Autoritunnuse ühendamine principal’iga on kavandatud, veel teostamata.</p></details>
+ <details><summary>19.10 ühtne igapäevane tööruum — kohalik täiendus</summary><p>Uus dokument, tabel või esitlus avaneb otse tühja tööna. Pilvest alustatud dokument salvestatakse esimesel muudatusel lähtekausta; päis näitab nime ja kinnitatud salvestusolekut. Kohalik avamine ja ekspordi võimalus säilivad.</p><p>Tagasitee hoiab kausta või otsingut. Valik taastatakse pärast õiguste kontrolli, kuni 200 faili ja 10 tulemuselehe piires. Jagamisaknas on inimesed ning üldine lingi ligipääs koos. Kodu on kompaktsem ja filtrid avanevad vajadusel. Otsingu valik „Ainult failinimed” / „Failide sisu” jääb nähtavale; mobiilis on tekstiväljal oma rida. Tulemused näitavad katket ja asukohta, tehnilise indekseerimise sõnavarata. Mõtteruum ja uus kontosüsteem ei kuulu sellesse etappi.</p><p>Need muudatused on kohalikus arenduses; see märge ei tähenda mainneti avaldamist.</p></details>
+ <details><summary>19.10 kohalik konto- ja kommentaariühendus</summary><p>Subneti kontol on üks kuvatav nimi. Word, Grid, Deck, PDF ja Fig võtavad nime ning aktiivse principal’i ühise adapteri kaudu üle. Wordi kommentaar ja vastus säilitavad eri kasutajate nimed ka salvestamisel ja taasavamisel. See täiendus on kohalikus arenduses, mitte veel mainnetis.</p><p>Faili- ja kaustapõhiseid arutelusid ei lisata. Vaataja loeb; Muutja saab kommentaare koos dokumendiga salvestada. Kommentaaride püsiv principal-põhine autoriseos ja praeguste nimede lahendamine jäävad eraldi sammuks.</p></details>
+ <details><summary>19.10 redaktorite uuendus ja kontrollide ulatus</summary><p>Kõik kaheksa Crafti on uuendatud üle vaadatud upstream’i versioonideni. Pilvesalvestus ja taasavamine läbisid igas rakenduses; jagatud adapteri lepinguid kontrollitakse ühises kihis. DeckCrafti brauseri käivitustõrge parandati kitsalt.</p><p>Edaspidi: mõjutatud mooduli testid, vajalik ehitus ja muutunud kasutajavoo kontroll. Ülesvoolu tuhandete mootoritestide kordamine ei ole tavapärane nõue. Selle uuenduse kuue redaktori täis-CI peatus muutmata upstream’i Clippy hoiatustel; PDF-i ja Soundi täis-CI läbis. Wordi, Gridi, Decki, PDF-i ja Figi profiil saab nüüd ühise adapteri kaudu aktiivse konto principal’i ja Subneti kontonime. Kommentaaridesse selle ID salvestamine on eraldi järgmine samm.</p></details>
  <details><summary>18.10 failivoogude kontrollid ja tõendi piirid</summary><ul><li>UUID-kausta üleslaadimise päringupiir; e-posti kutse korduskatse ja tühistamine kasutavad õiget Candid-tüüpi.</li><li>Päris kanistrisse laaditud DOCX, XLSX, PPTX, PNG ning kahe tekstileheküljega PDF. Eelmine/järgmine, suum, inertne sisu ja PDF-i sulgemise/kontovahetuse testid.</li><li>Kaks kontot: keelatud link → ligipääsutaotlus → omaniku Vaataja-otsus → lubatud fail → õiguse eemaldamine → ligipääs keelatud.</li><li>WordCraft ühise adapteriga: automaatsalvestus ja taasavamine; uue salvestamata dokumendi kohalik mustand taastub teises redaktoriaknas koopiana.</li><li>185 portaali/JavaScripti testi, 2 Rusti päringupiiri testi ja 4 lokaliseerimise testi läbivad; portaali Wasm-ehitus ja clippy läbivad.</li><li>390 px failimenüü mahub ekraanile; lõigatud faili tuhmistus ei muuda menüüd poolläbipaistvaks.</li></ul><p>Koormuskatse 100k kasutajaga, täielik ekraanilugejate audit ja kõigi Office’i variantide ühilduvus ei ole nende kontrollidega tõendatud. Redaktorite mootorite teste selles etapis ei korratud: native-redaktoreid ei muudetud.</p></details>
  <details><summary>Varasemate failitoimingute vastuvõtukontrollid</summary><ul><li>Pesastatud kaustad ja samanimelised failid; katkestus ja ebaselge commit’i tulemus.</li><li>Osaline edu, korduskatse ainult ebaõnnestunud failidele, konto vahetamine ja õiguse tühistamine töö ajal.</li><li>Keelatud alamkausta liigutamine; jagatud kausta liigutamisel muutuv ligipääs.</li><li>Klaviatuuriga kasutamine; puuduv või hõivatud taastamiskoht; uute andmete korral päris skeemiuuenduse test.</li></ul><p>Ühe faili katkestamine ei tohi eemaldada juba edukalt salvestatud naaberfaile. Katkestatud pooleliolev fail ei tohi muutuda nähtavaks.</p></details>
 </section>
@@ -102,7 +104,7 @@
       "status": "Olemas",
       "phase": "Valmis",
       "current": "Vaataja ja Muutja; otsesed ning kaustast päritud õigused. Failil ja kaustal on üks UUID, puhas püsilink ning avamisel värske õigusekontroll.",
-      "next": "Piiratud link vajab nimelist õigust. Avaliku vaatamise saab eraldi sisse lülitada (vt avalikud lingid). Omandi üleandmine ja Kommenteerija roll jäävad tulevikku.",
+      "next": "Piiratud link vajab nimelist õigust. Avaliku vaatamise saab eraldi sisse lülitada (vt avalikud lingid). Omandi üleandmine jääb tulevikku. Säilitame Vaataja ja Muutja rollid; kommentaari salvestamine dokumendi sees vajab Muutja õigust.",
       "source": "share"
     },
     {
@@ -124,7 +126,7 @@
       "name": "Kaheksa Crafti pilvevood",
       "status": "Olemas",
       "phase": "Valmis",
-      "current": "Kaheksa Crafti kasutavad sama Rusti SDK-d ja UI-adapterit: pilve avamine, Save/Save As, kaustavalik, konfliktid ja kontoeraldus.",
+      "current": "Kaheksa Crafti kasutavad sama Rusti SDK-d ja UI-adapterit: pilve avamine, salvestamine, nime muutmine sama faili piires, eraldi koopia salvestamine, kaustavalik, konfliktid ja kontoeraldus. Pealkirjal klõpsamine avab nime muutmise; WordCrafti enda pealkiri kasutab sama voogu. Tehnilised faililaiendid on vaates peidetud.",
       "next": "Muudatused tehakse ühises adapteris. Staatiliselt seotud redaktoreid pakendatakse vajadusel uuesti; sama pilvereeglit ei rakendata kaheksa korda.",
       "evidence": "19.10: kaheksa uuendatud redaktori Wasm-ehitused ja kõigi kaheksa pilvesalvestus/taasavamine brauseris läbisid. Adapteri lepingud on testitud ühises kihis; 344 kohaliku väljalaske failikontrolli läbisid."
     },
@@ -179,7 +181,7 @@
       "name": "Loo dokument sellesse kausta",
       "status": "Olemas",
       "phase": "Valmis",
-      "current": "Uus-menüü annab praeguse kausta Crafti esimesele salvestusele kaasa. Ühine dialoog näitab ka sihtkausta omanikku.",
+      "current": "Uus-menüü annab lähtekausta ühisele adapterile. Kohalik täiendus avab Wordi, Gridi ja Decki tühja dokumendi ning salvestab esimese muudatuse samasse kausta. Muud rakendused säilitavad oma loomise valikud. Esialgne failinimi sisaldab lühikest juhuslikku järelliidet; nime saab failivaates muuta.",
       "next": "Kõigi kaheksa uuendatud Crafti salvestamine ja taasavamine on kohalikus brauseris kontrollitud."
     },
     {
@@ -251,11 +253,11 @@
       "evidence": "Kuue vormingu päris Wasm-tööjärjekord ja andmetega uuendus; õiguste, värskuse, peitmise, piiratud jätkupäringu, arhiivi/XML/PDF paisumise ning portaali testid."
     },
     {
-      "name": "Kommentaarid ja reaalaja koostöö",
-      "status": "Edasi lükatud",
-      "phase": "Skoobist väljas",
-      "current": "Ühine pilvekiht ei paku kommentaare, mainimisi, ülesandeid, kohalolu ega samaaegset redigeerimist. Propose on reserveeritud.",
-      "next": "Dokumendisiseste kommentaaride kontoühendus on läbi vaadatud: olemasoleva pilveadapteri kaudu praeguse kasutaja principal autoritunnusena, koos redaktori nime/initsiaalidega. See on kavand, autoritunnuse salvestamist veel ei lisatud. Olemasolevaid Subneti kommentaare ega migratsioonivajadust pole. Failipõhised lõimed, Kommenteerija roll ja samaaegne redigeerimine jäävad tulevikku.",
+      "name": "Dokumendisisesed kommentaarid ja koostöö",
+      "status": "Osaline",
+      "phase": "Täiendused",
+      "current": "Kasutame redaktorite olemasolevaid dokumendisiseseid kommentaare. Autori nimi tuleb Subneti kontolt ühise adapteri kaudu; fail säilitab nime koopia. Faili- ja kaustapõhiseid arutelusid ei lisata. Vaataja loeb, Muutja saab kommentaare koos dokumendiga salvestada.",
+      "next": "Wordi, Gridi, Decki, PDF-i ja Figi olemasolev profiil saab ühise adapteri kaudu aktiivse konto principal’i ja Subneti kontonime. Nime määrad ühe korra Subneti kontomenüüs. ID on ainult seansi olek, seda ei taastata eelistustest. Kommentaaridesse ja vastustesse autoritunnuse salvestamist veel ei lisatud. Olemasolevaid Subneti kommentaare ega migratsioonivajadust pole. Vaataja kommenteerimine vajaks eraldi piiratud kirjutamistoimingut, mitte faili muutmisõigust. Reaalaja koostöö jääb eraldi tulevikuteemaks.",
       "source": "collaborate"
     },
     {

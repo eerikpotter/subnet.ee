@@ -457,3 +457,151 @@ https://skills.internetcomputer.org/.well-known/skills/internet-identity/SKILL.m
 https://skills.internetcomputer.org/.well-known/skills/canister-security/SKILL.md.
 No platform gap or new identity mechanism was identified. The remaining gap is only
 the editor author model; further authentication research is not required for it.
+
+### Runtime editor profile connection — 19 October 2026
+
+The existing account record now carries one optional `display_name`. Only its
+caller may update it; names need not be unique and never confer authority. No new
+account table, identity mapping or II profile change is introduced. The existing
+account menu edits this single shared name.
+
+The shared `Editor::set_user_profile` hook receives the current authenticated
+principal and account name. `Cloud::sync_identity` validates BrowserSession before
+host logic/UI and after cloud events. Logout/expiry/account changes clear runtime
+identity; an unloaded name uses a neutral label rather than the previous user's
+name. Profile requests use the existing account API and session-scoped responses.
+Successful names are cached for the session; a same-origin invalidation marker
+refreshes open apps after a name edit. The marker carries no trusted profile data.
+Requests are not made per frame or per comment. Failed requests retry after 30s.
+
+Word's session, Grid/Deck/Fig's preferences and PDF's comment preferences carry
+the optional runtime ID alongside the existing name. ID serialization is excluded;
+local display-name preferences cannot authenticate a user. Word derives initials
+from the shared name. No ICP dependency enters the editor engines. CAD, Photo and
+Sound have no corresponding author profile and need no invented profile.
+
+This connects the current user's profile and existing name-based author creation.
+Persisting principal in comments/replies, author matching and external format
+interchange are a follow-up. A future comment should keep both author principal
+and a name snapshot; bounded resolution of the document's distinct authors can
+supply current names, while export/offline/deleted accounts retain readable labels.
+No global public account directory is added by this change.
+
+### Daily workspace shell — 19 October 2026
+
+Requirement: creation/saving, return context, one sharing view and a quieter Home.
+The Internet Identity/shared-session and canister-security skills above were read
+on 19 October. Existing BrowserSession, scoped drive methods, revision checks and
+idempotent uploads already satisfy the platform requirements. No new account,
+canister, ownership map or authorization layer is needed. The gap is presentation
+and document lifecycle coordination, not an ICP transport limitation.
+
+The smallest extension is a default no-op `Editor::create_document` hook and an
+explicit launch intent in the canonical shared adapter. Word/Grid/Deck invoke
+native blank-document creation; media tools retain their native setup choices.
+The launch destination belongs to that authenticated account and first document,
+not subsequent tabs. Empty documents are not uploaded. A changed revision uses
+the existing debounce, authorized upload and retry receipt; successful commit
+establishes the ordinary file binding. Provisional names use a short random suffix
+instead of scanning a whole folder to allocate a name. Explicit Save As remains
+available. Local-only launches keep their existing behavior.
+
+The shell observes a versioned DOM presentation record (document name/save state),
+not document bytes or identity credentials. Only committed revisions report Saved;
+new edits made during upload remain unsaved. The host's explicit leave confirmation
+suppresses the child unload prompt only for that confirmed navigation. Reload/close
+and cancellation retain the ordinary unsaved-work guard.
+
+`workspace_return` is a validated same-origin workspace URL, never authority. Selection
+and scroll are temporary account-keyed sessionStorage hints (24h, 200 IDs, at most
+10 result pages). Return re-fetches authorized pages and drops missing/revoked IDs;
+no cached metadata substitutes for access checks. Very deep lists can require
+another Show more after returning. This bounds automatic work without introducing
+an index or persisting browser navigation on the backend.
+
+Sharing reuses existing grants, email invitations and public policy methods in one
+modal. Public settings remain an explicit write with a captured object policy
+version/idempotency key. Copy link and Done with no recipient perform no grant.
+Inherited/team restrictions stay server-authoritative. AI, thought-space, comment
+storage and backend permission changes are outside this package.
+
+Proof: shared creation/empty-document and failure policies; native hooks only for
+Word/Grid/Deck; same-origin navigation, child unload confirmation, account-scoped
+return selection; inline public-policy retry and no-write copy/close; local browser
+creation/save/reopen, team return and compact Home. Test outcomes are recorded in
+history after running, not implied by this design record.
+
+### Search presentation follow-up — 2026-10-19
+
+The user-facing search selector explicitly distinguishes file names from file text.
+Index construction remains an internal concern: copy describes whether file text
+is searchable, never asks users to manage an index. Partial text coverage and
+unsupported formats remain truthful in file details. Existing bounded queries,
+revision checks, ACL checks and extraction limits are unchanged. Morphology,
+combined ranking and the optional folder overview page remain deferred.
+
+Browser verification found Deck's documented `blank` startup flag was needed to
+avoid its sample presentation. The registry declares optional `createQuery`; the
+shared navigation helper applies it only to new-document links. File identity,
+permissions and editor serialization are unchanged. A focused regression uses
+the actual registry entry.
+
+Word exposes one optional presentation callback in its existing host Services.
+The web host consumes the same versioned document-status signal as the outer
+shell; the native title no longer substitutes local-path presence for cloud save
+status. The callback does not write session paths or dirty flags. Its focused
+regression verifies that separation and the standalone fallback.
+
+### Document naming and presentation — 19 October 2026
+
+Requirement: naming an autosaved document must retain its object UUID, parent,
+permissions and revisions; native technical suffixes should not dominate the UI.
+Use the existing authenticated `drive_get` / version-checked `drive_organize(Rename)`
+contract and ordinary `UploadTarget::Replace`. No new canister methods, stored
+provisional flag, migration or identity system. This follows the canister-security
+and stable-memory guidance already retrieved for this session (links above).
+The gap was solely the shared controller routing every Save As to `New`.
+
+For the current account's editable binding, Save As names the same object in its
+current folder, including after reopening. Save a copy explicitly opens the
+creation picker; read-only and other-account documents retain copy behavior.
+Naming checks the original name and fresh metadata version; a different concurrent
+rename is rejected. Retry after a lost rename response recognizes the desired
+name. Content save retains its independent content-revision check. A failed
+content upload cannot create a duplicate or roll back a successful name change.
+The UI shows native document stems; storage and downloads retain native suffixes.
+WordCraft's human-readable type is “Tekstidokument”. Shared UI tests and a local
+WordCraft save/name/reopen journey are the proof scope, not full editor suites.
+
+
+### Title rename integration — 19 October 2026
+
+Requirement: the workspace title and WordCraft's existing `file.rename` UI must
+rename the same cloud object. The existing canister-security/stable-memory skill
+review above and canonical `drive_organize(Rename)` contract apply unchanged: no
+new storage, identity, transport or backend authority is introduced.
+
+The shell displays adapter-provided `canRename` and sends a payload-free rename
+intent to its same-origin editor. A lifecycle-owned listener queues the shared
+controller request; the controller rechecks current account, document, edit
+permission and pending operations. A read-only bound file cannot become a copy
+through this action. Unbound documents use the existing first-save destination
+picker. WordCraft receives one optional host callback for its interactive rename
+command, retaining native rename without a host. Parameterized native commands
+are unchanged. The title never supplies a file ID or authority.
+
+Proof scope: shell capability/event tests, native Word host/fallback regression,
+shared adapter tests, changed browser builds and a real local same-object rename.
+
+
+### Alpha publication preparation — 19 October 2026
+
+User requested GitHub and mainnet publication of the completed workspace package.
+Re-read the official [ICP CLI](https://skills.internetcomputer.org/.well-known/skills/icp-cli/SKILL.md)
+and [static-site](https://skills.internetcomputer.org/.well-known/skills/static-site/SKILL.md)
+skills on 19 October 2026. Existing pinned Rust/static-site recipes remain the
+standard path: upgrade the existing cloud canister, then sync certified frontend
+assets with the existing owner identity. No new canister, hosting dependency,
+controller or recipe migration is required. Compare deployed module/asset identity
+and run the existing published-artifact verifier. Detailed outcome belongs in
+history after publication; preparation alone is not deployment evidence.

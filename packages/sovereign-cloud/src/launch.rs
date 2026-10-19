@@ -47,6 +47,8 @@ mod tests {
             CloudLaunch::parse(&format!("?cloud_service=cloud&cloud_space={a}&cloud_parent={b}")).unwrap(),
             Some(CloudLaunch::New { space: a, parent: b })
         );
+        // Shell navigation hints are deliberately outside the cloud protocol.
+        assert_eq!(CloudLaunch::parse(&format!("?cloud_service=cloud&cloud_space={a}&cloud_parent={b}&workspace_return=%2Fpilveruum%2F%23failid")).unwrap(), Some(CloudLaunch::New { space: a, parent: b }));
         for value in [
             "cloud_service=cloud&cloud_space=1&cloud_parent=2&cloud_file=3",
             "cloud_service=cloud&cloud_space=1&cloud_parent=0",

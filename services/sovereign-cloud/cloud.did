@@ -18,6 +18,8 @@ type Account = record {
   id : text;
   owner : principal;
   created_at : nat64;
+  // Editable account label, never an identifier or authorization credential.
+  display_name : opt text;
   personal_space : text;
 };
 type AccountContext = record {
@@ -412,10 +414,11 @@ type Result_39 = variant { Ok : PublicItem; Err : DriveError };
 type Result_4 = variant { Ok : ContentStatus; Err : DriveError };
 type Result_40 = variant { Ok : PublicLinkState; Err : DriveError };
 type Result_41 = variant { Ok : PublicPage; Err : DriveError };
-type Result_42 = variant { Ok : TeamSpace; Err : DriveError };
-type Result_43 = variant { Ok : SpaceView; Err : DriveError };
-type Result_44 = variant { Ok : vec SpaceView; Err : DriveError };
-type Result_45 = variant { Ok : SpaceMembers; Err : DriveError };
+type Result_42 = variant { Ok : Account; Err : text };
+type Result_43 = variant { Ok : TeamSpace; Err : DriveError };
+type Result_44 = variant { Ok : SpaceView; Err : DriveError };
+type Result_45 = variant { Ok : vec SpaceView; Err : DriveError };
+type Result_46 = variant { Ok : SpaceMembers; Err : DriveError };
 type Result_5 = variant { Ok : Project; Err : text };
 type Result_6 = variant { Ok; Err : text };
 type Result_7 = variant { Ok : ActivityPage; Err : DriveError };
@@ -606,10 +609,11 @@ service : () -> {
   public_link_state : (text) -> (Result_40);
   public_list : (text, opt PageCursor, nat32) -> (Result_41);
   put_chunk : (nat64, nat64, blob) -> (Result_6);
-  space_change : (ChangeSpace) -> (Result_42);
-  space_change_member : (ChangeMember) -> (Result_42);
-  space_create : (CreateSpace) -> (Result_43);
-  space_get : (text) -> (Result_43);
-  space_list : () -> (Result_44);
-  space_members : (text, opt principal, nat32) -> (Result_45);
+  set_account_display_name : (text) -> (Result_42);
+  space_change : (ChangeSpace) -> (Result_43);
+  space_change_member : (ChangeMember) -> (Result_43);
+  space_create : (CreateSpace) -> (Result_44);
+  space_get : (text) -> (Result_44);
+  space_list : () -> (Result_45);
+  space_members : (text, opt principal, nat32) -> (Result_46);
 }

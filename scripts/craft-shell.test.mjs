@@ -1,18 +1,19 @@
 import { readFileSync } from "node:fs";
 import vm from "node:vm";
+const { workspaceReturn } = await import("data:text/javascript;base64,"+readFileSync(new URL("../portal/workspace-context.js", import.meta.url)).toString("base64"));
 import { localeHost } from "./i18n-test-helpers.mjs";
 import test from "node:test";
 import assert from "node:assert/strict";
 
-const source = readFileSync(new URL("../portal/craft-shell.js", import.meta.url), "utf8");
+const source = readFileSync(new URL("../portal/craft-shell.js", import.meta.url), "utf8").replace(/^import .*;\n/gm, "");
 
 function host(initialState, search = "", hash = "", language = "et") {
   let state = initialState;
   const locations = [];
   const window = new EventTarget();
   window.SubnetI18n = localeHost({ search: `?lang=${language}` }).i18n;
-  window.location = { search, hash, assign: target => locations.push(target) };
-  const editor = { contentDocument: { documentElement: { getAttribute: () => state } } };
+  window.location = { origin:"https://subnet.ee", search, hash, assign: target => locations.push(target) };
+  const editor = Object.assign(new EventTarget(), { contentDocument: { documentElement: Object.assign(new EventTarget(), { getAttribute: () => state }) }, contentWindow: Object.assign(new EventTarget(), {Event}) });
   const description = {};
   const leave = {};
   const dialog = new EventTarget();
@@ -20,11 +21,12 @@ function host(initialState, search = "", hash = "", language = "et") {
   dialog.showModal = () => { dialog.open = true; };
   const home = Object.assign(new EventTarget(), { href: "https://subnet.ee/" });
   const files = Object.assign(new EventTarget(), { href: "https://subnet.ee/#failid" });
-  const elements = { "craft-editor": editor, "leave-dialog": dialog, "leave-description": description };
+  const title = Object.assign(new EventTarget(), {disabled:true});
+  const elements = { "craft-document-name":title, "craft-editor": editor, "leave-dialog": dialog, "leave-description": description };
   const document = { getElementById: id => elements[id], querySelectorAll: () => [home, files] };
-  vm.runInNewContext(source, { window, document });
+  vm.runInNewContext(source, { window, document, URLSearchParams, workspaceReturn, MutationObserver:class {observe(){} disconnect(){}} });
   return {
-    editor, description, dialog, locations, window,
+    title, editor, description, dialog, locations, window, home, files,
     setState(value) { state = value; },
     click(destination = "home", modifiers = {}) {
       const event = Object.assign(new Event("click", { cancelable: true }), { button: 0, ...modifiers });
@@ -139,4 +141,36 @@ test("English unsaved-work prompts keep the same cancellation and leave guard", 
   assert.equal(h.editor.src, original);
   assert.equal(h.unload(), true);
   assert.deepEqual(h.locations, []);
+});
+
+test('return context is validated and used by both shell links',()=>{
+ const h=host('true','?workspace_return='+encodeURIComponent('/pilveruum/#search?q=plans'));
+ h.click('files');h.answer('leave');assert.deepEqual(h.locations,['/pilveruum/#search?q=plans']);
+ const external=host('false','?workspace_return=https://evil.test/pilveruum/');assert.equal(external.files.href,'https://subnet.ee/#failid');
+});
+test('only explicit confirmation suppresses the child unload guard',()=>{
+ const h=host('true');let checks=0;
+ h.editor.dispatchEvent(new Event('load'));
+ h.editor.contentWindow.addEventListener('beforeunload',()=>{checks++;});
+ h.editor.contentWindow.dispatchEvent(new Event('beforeunload'));assert.equal(checks,1);
+ h.click();h.answer('cancel');h.editor.contentWindow.dispatchEvent(new Event('beforeunload'));assert.equal(checks,2);
+ h.click();h.answer('leave');h.editor.contentWindow.dispatchEvent(new Event('beforeunload'));assert.equal(checks,2);
+});
+
+ test("document title dispatches rename only for a capable editor", () => {
+  const h = host(JSON.stringify({version:1,name:"Tekstidokument",canRename:true}));
+  let requests = 0;
+  h.editor.contentDocument.documentElement.addEventListener("subnet-rename-document", () => requests++);
+  h.editor.dispatchEvent(new Event("load"));
+  assert.equal(h.title.textContent,"Tekstidokument");
+  assert.equal(h.title.disabled,false);
+  h.title.dispatchEvent(new Event("click"));
+  assert.equal(requests,1);
+  for (const state of [{version:1,name:"Read only",canRename:false},{version:1,name:"Older editor"},{version:2,canRename:true}]) {
+    h.setState(JSON.stringify(state));
+    h.editor.dispatchEvent(new Event("load"));
+    assert.equal(h.title.disabled,true);
+    h.title.dispatchEvent(new Event("click"));
+  }
+  assert.equal(requests,1);
 });

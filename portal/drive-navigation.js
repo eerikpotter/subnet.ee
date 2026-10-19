@@ -64,20 +64,20 @@ export function createFolderTree({host,toggle,call,element,button,text,session,c
   };
 }
 
-export function createFileDetails({host,body,closeButton,title,call,element,button,text,bind,session,current,owner,size,date,error,history,share,role,activity}) {
+export function createFileDetails({host,body,closeButton,title,call,element,button,text,bind,session,current,owner,size,date,error,history,share,role,activity,displayName=file=>file.name,typeName=()=>null}) {
   let epoch=0,selected=null,signature=null,returnFocus=null;
   async function show(file,focus=true) {
     const key=JSON.stringify([file.id,file.version]);if(!host.hidden && signature===key && !focus)return;
     const mine=++epoch,who=session();selected=file;signature=key;
     if(host.hidden)returnFocus=document.activeElement;
-    host.hidden=false;title.textContent=file.name;body.replaceChildren(element('p','muted','Laadin…'));
+    host.hidden=false;title.textContent=displayName(file);body.replaceChildren(element('p','muted','Laadin…'));
     if(focus)closeButton.focus({preventScroll:true});
     try {
       const data=await call('details',{id:file.id});if(mine!==epoch || !current(who))return;
-      const entry=data.entry;title.textContent=entry.name;body.replaceChildren();
+      const entry=data.entry;title.textContent=displayName(entry);body.replaceChildren();
       const list=element('dl','file-properties');
       const add=(name,value)=>{const dd=element('dd');bind(dd,()=>{dd.textContent=String(typeof value==='function'?value():value);});list.append(element('dt','',name),dd);};
-      add('Tüüp',()=>entry.folder?text('Kaust'):entry.shortcut?text('Otsetee'):entry.format?.media_type||text('Fail'));
+      add('Tüüp',()=>entry.folder?text('Kaust'):entry.shortcut?text('Otsetee'):typeName(entry)||entry.format?.media_type||text('Fail'));
       add('Omanik',()=>entry.spaceAccess?.teamName||(entry.owner===owner()?text('Mina'):entry.owner));
       if(!entry.folder && !entry.shortcut){add('Suurus',()=>size(entry.bytes||0));add('Versioone',data.versions);}
       add('Loodud',()=>date(entry.createdMs));add('Muudetud',()=>date(entry.updatedMs));body.append(list);
@@ -99,8 +99,8 @@ export function createFileDetails({host,body,closeButton,title,call,element,butt
         let polls=0;
         const showIndex=async(rebuild=false)=>{try {
           const status=await call(rebuild?'contentRebuild':'contentStatus',{id:entry.id});if(mine!==epoch||!current(who))return;
-          const labels={Pending:'Sisu indekseerimine on ootel.',Ready:'Sisu on otsitav.',Empty:'Failist ei leitud otsitavat teksti.',Partial:'Sisu on osaliselt indekseeritud.',Unsupported:'Selle vormingu sisuotsing pole veel toetatud.',TooLarge:'Fail ületab sisu indekseerimise 16 MB piiri.',Unreadable:'Faili teksti ei õnnestunud lugeda.',Failed:'Sisu indekseerimine ebaõnnestus.'};
-          indexing.replaceChildren(element('h3','','Sisuotsing'),element('p','muted',labels[status.state]||'Sisu indekseerimine on ootel.'));
+          const labels={Pending:'Selle faili sisu ilmub otsingusse peagi.',Ready:'Sisu on otsitav.',Empty:'Failist ei leitud otsitavat teksti.',Partial:'Otsing hõlmab osa selle faili tekstist.',Unsupported:'Selle vormingu sisuotsing pole veel toetatud.',TooLarge:'Selle faili sisuotsing pole faili suuruse tõttu saadaval.',Unreadable:'Faili teksti ei õnnestunud lugeda.',Failed:'Selle faili sisu pole praegu otsitav.'};
+          indexing.replaceChildren(element('h3','','Sisuotsing'),element('p','muted',labels[status.state]||'Selle faili sisu ilmub otsingusse peagi.'));
           if(status.state==='Failed'&&entry.capabilities.edit)indexing.append(button('Proovi uuesti',()=>showIndex(true)));
           if(status.state==='Pending'){indexing.append(button('Värskenda olekut',()=>showIndex()));if(polls++<20)setTimeout(()=>{if(mine===epoch&&current(who))showIndex();},3000);}
         }catch(e){if(mine===epoch&&current(who))indexing.replaceChildren(element('h3','','Sisuotsing'),element('p','muted',error(e)));}};

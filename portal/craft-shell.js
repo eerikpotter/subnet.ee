@@ -1,3 +1,4 @@
+import { workspaceReturn } from "./workspace-context.js";
 const { t } = window.SubnetI18n;
 // One host for every Craft. The editor publishes only its aggregate dirty state;
 // document contents and account data stay in the editor.
@@ -7,6 +8,43 @@ const description = document.getElementById("leave-description");
 const leaveButton = dialog.querySelector('[value="leave"]');
 let destination = null;
 let confirmed = false;
+const returnPath = workspaceReturn(new URLSearchParams(window.location.search).get("workspace_return"), window.location.origin);
+if (returnPath) document.querySelectorAll("[data-leave]").forEach(link => { link.href = returnPath; });
+const documentName = document.getElementById("craft-document-name");
+const saveStatus = document.getElementById("craft-save-status");
+if (documentName) documentName.title = t("Muuda dokumendi nime");
+documentName?.addEventListener("click", () => {
+  if (documentName.disabled) return;
+  try {
+    editor.contentDocument?.documentElement.dispatchEvent(new editor.contentWindow.Event("subnet-rename-document"));
+  } catch { /* A navigating editor will publish its capability after load. */ }
+});
+let statusObserver;
+function observeEditor() {
+  statusObserver?.disconnect();
+  try {
+    const root = editor.contentDocument?.documentElement;
+    if (!root) return;
+    // The explicit host confirmation covers child unload listeners too. Browser
+    // reload/close remains guarded; we suppress nothing before confirmation.
+    editor.contentWindow?.addEventListener("beforeunload", event => {
+      if (confirmed) event.stopImmediatePropagation();
+    }, {capture:true});
+    const refresh = () => {
+      let state;
+      try { state = JSON.parse(root.getAttribute("data-subnet-document")); } catch {}
+      if (documentName) {
+        documentName.textContent = state?.version === 1 ? state.name || "" : "";
+        documentName.disabled = state?.version !== 1 || state.canRename !== true;
+      }
+      if (saveStatus) saveStatus.textContent = state?.version === 1 ? state.status || "" : "";
+    };
+    refresh();
+    statusObserver = new MutationObserver(refresh);
+    statusObserver.observe(root, {attributes:true, attributeFilter:["data-subnet-document"]});
+  } catch { /* The existing unknown-state leave guard remains authoritative. */ }
+}
+editor.addEventListener("load", observeEditor);
 
 function dirtyState() {
   try {

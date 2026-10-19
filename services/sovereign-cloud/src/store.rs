@@ -193,12 +193,23 @@ impl<M: Memory> Store<M> {
                 return Err("Account capacity reached".into());
             }
             let id = self.next_object_id()?;
-            let account = Account { id, owner: caller, personal_space: id, created_at: now };
+            let account = Account { id, owner: caller, personal_space: id, created_at: now, display_name: None };
             let bytes = encode(&account)?;
             self.accounts.insert(caller, bytes);
             account
         };
         Ok(AccountContext { account, used_bytes: self.usage.get(&caller).unwrap_or(0), quota_bytes: USER_QUOTA_BYTES })
+    }
+    pub fn set_display_name(&mut self, caller: Principal, name: String) -> CloudResult<Account> {
+        authenticated(caller)?;
+        let name = name.trim();
+        if name.is_empty() || name.chars().count() > 80 || name.chars().any(char::is_control) {
+            return Err("Use a display name of 1 to 80 characters without control characters".into());
+        }
+        let mut account: Account = decode(&self.accounts.get(&caller).ok_or("Account not found")?)?;
+        account.display_name = Some(name.to_owned());
+        self.accounts.insert(caller, encode(&account)?);
+        Ok(account)
     }
     fn account_in_space(&self, caller: Principal, space: ObjectId) -> CloudResult<Account> {
         authenticated(caller)?;
@@ -574,6 +585,29 @@ mod tests {
             request_id: "test-request-00001".into(),
             expected_revision: expected,
         }
+    }
+    #[test]
+    fn account_display_name_is_self_scoped_bounded_and_persistent() {
+        let memory = VectorMemory::default();
+        let mut s = Store::new(memory.clone());
+        let original = s.account(owner(1), 1).unwrap().account;
+        let mut old = serde_json::to_value(&original).unwrap();
+        old.as_object_mut().unwrap().remove("display_name");
+        let old: Account = serde_json::from_value(old).unwrap();
+        assert!(old.display_name.is_none());
+        s.account(owner(2), 1).unwrap();
+        assert!(s.set_display_name(Principal::anonymous(), "Name".into()).is_err());
+        for invalid in ["".to_string(), "  ".into(), "a".repeat(81), "a\nb".into()] {
+            assert!(s.set_display_name(owner(1), invalid).is_err());
+        }
+        let updated = s.set_display_name(owner(1), "  Eerik  ".into()).unwrap();
+        assert_eq!(updated.display_name.as_deref(), Some("Eerik"));
+        assert_eq!(updated.id, original.id);
+        assert!(s.account(owner(2), 1).unwrap().account.display_name.is_none());
+        let mut reopened = Store::new(memory);
+        assert_eq!(reopened.account(owner(1), 2).unwrap().account, updated);
+        reopened.set_display_name(owner(1), "New name".into()).unwrap();
+        assert_eq!(reopened.account(owner(1), 3).unwrap().account.display_name.as_deref(), Some("New name"));
     }
     #[test]
     fn accounts_and_catalog_are_private_paginated_and_persistent() {

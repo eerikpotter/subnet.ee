@@ -1707,3 +1707,151 @@ missing/test paths. The separate architecture review retained only the browse/
 selection and bounded archive modules: no replacement transport, permission layer,
 search service or editor-specific picker was needed. Packaged native editors still
 emit their existing eframe viewport/theme warnings; no portal error was observed.
+
+
+## 2026-10-19 — Subnet account name and editor profile connection (local)
+
+Added one optional display name to the existing principal-owned account record,
+with a caller-only bounded update and the existing account-menu entry. Five
+existing author profiles receive principal and name via the shared UI adapter;
+no new editor profile UI, comment engine, account table or II integration.
+Runtime IDs are excluded from persisted preferences. Names in existing native
+comments remain snapshots; live resolution of other authors is not implemented.
+Viewer remains read-only; Editor can save comments as part of the document.
+
+Focused checks: account name ownership/bounds/stable-memory reopening, five host
+profile/account-switch/preference tests and existing affected adapters; Word's
+actual comment/reply + cloud-adapter save/open with distinct account names.
+Verbose results are under `.local/profile-identity/`. Full Craft engine suites
+were not run. No mainnet publication is part of this change.
+
+Validation completed: 13 focused editor adapter/profile/comment tests, one account
+storage test, 12 canonical shared-UI tests and 119 existing portal localization
+checks passed. All five changed release browser packages and the portal built.
+The local backend was upgraded without reinstalling data; the local frontend was
+synced, preserving the three unchanged editor packages. The scoped published-asset
+verifier passed for the portal and all five changed editors.
+
+Browser proof: the disposable local test account's name was saved in the existing
+Subnet account menu. The updated WordCraft package displayed that name in its
+existing Options → General profile without entering it in WordCraft. Screenshot:
+`.local/profile-identity/word-account-name.png`.
+The same browser check also changed the account name while WordCraft stayed open: the existing profile and derived initials refreshed without reloading the editor. Temporary QA tabs were closed.
+
+
+## 2026-10-19 — Daily workspace A/B/C (local)
+
+Implemented creation intent and revision-aware first autosave in the canonical
+cloud UI, with optional creation hooks in Word/Grid/Deck. Empty launches do not
+create files; changing document identity cancels the launch destination. Shared
+host chrome receives a small versioned presentation signal; saved state follows
+the acknowledged document revision, not a local save flag.
+
+Portal return context uses the non-reserved `workspace_return` parameter and
+same-origin allowlisting. Selection restores only after fresh authorized reads,
+scoped to account and route, with bounded pages and IDs. The unified share view
+keeps person grants and explicit public-link policy writes distinct; copying a
+link and closing the view never grants access. Home filters collapse without
+hiding the search scope. Search copy describes file-text availability without
+exposing index management. Morphology and folder overview pages are deferred.
+
+Validation reused the passing canonical creation/autosave/revision tests and
+Word/Grid/Deck adapter tests. All eight release browser packages built. Latest
+focused portal/host pass: 29 checks initially passed; two old copy assertions were
+updated and their two cases then passed. No editor engine suites were run.
+Logs: `.local/workspace-ux-implementation/`. Local frontend sync completed (460 assets, state hash
+`1e3c8e3da3cb4f1c475ba177200ea80fa04464d71471dff38fb039a6757be688`).
+`python3 scripts/verify.py all` passed exact deployed assets, trust/cache and
+missing-asset handling. Final browser journeys are recorded below.
+
+Browser results: Word test text, Grid cell value 4 and Deck title MVP survived
+cloud reopening in the original team space. Return restored the selected file;
+opening a content-search result returned to the same query and selection. A
+saved-vs-unsaved departure was checked with Deck: cancel retained work, autosave
+completed and return succeeded. The five other updated hosts started with the
+shared presentation signal. Search returned TXT/WordCraft/PDF/DOCX/XLSX/PPTX
+snippets. Selection did not change absolute row position (569.992 px before and
+after); initial viewport changes/browser scrolling were distinguished from layout.
+
+Browser checks caught and fixed two gaps: Deck's native default sample required
+its documented `blank` launch flag (now declared as registry `createQuery`, with a
+focused test), and the mobile search input needed its own row at 390 px. Public
+link expiry and explanatory sharing text use disclosures. Existing role/policy
+mutation regressions passed after the layout change.
+
+Word's optional host title service consumes the same versioned presentation signal
+as the outer shell, removing the misleading local “Not saved” status for cloud
+files without manufacturing a local path or changing save flags. One focused UI
+test passed (722 unrelated cases filtered out); only Word was rebuilt for this
+additional host presentation hook. Its final deployment and browser checks passed.
+
+Final local publication: 460 assets, state hash
+`91210a9c694f2c1a75d1f851ad272622f44c5e26d647c85f12d1ae12a5a7d93b`.
+The final scoped verifier (`python3 scripts/verify.py wordcraft`) passed the changed
+portal/Word assets and trust/cache/missing-asset checks; the other seven unchanged
+packages reuse the earlier successful full artifact verification. Word browser
+build d9cc4bf2 displayed the same saved filename/status in native and outer chrome.
+Evidence lives in `docs/workspace-ux-evidence/`. UX and 36-feature HTML views were
+updated. No Git push, mainnet deployment or data reset was performed.
+
+Limits: automatic initial filenames are provisional and can be renamed through
+the existing file workflow. Names and contents remain explicit separate search
+modes; no morphology, OCR or semantic ranking was added. Editor-local menus,
+local autosave controls and general editor translations remain upstream UI; this
+work unifies the cloud flows without replacing those editors.
+
+## 2026-10-19 — Name existing cloud documents without duplicate files
+
+Shared adapter: cloud Save As names an editable object bound to the current
+account; an explicit Save a copy action creates a new object. Unbound, read-only
+and other-account documents retain the new-copy picker. Naming uses existing
+version-checked metadata mutation, then the existing content replacement flow;
+no backend/schema change or provisional-name storage is introduced. Reopened
+files follow the same behavior. Session/document changes cancel pending naming.
+Native editor-local Save As/export remains separate from the cloud menu.
+
+Portal lists, preview headings, details, rename fields and the shared editor title
+show the native document stem. Storage/download names retain their suffix. The
+WordCraft detail type is “Tekstidokument”. Canonical shared UI is vendored into
+all eight hosts; no native editor source changes were needed for this fix.
+
+Focused checks: shared UI 15/15; naming/identity helpers 6/6; selected portal
+rename/picker/details flows 14/14; new native-document rename flow 1/1. JS module
+syntax and wasm32 controller check pass. Full editor suites were not run.
+Logs: `.local/workspace-ux-implementation/naming/`.
+
+Browser proof (local WordCraft build 0608d1f3): empty team folder → type → autosave
+`Nimetu 8a2cf25a` → cloud Save As `Nimekontroll`. Exactly one row remained, UUID
+`acc6e4db-4e16-4d6b-84a7-d939098c76c1` unchanged. Explicit Save a copy then created
+`Nimekontroll koopia` with distinct UUID `a0ac09d0-2d4d-4f5a-84dd-237a99fb6592`.
+Original reopened with its name and captured text intact. Screenshot:
+`docs/workspace-ux-evidence/named-document.png`. No mainnet publication or Git push.
+
+Final local validation: all eight browser packages built, pinned SDK snapshots
+verified, and `python3 scripts/verify.py all` passed against the deployed frontend.
+State hash: `93c7d6d567637e233bbd98706136c10581f4c6f25d2d6f877d8eba057ee4d8da`.
+Fresh cached-version startup was checked in PhotoCraft, PdfCraft, DeckCraft,
+SoundCraft, GridCraft, FigCraft and CADCraft; WordCraft used the full journey above.
+CADCraft's existing dirty blank document prevented in-place restart; the empty
+QA document was discarded through its normal leave confirmation, then the new
+version started successfully. No user file was discarded.
+The renamed original still has one content version; details show “Tekstidokument”.
+Download was verified as `Nimekontroll.wcraft.json`. Final screenshots include
+`docs/workspace-ux-evidence/named-file-details.png`.
+
+
+## 2026-10-19 — Rename from the workspace and WordCraft titles
+
+Added a capability-gated title button to the common shell and a lifecycle-owned
+intent listener to the shared adapter. WordCraft's existing interactive
+`file.rename` command forwards to the same controller via one optional service.
+Native fallback and parameterized native commands remain intact. Rename preserves
+the bound UUID, folder and permissions; read-only bound documents cannot create
+an accidental copy through this action. Unbound work uses the first-save picker.
+
+Checks: canonical UI 15/15, shell 12/12, two focused Word title/host-fallback tests
+(722 unrelated tests filtered out), wasm controller check and pinned snapshots.
+Local Word build ae1cc242: outer title renamed the synthetic Nimekontroll file to
+Pealkirja kontroll; native Word title then renamed it to Pealkirjast nimetatud.
+Both use the existing metadata mutation and preserve UUID
+acc6e4db-4e16-4d6b-84a7-d939098c76c1. Logs: `.local/title-rename/`.

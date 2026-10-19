@@ -61,7 +61,10 @@
         "version": 1
       }
     ],
-    "cloudExtension": "deckcraft"
+    "cloudExtension": "deckcraft",
+    "createQuery": {
+      "blank": ""
+    }
   },
   {
     "id": "soundcraft",

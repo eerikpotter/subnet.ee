@@ -20,8 +20,24 @@ pub fn translate<'a>(source: &'a str, language: &str) -> &'a str {
         return source;
     }
     match source {
+        "Untitled" => "Nimetu",
+        "Changes will save to your chosen folder" => "Muudatused salvestatakse valitud kausta",
+        "Cloud capacity or item limit reached. Free space or contact the workspace owner. Keep a local copy using Export; retry after the limit is resolved." => {
+            "Pilveruumi mahu või failide piir on täis. Vabasta ruumi või pöördu tööruumi omaniku poole. Ekspordi kohalik koopia; salvesta uuesti pärast piirangu lahendamist."
+        }
+        "The cloud file changed. Keep this document open and save a separate copy to compare the versions." => {
+            "Pilves olev fail on muutunud. Jäta dokument avatuks ja salvesta eraldi koopia versioonide võrdlemiseks."
+        }
+        "Your work remains in the editor. Retry this captured save; newer edits will be saved afterwards." => {
+            "Töö on redaktoris alles. Proovi salvestust uuesti; uuemad muudatused salvestatakse seejärel."
+        }
         "Cloud space" => "Pilveruum",
         "Save" => "Salvesta",
+        "Save a copy…" => "Salvesta koopia…",
+        "Document name" => "Dokumendi nimi",
+        "Saving name…" => "Salvestan nime…",
+        "Enter a valid file name" => "Sisesta sobiv faili nimi",
+        "The cloud file changed. Reopen it before renaming." => "Faili nimi on vahepeal muutunud. Ava fail uuesti.",
         "Save As…" => "Salvesta nimega…",
         "Open…" => "Ava…",
         "Cancel" => "Tühista",

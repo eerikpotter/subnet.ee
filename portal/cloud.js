@@ -1,3 +1,4 @@
+import { creationContext, editorContext, creationLabels, returnStateKey } from './workspace-context.js';
 import { createPublicLinks } from './drive-public.js';
 import { createTeamSpaces } from './drive-teams.js';
 import init, { CloudPortal } from "__CLOUD_BINDINGS__";
@@ -7,7 +8,7 @@ import { createDrivePeople } from './drive-people.js';
 import { createDriveInsights, createRevisionHistory } from './drive-insights.js';
 import { LastDriveAction, impactKey, recoveryPreview } from './drive-recovery.js';
 import { createAccountEmail } from './account-email.js';
-import { contentLocation, canManage, driveRoute, driveHref, canonicalDriveLocation, OBJECT_UUID, DriveSelection, defaultPreferences, browseRoute, selectionCapabilities, selectionRoots, roleCapabilities, sharingRole, stableSuggestionOrder, menuPosition } from "./drive-browser.js";
+import { documentDisplayName, documentStorageName, contentLocation, canManage, driveRoute, driveHref, canonicalDriveLocation, OBJECT_UUID, DriveSelection, defaultPreferences, browseRoute, selectionCapabilities, selectionRoots, roleCapabilities, sharingRole, stableSuggestionOrder, menuPosition } from "./drive-browser.js";
 import { ARCHIVE_LIMIT, downloadArchive } from "./download-archive.js";
 import { TransferQueue, TransferCancelled, localFiles, droppedFiles, uploadJobs, listChildren, walkFiles } from "./drive-transfers.js";
 const { t, text, bind, href: localizedHref } = window.SubnetI18n;
@@ -58,6 +59,7 @@ function syncBrowseControls() {
   $('view-grid').setAttribute('aria-pressed',String(preferences.view==='grid'));
   const recent=currentView==='recent',content=activeQuery?.scope==='content';
   if(currentView==='search')$('search-mode').value=content?'content':'name';
+  bind($('search-text'),()=>{$('search-text').placeholder=t($('search-mode').value==='content'?'Otsi failide sisust':'Otsi failinimede järgi');});
   for(const id of ['search-type','search-owner'])($(id).parentElement||$(id)).hidden=$('search-mode').value==='content';
   $('date-filter').hidden=$('search-mode').value==='content';$('content-search-help').hidden=$('search-mode').value!=='content';
   $('sort-control').hidden=currentView==='home'||content;$('sort-direction').hidden=currentView==='home'||content;
@@ -173,7 +175,7 @@ function message(source = '', error = false) {
 }
 function errorMessage(error) {
   const source = error?.message || String(error);
-  return ({'Use one to eight search words':'Sisesta üks kuni kaheksa otsingusõna.','Search text is too long':'Otsingutekst on liiga pikk.','Retry content indexing later':'Proovi sisu indekseerimist mõne minuti pärast uuesti.','Choose a folder to narrow this view':'Vali otsingu kitsendamiseks kaust.','Access request daily limit reached':'Ligipääsutaotluste päevapiir on täis. Proovi homme uuesti.','Access expiry must be in the future':'Ligipääsu lõpp peab olema tulevikus.','Invalid folder path':'Kausta tee ei sobi.','Too many transfer items':'Liiga palju üksusi ühes ülekandes.','Duplicate upload path':'Üleslaadimise teed kattuvad.','Folder changed; refresh and retry':'Kausta sisu muutus. Värskenda ja proovi uuesti.',
+  return ({'Use one to eight search words':'Sisesta üks kuni kaheksa otsingusõna.','Search text is too long':'Otsingutekst on liiga pikk.','Retry content indexing later':'Proovi mõne minuti pärast uuesti.','Choose a folder to narrow this view':'Vali otsingu kitsendamiseks kaust.','Access request daily limit reached':'Ligipääsutaotluste päevapiir on täis. Proovi homme uuesti.','Access expiry must be in the future':'Ligipääsu lõpp peab olema tulevikus.','Invalid folder path':'Kausta tee ei sobi.','Too many transfer items':'Liiga palju üksusi ühes ülekandes.','Duplicate upload path':'Üleslaadimise teed kattuvad.','Folder changed; refresh and retry':'Kausta sisu muutus. Värskenda ja proovi uuesti.',
     'Parent folder is not ready. Retry it first.':'Ülemkaust ei ole valmis. Proovi esmalt selle loomist uuesti.',
     "Email is not configured":"E-posti saatmine ei ole veel seadistatud.",
     "Enter a supported email address":"Sisesta toetatud e-posti aadress.",
@@ -206,6 +208,7 @@ function errorMessage(error) {
     'An item with this name already exists':'Selle nimega fail või kaust on juba olemas.',
     'Cloud storage quota reached':'Pilveruumi maht on täis.',
     'Revision limit reached':'Faili versioonide piir on täis.',
+    'Use a display name of 1 to 80 characters without control characters':'Sisesta 1–80 märgi pikkune nimi ilma juhtmärkideta.',
     'This operation expired; start again':'Üleslaadimine aegus. Laadi fail uuesti üles.'})[source] || source;
 }
 function size(bytes) {
@@ -225,6 +228,7 @@ function updateAccount() {
   $('sign-in').disabled = !cloud || restoring; $('sign-out').disabled = restoring || busy || uploading || operations.size>0;
   $('manage-space').hidden=!signed || !folder?.spaceAccess?.teamName || !!picker;
   $('manage-space').disabled=loading || restoring || busy;
+  $('account-name').disabled = !signed || restoring || busy || !!cloud?.needs_refresh();
   $('account-email').disabled = !signed || restoring || busy || !!cloud?.needs_refresh();
   $('refresh-files').disabled = !signed || loading || restoring || refreshing;
   $('refresh-files').classList.toggle('is-refreshing', loading || restoring || refreshing);
@@ -235,7 +239,10 @@ function updateAccount() {
   $('new-menu-upload-folder').disabled=!canUploadFiles();
   for(const link of $('new-apps').children) {
     const destination=creationFolder();
-    link.href=localizedHref(`/apps/${link.dataset.appId}/`+(signed && destination?.capabilities.create?`?cloud_service=cloud&cloud_space=${destination.spaceId}&cloud_parent=${destination.id}`:''));
+    const disabled=!signed || !destination?.capabilities.create || loading || busy || restoring || !!cloud?.needs_refresh();
+    link.setAttribute('aria-disabled',String(disabled));link.tabIndex=disabled?-1:0;
+    const app=registry.find(item=>item.id===link.dataset.appId);
+    link.href=localizedHref(creationContext(app,signed && destination?.capabilities.create?destination:null,location));
   }
   text($('new-folder-label'),working(`children:${folder?.id}`) ? 'Loon kausta…' : 'Uus kaust');
   $('new-folder').hidden = $('upload-file').hidden = !['files','shared'].includes(currentView) || !folder;
@@ -254,7 +261,8 @@ function updateAccount() {
   $('sidebar-storage').hidden=!signed || !!picker;
   updateUndo();
   $('storage-meter').max=Math.max(1,account?.quotaBytes||1);$('storage-meter').value=account?.usedBytes||0;
-  text($('account-status'), signed ? 'Minu konto' : 'Sinu pilveruum');
+  if(signed && account.displayName) {$('account-status').textContent=account.displayName;$('account-status').setAttribute('data-no-translate','');}
+  else {$('account-status').removeAttribute('data-no-translate');text($('account-status'), signed ? 'Minu konto' : 'Sinu pilveruum');}
   $('account-status').title = signed ? account.principal : '';
   updatePicker();syncSelection();
   bind($('storage-usage'), () => { $('storage-usage').textContent = signed ? t('{used} / {quota} kasutusel', { used: size(account.usedBytes), quota: size(account.quotaBytes) }) : t('Sinu failid on seotud sinu kontoga.'); });
@@ -262,11 +270,12 @@ function updateAccount() {
 function heading() {
   const label = (currentView === 'teams'||folder?.spaceAccess?.teamName)?'Tiimiruumid':currentView === 'safety'?'Peidetud ja blokeeritud':currentView === 'inbox'?'Teavitused':currentView === 'contacts'?'Minu kontaktid':currentView === 'activity'?'Tegevused':currentView === 'storage'?'Salvestusruum':currentView === 'home'?'Kodu':currentView === 'ai' ? 'Tööta AI-ga' : currentView === 'apps' ? 'Rakendused' : currentView === 'trash' ? 'Prügikast' : currentView === 'shared' ? 'Minuga jagatud' : currentView === 'recent' ? 'Hiljutised' : currentView === 'starred' ? 'Tärniga' : ['link','public'].includes(currentView) ? 'Jagatud link' : currentView === 'search' ? 'Otsingutulemused' : 'Minu failid';
   text($('page-name'), label);
-  if (folder && folder.id !== root?.id && currentView!=='search') { $('files-title').textContent = folder.name; $('files-title').removeAttribute('data-i18n-dynamic'); }
-  else text($('files-title'),currentView==='home'?'Tere tulemast pilveruumi':label);
+  if (folder && folder.id !== root?.id && currentView!=='search') { bind($('files-title'),()=>{$('files-title').textContent=folder?.name||'';}); }
+  else text($('files-title'),currentView==='home'?'Jätka pooleli jäänust':label);
   text($('drive-description'), currentView === 'trash' ? 'Kustutatud failid ja kaustad. Taasta need või kustuta jäädavalt.' : currentView === 'shared' ? 'Failid ja kaustad, mille teised on sinuga jaganud.' : currentView === 'search' ? 'Vasted sinu ligipääsuga failidest.' : 'Sinu salvestatud tööd.');
   $('drive-description').hidden = ['files','home','recent','starred'].includes(currentView);
   $('failid').classList.toggle('is-home',currentView==='home');
+  $('home-filter-toggle').hidden=currentView!=='home';
   $('home-folders').hidden=$('home-recent-heading').hidden=currentView!=='home' || !account?.authenticated;
   $('apps-view').hidden = currentView !== 'apps'; $('ai-view').hidden = currentView !== 'ai'; $('failid').hidden = ['apps','ai','activity','storage','inbox','contacts','safety','teams','public'].includes(currentView);
   $('public-view').hidden=currentView!=='public';
@@ -295,11 +304,34 @@ function clearFiles(source) {
   text($('file-status'), source); $('file-status').hidden = false;
   $('home-folder-list').replaceChildren();homeFolderSignature=undefined;homeFolders=[];
 }
+const visibleName = file => documentDisplayName(file, appFor(file));
+const storedName = (name,file) => documentStorageName(name.trim(),file,appFor(file));
 function appFor(file) { return registry.find(app => app.cloud && app.openFormats?.some(format => format.id === file.format?.craft?.format_id && format.version === file.format?.craft?.format_version)); }
+function rememberReturnState() {
+  if(picker || !account?.authenticated)return;
+  try {sessionStorage.setItem(returnStateKey(account.principal,location),JSON.stringify({ids:[...selection.ids].slice(0,200),scroll:window.scrollY,pages:Math.min(loadedPages,10),at:Date.now()}));} catch {}
+}
+async function restoreReturnState() {
+  if(picker || !account?.authenticated)return;
+  try {
+    const key=returnStateKey(account.principal,location),value=sessionStorage.getItem(key);
+    if(!value)return;sessionStorage.removeItem(key);const state=JSON.parse(value);
+    if(!Number.isFinite(state.at) || Date.now()-state.at>86400000 || !Array.isArray(state.ids))return;
+    const epoch=generation,session=signedSession(),query={...activeQuery};
+    const pages=Math.min(10,Math.max(1,Number(state.pages)||1));
+    for(let page=1;page<pages && cursor;page++) {
+      const next=await readBrowsePage(query,cursor);
+      if(epoch!==generation || !currentSession(session))return;
+      applyPage(next,true);
+    }
+    const allowed=new Set(entries.map(f=>f.id));selection.ids=new Set(state.ids.slice(0,200).filter(id=>allowed.has(id)));selection.focus=selection.anchor=[...selection.ids][0]||null;syncSelection();
+    requestAnimationFrame(()=>window.scrollTo(0,Math.max(0,Math.min(Number(state.scroll)||0,document.documentElement.scrollHeight))));
+  } catch {}
+}
 function editorHref(file) {
   const app = appFor(file);
   return app && file.capabilities.read && /^[a-z]+$/.test(app.id)
-    ? localizedHref(`/apps/${app.id}/?${new URLSearchParams({cloud_service:'cloud',cloud_space:file.spaceId,cloud_file:file.id})}`) : null;
+    ? localizedHref(editorContext(`/apps/${app.id}/?${new URLSearchParams({cloud_service:'cloud',cloud_space:file.spaceId,cloud_file:file.id})}`,location)) : null;
 }
 function setupPicker() {
   const params=new URLSearchParams(location.search), mode=params.get('picker');
@@ -314,7 +346,7 @@ function setupPicker() {
   $('file-list').setAttribute('role','list');$('file-list').removeAttribute('aria-multiselectable');
   if(params.get('theme')==='dark') document.body.classList.add('picker-dark');
   $('picker-footer').hidden=false;$('picker-name-field').hidden=mode!=='save';
-  $('picker-name').value=params.get('name')||'';
+  $('picker-name').value=documentDisplayName({name:params.get('name')||''},app);
   $('picker-name').addEventListener('input',updatePicker);
   $('picker-form').addEventListener('submit',event=>{event.preventDefault();if(mode==='save')selectPickerFolder();else if(pickerSelection)selectPickerFile(pickerSelection);});
   $('picker-cancel').addEventListener('click',()=>postSelection({action:'cancel'}));
@@ -389,17 +421,17 @@ function startInlineRename(file,row,title,label) {
   if(!editableName(file) || fileRows.get(file.id)?.row!==row || $('drive-dialog').open || $('preview-dialog').open)return;
   if(inlineRename?.row===row)return;
   cancelInlineRename();closeFileMenus();
-  const input=element('input','file-name-input');input.type='text';input.value=file.name;input.maxLength=160;
+  const input=element('input','file-name-input');input.type='text';input.value=visibleName(file);input.maxLength=160;
   bind(input,()=>{input.setAttribute('aria-label',t(file.folder ? 'Kausta nimi' : 'Faili nimi'));input.title=t('Enter salvestab, Esc tühistab.');});
   const edit={file,row,title,label,input,saving:false,token:requestId()};inlineRename=edit;
   async function save() {
     if(inlineRename!==edit || edit.saving)return;
-    if(input.value===file.name){cancelInlineRename();return;}
+    if(storedName(input.value,file)===file.name){cancelInlineRename();return;}
     if(!editableName(file)) {cancelInlineRename();return;}
     if(!input.value.trim() || new TextEncoder().encode(input.value).length>160 || /[\/\\]/.test(input.value)) {
       message('Sisesta sobiv faili nimi (kuni 160 baiti).',true);return;
     }
-    const name=input.value;edit.saving=true;message();
+    const name=storedName(input.value,file);edit.saving=true;message();
     const saved=await mutate(()=>trackedOrganize(file,{id:file.id,version:file.version,change:'rename',name,requestId:edit.token}),{ids:[file.id],label:'Nimetan ümber…'});
     if(inlineRename!==edit)return;
     edit.saving=false;
@@ -417,7 +449,7 @@ function startInlineRename(file,row,title,label) {
     if(event.key==='Escape'){event.preventDefault();cancelInlineRename();row.focus({preventScroll:true});}
   });
   title.replaceChildren(input);input.focus({preventScroll:true});
-  const extension=file.folder ? -1 : file.name.lastIndexOf('.');input.setSelectionRange(0,extension>0 ? extension : file.name.length);
+  input.select();
 }
 function createFileRow(file) {
     const row = element('article', 'file-row'); row.dataset.fileId = file.id;
@@ -426,23 +458,23 @@ function createFileRow(file) {
     const icon = element('span', `file-icon${file.folder ? ' folder-icon' : ''}`); icon.textContent = file.folder ? '' : file.shortcut?'↗':(appFor(file)?.symbol || file.name.match(/\.([a-z0-9]{1,4})$/i)?.[1].toUpperCase() || '↥'); icon.setAttribute('aria-hidden','true');if(file.color)icon.dataset.folderColor=file.color;
     const detail = element('div','file-detail'); const title = element('h2');
     if(!picker) {
-      const label=element('span','file-name-button');label.textContent=file.name;title.append(label);
+      const label=element('span','file-name-button');label.textContent=visibleName(file);title.append(label);
       row.addEventListener('keydown',event=>{if(event.key==='F2' && editableName(file)){event.preventDefault();startInlineRename(file,row,title,label);}});
     } else if(file.folder && currentView!=='trash') {
       const link=element('a','folder-link');link.textContent=file.name;link.href=driveHref(`#folder/${file.id}`);title.append(link);
-    } else title.textContent=file.name;
-    const meta = element('p'); bind(meta, () => { meta.textContent = currentView==='home' && file.reason?suggestionReason(file):`${file.folder ? t('Kaust') : file.shortcut?t('Otsetee'):size(file.bytes || 0)} · ${new Date(file.updatedMs).toLocaleDateString(window.SubnetI18n.locale, {dateStyle:'medium'})}`; });
+    } else title.textContent=visibleName(file);
+    const meta = element('p'); bind(meta, () => { meta.textContent = currentView==='home' && file.reason?suggestionReason(file):`${file.folder ? t('Kaust') : file.shortcut?t('Otsetee'):(appFor(file)?.id==='wordcraft'?t('Tekstidokument')+' · ':'')+size(file.bytes || 0)} · ${new Date(file.updatedMs).toLocaleDateString(window.SubnetI18n.locale, {dateStyle:'medium'})}`; });
     const name=element('div','file-name-line');name.append(title);
     const badge=currentView==='trash' ? null : sharingBadge(file);if(badge)name.append(badge);
     const status=element('span','file-operation-status');status.hidden=true;status.setAttribute('role','status');row.operationStatus=status;
     detail.append(name, meta, status); row.append(icon, detail);
-    if(file.contentMatch){const excerpt=element('p','content-snippet');excerpt.textContent=file.contentMatch.snippet;detail.append(excerpt);const location=element('small','content-location');bind(location,()=>{location.textContent=contentLocation(file.contentMatch.location,t);});detail.append(location);if(file.contentMatch.partial)detail.append(element('small','muted','Sisu on osaliselt indekseeritud.'));}
+    if(file.contentMatch){const excerpt=element('p','content-snippet');excerpt.textContent=file.contentMatch.snippet;detail.append(excerpt);const location=element('small','content-location');bind(location,()=>{location.textContent=contentLocation(file.contentMatch.location,t);});detail.append(location);if(file.contentMatch.partial)detail.append(element('small','muted','Otsing hõlmab osa selle faili tekstist.'));}
     if(!picker) {
-      row.setAttribute('role','row');row.setAttribute('aria-label',file.name);
+      row.setAttribute('role','row');row.setAttribute('aria-label',visibleName(file));
       connectInternalDrag(row,file);
       icon.setAttribute('role','gridcell');detail.setAttribute('role','gridcell');
       const checkbox=element('input','file-select');checkbox.type='checkbox';row.selectionInput=checkbox;
-      bind(checkbox,()=>checkbox.setAttribute('aria-label',t('Vali {name}',{name:file.name})));
+      bind(checkbox,()=>checkbox.setAttribute('aria-label',t('Vali {name}',{name:visibleName(file)})));
       checkbox.addEventListener('click',event=>{event.stopPropagation();selection.select(file.id,entries.map(f=>f.id),{toggle:true,range:event.shiftKey});syncSelection();});
       row.append(checkbox);
       row.addEventListener('click',event=>{
@@ -488,7 +520,7 @@ function createFileRow(file) {
       const supported=pickerSupports(file);
       row.classList.toggle('picker-unsupported',!supported);
       if(supported && picker.mode==='open') {
-        row.tabIndex=0;row.setAttribute('aria-label',file.name);
+        row.tabIndex=0;row.setAttribute('aria-label',visibleName(file));
         row.addEventListener('click',()=>{pickerSelection=file;for(const item of $('file-list').children)item.classList.toggle('picker-selected',item.dataset.fileId===file.id);updatePicker();});
         row.addEventListener('dblclick',()=>selectPickerFile(file));
         row.addEventListener('keydown',event=>{if(event.key==='Enter')selectPickerFile(file);});
@@ -594,7 +626,7 @@ function fileUrl(file) {return new URL(driveHref(`#${file.folder?'folder':'file'
 async function copyLink(file) {
   const session=signedSession();
   const url=fileUrl(file);
-  try {await navigator.clipboard.writeText(url);if(currentSession(session))message('Link kopeeritud. Ligipääs on ainult inimestel, kellega on jagatud.');}
+  try {await navigator.clipboard.writeText(url);if(currentSession(session))message('Link kopeeritud. Lingi kopeerimine ligipääsu ei muuda.');}
   catch(error){if(currentSession(session))message(errorMessage(error),true);}
 }
 function renderHomeFolders(files) {
@@ -635,7 +667,7 @@ async function route(initialPage=null) {
   if(hash==='#email' && !picker)accountEmail.open();
   if(['apps','ai'].includes(currentView)){lastVisitedRoute=hash;loading=false;heading();updateAccount();return;}
   const key=queryKey(),cached=views.get(key);
-  if(initialPage?.folder?.id===activeQuery.parent && activeQuery.scope==='folder' && !cloud.needs_refresh()){applyPage(initialPage,false);remember(key,initialPage);loading=false;updateAccount();return;}
+  if(initialPage?.folder?.id===activeQuery.parent && activeQuery.scope==='folder' && !cloud.needs_refresh()){applyPage(initialPage,false);remember(key,initialPage);await restoreReturnState();loading=false;updateAccount();return;}
   if(cached && Date.now()-cached.at<30000 && !cloud.needs_refresh())applyPage(cached.value,false);
   else if(!retained){entries=[];cursor=null;renderFiles();text($('file-status'),'Laadin sinu faile…');}
   loading=true;heading();updateAccount();text($('view-status'),'Värskendan…');
@@ -644,7 +676,7 @@ async function route(initialPage=null) {
     const page=await readBrowsePage(activeQuery,null,initialPage);
     if(epoch!==generation || cloud.needs_refresh())return;
     if(revision!==mutationRevision){await route();return;}
-    applyPage(page,false);remember(key,page);lastRefresh=Date.now();
+    applyPage(page,false);remember(key,page);await restoreReturnState();lastRefresh=Date.now();
     if(lastVisitedRoute!==hash && hash.startsWith('#folder/') && page.folder)acknowledge(page.folder);
     lastVisitedRoute=hash;
   } catch(error) {
@@ -761,13 +793,31 @@ const accountEmail=createAccountEmail({
   invitationId:()=>/^#invite\/(\d+)$/.exec(currentRoute())?.[1],
   accepted:async id=>{const session=signedSession(),epoch=dialogGeneration;const file=await call('get',{id});if(!currentSession(session)||epoch!==dialogGeneration)return;closeDialog();location.hash=`#${file.folder?'folder':'file'}/${id}`;},
 });
+$('account-name').addEventListener('click',()=>{
+  $('account-menu').open=false;
+  const session=signedSession();
+  let input;
+  showDialog('Konto nimi','Salvesta',async()=>{
+    try {
+      const result=await call('setDisplayName',{name:input.value.trim()});
+      if(currentSession(session) && epoch===dialogGeneration){
+        account={...account,displayName:result.displayName};
+        try {localStorage.setItem('subnet.profile.changed',`${account.principal}:${Date.now()}`);} catch {}
+        updateAccount();closeDialog();
+      }
+    } catch(error) {if(currentSession(session) && epoch===dialogGeneration){text($('dialog-error'),errorMessage(error));$('dialog-error').hidden=false;}}
+  });
+  const epoch=dialogGeneration;
+  input=field('Kuvatav nimi',account?.displayName || '');input.maxLength=80;input.autocomplete='name';
+  $('dialog-body').append(element('p','muted','Seda nime kasutatakse Subneti rakendustes.'));input.focus();
+});
 $('account-email').addEventListener('click',()=>{$('account-menu').open=false;accountEmail.open();});
-const publicLinks=createPublicLinks({canRequest:()=>!!account?.authenticated,requestAccess:id=>people.requestAccess(id),host:$('public-view'),body:$('public-body'),read:(op,p)=>cloud.public_read(op,JSON.stringify(p)),download:id=>cloud.public_download(id),call,element,button,text:t,bind,error:errorMessage,dialog:showDialog,dialogBody:()=>$('dialog-body'),submit:$('dialog-submit'),field,requestId,mutate,size,href:file=>driveHref(`#${file.folder?'folder':'file'}/${file.id}`),preview:file=>openFile(file,{preview:true,publicRead:true}),dialogCurrent:()=>{const epoch=dialogGeneration,session=signedSession();return ()=>$('drive-dialog').open&&epoch===dialogGeneration&&currentSession(session);}});
+const publicLinks=createPublicLinks({canRequest:()=>!!account?.authenticated,requestAccess:id=>people.requestAccess(id),host:$('public-view'),body:$('public-body'),read:(op,p)=>cloud.public_read(op,JSON.stringify(p)),download:id=>cloud.public_download(id),call,element,button,text:t,error:errorMessage,field,requestId,mutate,size,href:file=>driveHref(`#${file.folder?'folder':'file'}/${file.id}`),preview:file=>openFile(file,{preview:true,publicRead:true})});
 const teams=createTeamSpaces({host:$('teams-view'),body:$('teams-body'),call,element,button,text:t,bind,session:signedSession,current:currentSession,size,error:errorMessage,dialog:showDialog,dialogBody:()=>$('dialog-body'),field,requestId,mutate,navigate:id=>{location.hash=`#folder/${id}`;},changed:clearCache,dialogCurrent:()=>{const epoch=dialogGeneration;return ()=>$('drive-dialog').open&&epoch===dialogGeneration;}});
 $('manage-space').addEventListener('click',()=>teams.manage(folder.spaceId));
 const folderTree=createFolderTree({host:$('folder-tree'),toggle:$('folder-tree-toggle'),call,element,button,text:t,session:signedSession,current:currentSession,
   navigate:id=>{location.hash=`#folder/${id}`;},active:()=>folder?.id,error:errorMessage});
-const details=createFileDetails({host:$('file-details'),body:$('details-body'),closeButton:$('details-close'),title:$('details-title'),call,element,button,text:t,bind,role:entry=>({viewer:'Vaataja',editor:'Muutja',advanced:'Kohandatud ligipääs'})[sharingRole(entry.capabilities,entry.folder)],
+const details=createFileDetails({displayName:visibleName,typeName:file=>appFor(file)?.id==='wordcraft'?t('Tekstidokument'):null,host:$('file-details'),body:$('details-body'),closeButton:$('details-close'),title:$('details-title'),call,element,button,text:t,bind,role:entry=>({viewer:'Vaataja',editor:'Muutja',advanced:'Kohandatud ligipääs'})[sharingRole(entry.capabilities,entry.folder)],
   session:signedSession,current:currentSession,owner:()=>account?.principal,size,date:ms=>ms?new Date(ms).toLocaleString(window.SubnetI18n.locale):'—',error:errorMessage,history,share,activity:entry=>{location.hash=`#tegevused/${entry.id}`;}});
 const thumbnails=createThumbnails({download:file=>cloud.download(file.id,file.revision),current:currentSession,element});
 const people=createDrivePeople({host:$('people-view'),title:$('people-title'),body:$('people-body'),call,element,button,bind,text:t,session:signedSession,current:currentSession,error:errorMessage,showDialog,dialogBody:()=>$('dialog-body'),field,mutate,requestId,dialogEpoch:()=>dialogGeneration});
@@ -912,8 +962,8 @@ function newFolder() {
 }
 function rename(file) {
   const token = requestId(); let input;
-  showDialog('Nimeta ümber','Salvesta',() => mutate(() => trackedOrganize(file,{id:file.id,version:file.version,change:'rename',name:input.value,requestId:token}),{ids:[file.id],label:'Nimetan ümber…'}));
-  input = field('Nimi',file.name); input.focus(); input.select();
+  showDialog('Nimeta ümber','Salvesta',() => mutate(() => trackedOrganize(file,{id:file.id,version:file.version,change:'rename',name:storedName(input.value,file),requestId:token}),{ids:[file.id],label:'Nimetan ümber…'}));
+  input = field('Nimi',visibleName(file)); input.focus(); input.select();
 }
 function organize(file, change, extra = {}) { return mutate(() => call('organize',{id:file.id,version:file.version,change,requestId:requestId(),...extra}),{ids:[file.id],label:change==='restore'?'Taastan…':'Salvestan…'}); }
 function trash(file) {
@@ -1015,12 +1065,12 @@ async function openFile(file,{preview=false,publicRead=false}={}) {
   const session=signedSession(),epoch=generation;
   try {if(!publicRead)file=await call('get',{id:file.id});if((!publicRead&&!currentSession(session))||epoch!==generation)return;clearCache();}
   catch(error){if(currentSession(session))message(errorMessage(error),true);return;}
-  const href=publicRead?null:editorHref(file);if(href && !preview) {location.href=href;return;}
+  const href=publicRead?null:editorHref(file);if(href && !preview) {rememberReturnState();location.href=href;return;}
   // Keep the dialog open while switching files: a queued close event must not clear the next preview.
   releasePreview();
   const state={file,principal:account?.principal,zoom:1,publicRead};previewState=state;
   const current=()=>previewState===state && (publicRead || account?.principal===state.principal && !cloud.needs_refresh());
-  $('preview-name').textContent=file.name;$('preview-meta').textContent=size(file.bytes||0);
+  $('preview-name').textContent=visibleName(file);$('preview-meta').textContent=size(file.bytes||0);
   if(!$('preview-dialog').open)$('preview-dialog').showModal();
   const format=previewFormat(file),siblings=publicRead?[]:entries.filter(item=>!item.folder&&!item.shortcut),index=siblings.findIndex(item=>item.id===file.id);
   $('preview-previous').disabled=index<=0;$('preview-next').disabled=index<0||index>=siblings.length-1;
@@ -1271,11 +1321,12 @@ function roleSelect(value,onChange) {
 async function share(file) {
   const files=Array.isArray(file)?file:[file],session=signedSession();
   let principal,execute,role,expiry;
-  showDialog('Jaga','Jaga',()=>{
+  showDialog('Jaga','Valmis',()=>{
     if(!currentSession(session))return;
     if(!execute) {
       const recipients=[...new Set(principal.value.trim().split(/[\s,;]+/).filter(Boolean))];
-      if(!recipients.length || recipients.length>20 || recipients.length*files.length>200){text($('dialog-error'),'Vali kuni 20 saajat ja kuni 200 jagamist korraga.');$('dialog-error').hidden=false;return;}
+      if(!recipients.length){closeDialog();return;}
+      if(recipients.length>20 || recipients.length*files.length>200){text($('dialog-error'),'Vali kuni 20 saajat ja kuni 200 jagamist korraga.');$('dialog-error').hidden=false;return;}
       const expiresAt=expiry.value?String(BigInt(new Date(expiry.value).getTime())*1000000n):null;
       if(expiresAt && Number(expiresAt)/1e6<=Date.now()){text($('dialog-error'),'Ligipääsu lõpp peab olema tulevikus.');$('dialog-error').hidden=false;return;}
       const capabilities=roleCapabilities(role.value,true),chosenRole=role.value;
@@ -1300,20 +1351,22 @@ async function share(file) {
   });
   const dialogEpoch = dialogGeneration;
   selectionNames(files);
-  principal = field('Saaja e-post või konto ID'); principal.maxLength = 5080;
+  principal = field('Saaja e-post või konto ID'); principal.maxLength = 5080;principal.required=false;principal.addEventListener('input',()=>text($('dialog-submit'),principal.value.trim()?'Jaga':'Valmis'));
   $('dialog-body').append(element('p','muted','Mitu saajat eralda koma või tühikuga.'));
   const contacts=element('datalist');contacts.id='sharing-contacts';principal.setAttribute('list',contacts.id);$('dialog-body').append(contacts);
   call('contacts').then(items=>{if(dialogEpoch!==dialogGeneration||!currentSession(session))return;for(const item of items){const option=element('option');option.value=item.principal;option.textContent=item.label;contacts.append(option);}}).catch(()=>{});
   role=roleSelect('viewer',()=>{});
-  $('dialog-body').append(role,element('p','muted','Vaataja saab lugeda. Muutja saab muuta ja prügikasti teisaldada ning kausta faile lisada. Jagamist ja lõplikku kustutamist haldab omanik.'));
+  const sharingHelp=element('details','sharing-help');sharingHelp.append(element('summary','','Jagamise selgitus'),element('p','muted','Vaataja saab lugeda. Muutja saab muuta ja prügikasti teisaldada ning kausta faile lisada. Jagamist ja lõplikku kustutamist haldab omanik.'));
+  $('dialog-body').append(role,sharingHelp);
   expiry=field('Ligipääs kuni');expiry.type='datetime-local';expiry.required=false;
   const expiryDetails=element('details','share-expiry'),expirySummary=element('summary','','Lisa lõppkuupäev');
   expiryDetails.append(expirySummary,expiry.parentElement);$('dialog-body').append(expiryDetails);
   expiry.addEventListener('change',()=>text(expirySummary,expiry.value?'Ligipääs kuni':'Lisa lõppkuupäev'));
-  $('dialog-body').append(element('p','muted','E-postiga jagamiseks kinnita esmalt enda e-post konto menüüs. Uus saaja saab kutse ja kinnitab oma aadressi Subnetis.'));
+  sharingHelp.append(element('p','muted','E-postiga jagamiseks kinnita esmalt enda e-post konto menüüs. Uus saaja saab kutse ja kinnitab oma aadressi Subnetis.'));
   if(files.length===1)$('dialog-body').append(button('Kopeeri link',()=>copyLink(files[0])));
-  if(files.length===1)$('dialog-body').append(button('Üldine ligipääs',()=>publicLinks.settings(files[0])));
-  const roster = element('div','share-roster'); $('dialog-body').append(roster);
+  if(files.length===1){const section=element('section','sharing-public');$('dialog-body').append(section);publicLinks.mountSettings(files[0],section,()=>dialogEpoch===dialogGeneration && currentSession(session) && $('drive-dialog').open);}
+  const roster = element('div','share-roster'); $('dialog-body').append(element('h3','','Ligipääsuga inimesed'),roster);
+  if(files.length===1){const owner=element('div','share-row');owner.append(element('span','',files[0].spaceAccess?.teamName || (files[0].owner===account.principal?'Mina':files[0].owner)),element('strong','','Omanik'));roster.append(owner);}
   if(files.length>1)return;
   file=files[0];
   try {
@@ -1518,6 +1571,7 @@ window.addEventListener('resize',()=>closeFileMenus());
 document.addEventListener('keydown',event=>{if(event.key==='Escape'){cancelInlineRename();resetDrop();closeFileMenus();$('new-menu').open=false;$('date-filter').open=false;if(picker && !$('drive-dialog').open)postSelection({action:'cancel'});}});
 $('preview-dialog').addEventListener('close',()=>{if(!$('preview-dialog').open)releasePreview();updateAccount();});
 $('preview-dialog').addEventListener('cancel',event=>{event.preventDefault();closePreview();});
+$('home-filter-toggle').addEventListener('click',()=>{const expanded=$('failid').classList.toggle('show-filters');$('home-filter-toggle').setAttribute('aria-expanded',String(expanded));});
 $('preview-download').addEventListener('click',()=>{if(previewState)(previewState.publicRead?publicLinks.save(previewState.file):download(previewState.file));});
 window.addEventListener('hashchange',()=>{closePreview();route();});
 window.addEventListener('popstate',()=>{closePreview();route();});
@@ -1558,7 +1612,7 @@ try {
   registry=(await response.json()).apps;
   for(const app of registry.filter(app=>app.cloud)) {
     const option=element('option');option.value=app.id;option.textContent=app.name;option.setAttribute('data-no-translate','');$('search-type').append(option);
-    const link=element('a','button');link.textContent=app.name;link.dataset.appId=app.id;link.href=localizedHref(`/apps/${app.id}/`);$('new-apps').append(link);
+    const link=element('a','button');text(link,creationLabels[app.id]||app.name);link.title=app.name;link.dataset.appId=app.id;link.addEventListener('click',event=>{if(link.getAttribute('aria-disabled')==='true'){event.preventDefault();return;}rememberReturnState();});link.href=localizedHref(`/apps/${app.id}/`);$('new-apps').append(link);
   }
   setupPicker(); await init({module_or_path:'__CLOUD_WASM__'});cloud=new CloudPortal();await refresh();
 }catch(error){text($('account-status'),'Konto pole kättesaadav');message(errorMessage(error),true);}
