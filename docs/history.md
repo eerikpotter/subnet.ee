@@ -1855,3 +1855,38 @@ Local Word build ae1cc242: outer title renamed the synthetic Nimekontroll file t
 Pealkirja kontroll; native Word title then renamed it to Pealkirjast nimetatud.
 Both use the existing metadata mutation and preserve UUID
 acc6e4db-4e16-4d6b-84a7-d939098c76c1. Logs: `.local/title-rename/`.
+
+
+Alpha publication validation: all eight release browser packages built; local
+`verify.py all` passed for the portal, all eight editors, trust/cache headers and
+missing-asset handling (460 assets; state hash
+c0a05664445fa75c1e1d9938cac57217122de22fd7ceeda9663f88f273d27735).
+All eight updated cached browser packages started. Word used the complete rename
+journey; the other seven used startup/capability checks, without repeating cloud
+save/open. CAD's generated empty dirty drawing required normal leave confirmation
+before reopening the updated package. No user document was discarded.
+
+GitHub: root implementation 443505e and all eight referenced Craft commits pushed
+to their existing origin/main branches. Mainnet cloud upgraded in place to module
+4517275c416c19b18d16a3e16b9ba255208cedbbdad4f5bc4b2bb996f581cdb4,
+with snapshot 0000000000000004000000000041310d0101; status Running verified.
+With explicit user authorization, 0.4811 ICP including fee funded conversion;
+1T cycles was deposited to the backend. Frontend publication outcome is recorded
+separately after the sync and deployed-artifact verification finish.
+
+
+Mainnet frontend sync completed: 461 assets, state hash
+f4d727568fa9caaeb3ba5768dfd68ba16abb41a4ed720ec40a4e47088561452f.
+The extra discovery asset is environment-specific; local and mainnet discovery
+configuration are intentionally distinct. No editor, account or file data was
+reset. Publication used the existing owner session and existing canisters.
+
+Final verification: `python3 scripts/verify.py all --environment ic` passed
+345 published-file checks plus the shared trust/cache/missing-asset assertions.
+The custom-domain browser check at https://www.subnet.ee/pilveruum/ reached the
+signed-out workspace with no console errors. Authenticated rename/save tests ran
+locally; the mainnet smoke check did not create or modify production user files.
+Screenshot: `docs/workspace-ux-evidence/alpha-mainnet.png`. The 36-group feature
+review now distinguishes shipped autosave/title behavior and account integration
+from the remaining comment-service and large-storage work. No full Craft suites
+were rerun for this release.
