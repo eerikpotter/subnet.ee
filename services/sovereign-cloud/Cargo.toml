@@ -11,6 +11,8 @@ publish = false
 crate-type = ["cdylib", "rlib"]
 
 [dependencies]
+sovereign-cloud-text = { path = "../../packages/sovereign-cloud-text" }
+ic-cdk-timers = "=1.0.0"
 sovereign-cloud = { path = "../../packages/sovereign-cloud", features = ["storage"] }
 rand_chacha = { version = "0.3", default-features = false }
 rand_core = { version = "0.6", default-features = false }

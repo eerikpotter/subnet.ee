@@ -35,7 +35,14 @@ impl<M: Memory> Store<M> {
             return Err(DriveError::Inaccessible);
         }
         let latest = self.projects.get(&id).map(|b| decoded::<Project>(&b)).transpose()?.and_then(|p| p.revisions.last().cloned());
-        Ok(DriveEntry { object, capabilities: graph.effective(actor, id, now, true)?, latest, sharing: None, attribution: None })
+        Ok(DriveEntry {
+            object,
+            capabilities: graph.effective(actor, id, now, true)?,
+            latest,
+            sharing: None,
+            attribution: None,
+            space_access: graph.space_access(actor, id),
+        })
     }
     pub(crate) fn drive_query(&self, actor: &Actor, query: BrowseQuery, cursor: Option<BrowseCursor>, limit: u32, now: u64) -> DriveResult<BrowsePage> {
         let viewer = self.viewer(actor)?;
@@ -119,6 +126,9 @@ impl<M: Memory> Store<M> {
             _ => {
                 let account: Account = decoded(&self.accounts.get(&actor.sponsor).ok_or(DriveError::Inaccessible)?)?;
                 sources.insert((0, account.personal_space));
+                for id in self.spaces.ids(actor.sponsor) {
+                    sources.insert((0, id));
+                }
                 for root in self.shared_candidates(actor)? {
                     match self.read_path(&mut graph, root).and_then(|()| graph.require(actor, root, Capabilities::READ, now, true)) {
                         Ok(()) => {
@@ -220,7 +230,7 @@ impl<M: Memory> Store<M> {
             let path = graph.ancestry(object.id, trash)?;
             if object.parent.is_none()
                 || matches!(query.scope, BrowseScope::Subtree(root) if object.id == root || !path.contains(&root))
-                || (query.scope == BrowseScope::Shared && object.owner == actor.sponsor)
+                || (query.scope == BrowseScope::Shared && object.owner == actor.sponsor && !graph.teams.contains_key(&object.space))
                 || (!matches!(query.scope, BrowseScope::Item(_) | BrowseScope::Folder(_) | BrowseScope::Trash) && self.safety.hidden(actor.sponsor, &path))
             {
                 continue;
@@ -228,7 +238,7 @@ impl<M: Memory> Store<M> {
             let state = self.viewer_item(actor.sponsor, object.id)?;
             if !normalized(&object.name).contains(&text)
                 || !type_matches(object, &query.file_type)
-                || query.owner.is_some_and(|o| o != object.owner)
+                || query.owner.is_some_and(|o| o != object.owner || graph.teams.contains_key(&object.space))
                 || query.modified_after.is_some_and(|t| object.updated_at < t)
                 || query.modified_before.is_some_and(|t| object.updated_at >= t)
                 || (query.scope == BrowseScope::Starred && !state.starred)

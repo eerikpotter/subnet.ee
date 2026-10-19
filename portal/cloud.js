@@ -1,3 +1,5 @@
+import { createPublicLinks } from './drive-public.js';
+import { createTeamSpaces } from './drive-teams.js';
 import init, { CloudPortal } from "__CLOUD_BINDINGS__";
 import { createFolderTree, createFileDetails } from './drive-navigation.js';
 import { previewFormat, renderOfficePreview, createThumbnails } from './drive-preview.js';
@@ -5,7 +7,7 @@ import { createDrivePeople } from './drive-people.js';
 import { createDriveInsights, createRevisionHistory } from './drive-insights.js';
 import { LastDriveAction, impactKey, recoveryPreview } from './drive-recovery.js';
 import { createAccountEmail } from './account-email.js';
-import { driveRoute, driveHref, canonicalDriveLocation, OBJECT_UUID, DriveSelection, defaultPreferences, browseRoute, selectionCapabilities, selectionRoots, roleCapabilities, sharingRole, stableSuggestionOrder, menuPosition } from "./drive-browser.js";
+import { contentLocation, canManage, driveRoute, driveHref, canonicalDriveLocation, OBJECT_UUID, DriveSelection, defaultPreferences, browseRoute, selectionCapabilities, selectionRoots, roleCapabilities, sharingRole, stableSuggestionOrder, menuPosition } from "./drive-browser.js";
 import { ARCHIVE_LIMIT, downloadArchive } from "./download-archive.js";
 import { TransferQueue, TransferCancelled, localFiles, droppedFiles, uploadJobs, listChildren, walkFiles } from "./drive-transfers.js";
 const { t, text, bind, href: localizedHref } = window.SubnetI18n;
@@ -54,20 +56,23 @@ function syncBrowseControls() {
   $('file-list').classList.toggle('is-grid',preferences.view==='grid');
   $('view-list').setAttribute('aria-pressed',String(preferences.view!=='grid'));
   $('view-grid').setAttribute('aria-pressed',String(preferences.view==='grid'));
-  const recent=currentView==='recent';
-  $('sort-control').hidden=currentView==='home';$('sort-direction').hidden=currentView==='home';
-  for(const field of ['name','modified','size'])$('column-'+field).disabled=currentView==='home';
+  const recent=currentView==='recent',content=activeQuery?.scope==='content';
+  if(currentView==='search')$('search-mode').value=content?'content':'name';
+  for(const id of ['search-type','search-owner'])($(id).parentElement||$(id)).hidden=$('search-mode').value==='content';
+  $('date-filter').hidden=$('search-mode').value==='content';$('content-search-help').hidden=$('search-mode').value!=='content';
+  $('sort-control').hidden=currentView==='home'||content;$('sort-direction').hidden=currentView==='home'||content;
+  for(const field of ['name','modified','size'])$('column-'+field).disabled=currentView==='home'||content;
   $('sort-field').value=recent?(preferences.recentSort||'opened'):preferences.sort;
   text($('sort-direction'),(recent?(preferences.recentDescending??true):preferences.descending)?'Kahanev':'Kasvav');
-  $('search-current-folder').disabled=!folder;
+  $('search-current-folder').disabled=!folder&&!activeQuery?.parent;
   $('search-clear').hidden=currentView!=='search';
   $('file-columns').hidden=preferences.view==='grid' || !!picker || currentView==='trash';
   for(const [field,label] of [['name','Nimi'],['modified',recent?'Viimati avatud':'Muudetud'],['size','Suurus']]) {
     const active=(recent && field==='modified'?'opened':field)===$('sort-field').value;
     text($('column-'+field),currentView==='home' && field==='modified'?'Soovituse põhjus':label);
-    $('column-'+field).setAttribute('data-direction',active && currentView!=='home'?((recent?(preferences.recentDescending??true):preferences.descending)?'descending':'ascending'):'');
+    $('column-'+field).setAttribute('data-direction',active && currentView!=='home' && !content?((recent?(preferences.recentDescending??true):preferences.descending)?'descending':'ascending'):'');
   }
-  const params=currentView==='search'?new URLSearchParams(currentRoute().slice(8)):null;
+  const params=currentView==='search'?new URLSearchParams(currentRoute().slice(content?9:8)):null;
   if(params) {
     $('search-text').value=params.get('q')||'';$('search-type').value=params.get('type')||'';
     $('search-owner').value=params.get('owner')||'';$('search-after').value=params.get('after')||'';
@@ -82,7 +87,7 @@ function syncSelection() {
   selection.reconcile(entries.map(file=>file.id));
   for(const [id,{row}] of fileRows) {
     row.setAttribute('aria-selected',String(selection.ids.has(id)));
-    row.classList.toggle('is-cut',fileClipboard?.cut && fileClipboard.files.some(file=>file.id===id));
+    row.classList.toggle('is-cut',!!fileClipboard?.cut && fileClipboard.files.some(file=>file.id===id));
     row.tabIndex=selection.focus===id?0:-1;
     if(row.selectionInput)row.selectionInput.checked=selection.ids.has(id);
   }
@@ -168,7 +173,7 @@ function message(source = '', error = false) {
 }
 function errorMessage(error) {
   const source = error?.message || String(error);
-  return ({'Choose a folder to narrow this view':'Vali otsingu kitsendamiseks kaust.','Access request daily limit reached':'Ligipääsutaotluste päevapiir on täis. Proovi homme uuesti.','Access expiry must be in the future':'Ligipääsu lõpp peab olema tulevikus.','Invalid folder path':'Kausta tee ei sobi.','Too many transfer items':'Liiga palju üksusi ühes ülekandes.','Duplicate upload path':'Üleslaadimise teed kattuvad.','Folder changed; refresh and retry':'Kausta sisu muutus. Värskenda ja proovi uuesti.',
+  return ({'Use one to eight search words':'Sisesta üks kuni kaheksa otsingusõna.','Search text is too long':'Otsingutekst on liiga pikk.','Retry content indexing later':'Proovi sisu indekseerimist mõne minuti pärast uuesti.','Choose a folder to narrow this view':'Vali otsingu kitsendamiseks kaust.','Access request daily limit reached':'Ligipääsutaotluste päevapiir on täis. Proovi homme uuesti.','Access expiry must be in the future':'Ligipääsu lõpp peab olema tulevikus.','Invalid folder path':'Kausta tee ei sobi.','Too many transfer items':'Liiga palju üksusi ühes ülekandes.','Duplicate upload path':'Üleslaadimise teed kattuvad.','Folder changed; refresh and retry':'Kausta sisu muutus. Värskenda ja proovi uuesti.',
     'Parent folder is not ready. Retry it first.':'Ülemkaust ei ole valmis. Proovi esmalt selle loomist uuesti.',
     "Email is not configured":"E-posti saatmine ei ole veel seadistatud.",
     "Enter a supported email address":"Sisesta toetatud e-posti aadress.",
@@ -188,6 +193,9 @@ function errorMessage(error) {
     "Email is not linked to this account":"See e-post ei ole selle kontoga seotud.",
     "Verify an email address before sending invitations":"Kinnita enne kutsete saatmist enda e-post.",
     "Invitation is not available for this account. Verify the invited email or request a new invitation.":"See kutse ei ole sellele kontole saadaval. Kinnita kutsutud aadress või küsi uus kutse.",
+    "Keep at least one team manager":"Tiimil peab olema vähemalt üks haldaja.",
+    "Choose an existing signed-in account":"Vali olemasolev Subneti konto.",
+    "External sharing is disabled for this team":"Selle tiimi väline jagamine on keelatud.",
     "Invitation is not available for this account":"See kutse ei ole sellele kontole saadaval.",
     "Invitation is no longer active":"See kutse ei ole enam aktiivne.",
     "Email capacity reached":"E-posti teenuse maht on täis.",
@@ -215,6 +223,8 @@ function updateAccount() {
   if (!signed) $('account-menu').open = false;
   $('account-principal').textContent = signed ? account.principal : '';
   $('sign-in').disabled = !cloud || restoring; $('sign-out').disabled = restoring || busy || uploading || operations.size>0;
+  $('manage-space').hidden=!signed || !folder?.spaceAccess?.teamName || !!picker;
+  $('manage-space').disabled=loading || restoring || busy;
   $('account-email').disabled = !signed || restoring || busy || !!cloud?.needs_refresh();
   $('refresh-files').disabled = !signed || loading || restoring || refreshing;
   $('refresh-files').classList.toggle('is-refreshing', loading || restoring || refreshing);
@@ -233,7 +243,7 @@ function updateAccount() {
   $('file-drop-hint').hidden = !signed || !folder?.capabilities.create || !!picker || !['files','shared'].includes(currentView);
   if(!canUploadFiles()) resetDrop();
   $('empty-trash').hidden = currentView !== 'trash' || !signed || !!picker;
-  $('empty-trash').disabled = !signed || loading || restoring || busy || !!cloud?.needs_refresh() || (!cursor && !entries.some(file=>file.owner===account.principal)) || entries.some(file=>working(file.id));
+  $('empty-trash').disabled = !signed || loading || restoring || busy || !!cloud?.needs_refresh() || (!cursor && !entries.some(file=>canManage(file,account.principal))) || entries.some(file=>working(file.id));
   for(const [id, {row}] of fileRows) updateRowState(row,id);
   $('more-files').disabled = loading || moreLoading || refreshing;
   $('copy-account').hidden = !signed;
@@ -250,24 +260,26 @@ function updateAccount() {
   bind($('storage-usage'), () => { $('storage-usage').textContent = signed ? t('{used} / {quota} kasutusel', { used: size(account.usedBytes), quota: size(account.quotaBytes) }) : t('Sinu failid on seotud sinu kontoga.'); });
 }
 function heading() {
-  const label = currentView === 'safety'?'Peidetud ja blokeeritud':currentView === 'inbox'?'Teavitused':currentView === 'contacts'?'Minu kontaktid':currentView === 'activity'?'Tegevused':currentView === 'storage'?'Salvestusruum':currentView === 'home'?'Kodu':currentView === 'ai' ? 'Tööta AI-ga' : currentView === 'apps' ? 'Rakendused' : currentView === 'trash' ? 'Prügikast' : currentView === 'shared' ? 'Minuga jagatud' : currentView === 'recent' ? 'Hiljutised' : currentView === 'starred' ? 'Tärniga' : currentView === 'link' ? 'Jagatud link' : currentView === 'search' ? 'Otsingutulemused' : 'Minu failid';
+  const label = (currentView === 'teams'||folder?.spaceAccess?.teamName)?'Tiimiruumid':currentView === 'safety'?'Peidetud ja blokeeritud':currentView === 'inbox'?'Teavitused':currentView === 'contacts'?'Minu kontaktid':currentView === 'activity'?'Tegevused':currentView === 'storage'?'Salvestusruum':currentView === 'home'?'Kodu':currentView === 'ai' ? 'Tööta AI-ga' : currentView === 'apps' ? 'Rakendused' : currentView === 'trash' ? 'Prügikast' : currentView === 'shared' ? 'Minuga jagatud' : currentView === 'recent' ? 'Hiljutised' : currentView === 'starred' ? 'Tärniga' : ['link','public'].includes(currentView) ? 'Jagatud link' : currentView === 'search' ? 'Otsingutulemused' : 'Minu failid';
   text($('page-name'), label);
   if (folder && folder.id !== root?.id && currentView!=='search') { $('files-title').textContent = folder.name; $('files-title').removeAttribute('data-i18n-dynamic'); }
   else text($('files-title'),currentView==='home'?'Tere tulemast pilveruumi':label);
-  text($('drive-description'), currentView === 'trash' ? 'Kustutatud failid ja kaustad. Taasta need või kustuta jäädavalt.' : currentView === 'shared' ? 'Failid ja kaustad, mille teised on sinuga jaganud.' : 'Sinu salvestatud tööd.');
+  text($('drive-description'), currentView === 'trash' ? 'Kustutatud failid ja kaustad. Taasta need või kustuta jäädavalt.' : currentView === 'shared' ? 'Failid ja kaustad, mille teised on sinuga jaganud.' : currentView === 'search' ? 'Vasted sinu ligipääsuga failidest.' : 'Sinu salvestatud tööd.');
   $('drive-description').hidden = ['files','home','recent','starred'].includes(currentView);
   $('failid').classList.toggle('is-home',currentView==='home');
   $('home-folders').hidden=$('home-recent-heading').hidden=currentView!=='home' || !account?.authenticated;
-  $('apps-view').hidden = currentView !== 'apps'; $('ai-view').hidden = currentView !== 'ai'; $('failid').hidden = ['apps','ai','activity','storage','inbox','contacts','safety'].includes(currentView);
+  $('apps-view').hidden = currentView !== 'apps'; $('ai-view').hidden = currentView !== 'ai'; $('failid').hidden = ['apps','ai','activity','storage','inbox','contacts','safety','teams','public'].includes(currentView);
+  $('public-view').hidden=currentView!=='public';
   $('insights-view').hidden=!['activity','storage'].includes(currentView);
   $('people-view').hidden=!['inbox','contacts','safety'].includes(currentView);
-  for (const [id, view] of [['inbox-nav','inbox'],['activity-nav','activity'],['storage-nav','storage'],['home-nav','home'],['files-nav','files'],['shared-nav','shared'],['recent-nav','recent'],['starred-nav','starred'],['trash-nav','trash'],['apps-nav','apps'],['ai-nav','ai']]) {
-    $(id).classList.toggle('nav-active', currentView === view);
-    if (currentView === view) $(id).setAttribute('aria-current','page'); else $(id).removeAttribute('aria-current');
+  for (const [id, view] of [['teams-nav','teams'],['inbox-nav','inbox'],['activity-nav','activity'],['storage-nav','storage'],['home-nav','home'],['files-nav','files'],['shared-nav','shared'],['recent-nav','recent'],['starred-nav','starred'],['trash-nav','trash'],['apps-nav','apps'],['ai-nav','ai']]) {
+    const active=currentView===view && !(view==='files' && folder?.spaceAccess?.teamName) || view==='teams' && !!folder?.spaceAccess?.teamName;
+    $(id).classList.toggle('nav-active', active);
+    if (active) $(id).setAttribute('aria-current','page'); else $(id).removeAttribute('aria-current');
   }
   $('breadcrumbs').replaceChildren();
   if (folder) {
-    const start = element('a', '', currentView === 'shared' ? 'Minuga jagatud' : 'Minu failid'); start.href = currentView === 'shared' ? '#jagatud' : '#failid'; $('breadcrumbs').append(start);
+    const team=folder.spaceAccess?.teamName;const start = element('a', '', team?'Tiimiruumid':currentView === 'shared' ? 'Minuga jagatud' : 'Minu failid'); start.href = team?'#tiimid':currentView === 'shared' ? '#jagatud' : '#failid'; $('breadcrumbs').append(start);
     for (const item of trail.filter(item => item.id !== root?.id)) {
       const separator = element('span'); separator.textContent = '/';
       const link = element('a'); link.textContent = item.name; link.href = driveHref(`#folder/${item.id}`);
@@ -424,6 +436,7 @@ function createFileRow(file) {
     const badge=currentView==='trash' ? null : sharingBadge(file);if(badge)name.append(badge);
     const status=element('span','file-operation-status');status.hidden=true;status.setAttribute('role','status');row.operationStatus=status;
     detail.append(name, meta, status); row.append(icon, detail);
+    if(file.contentMatch){const excerpt=element('p','content-snippet');excerpt.textContent=file.contentMatch.snippet;detail.append(excerpt);const location=element('small','content-location');bind(location,()=>{location.textContent=contentLocation(file.contentMatch.location,t);});detail.append(location);if(file.contentMatch.partial)detail.append(element('small','muted','Sisu on osaliselt indekseeritud.'));}
     if(!picker) {
       row.setAttribute('role','row');row.setAttribute('aria-label',file.name);
       connectInternalDrag(row,file);
@@ -466,8 +479,8 @@ function createFileRow(file) {
       const date=element('span','file-date');bind(date,()=>{date.textContent=new Date(file.updatedMs).toLocaleDateString(window.SubnetI18n.locale,{dateStyle:'medium'});});
       if(currentView==='recent')bind(date,()=>{date.textContent=new Date(file.openedMs||file.updatedMs).toLocaleDateString(window.SubnetI18n.locale,{dateStyle:'medium'});});
       if(currentView==='home')bind(date,()=>{date.textContent=suggestionReason(file);});
-      const owner=element('span','file-owner');owner.title=file.owner;
-      bind(owner,()=>{owner.textContent=file.owner===account?.principal?t('Mina'):`${file.owner.slice(0,6)}…${file.owner.slice(-4)}`;});
+      const owner=element('span','file-owner');owner.title=file.spaceAccess?.teamName||file.owner;
+      bind(owner,()=>{owner.textContent=file.spaceAccess?.teamName || (file.owner===account?.principal?t('Mina'):`${file.owner.slice(0,6)}…${file.owner.slice(-4)}`);});
       const bytes=element('span','file-size');bind(bytes,()=>{bytes.textContent=file.folder||file.shortcut?'—':size(file.bytes||0);});row.append(owner,date,bytes);
     }
     if(picker && file.shortcut) {row.append(button('Ava',()=>openFile(file)));row.addEventListener('dblclick',()=>openFile(file));return row;}
@@ -489,7 +502,7 @@ function createFileRow(file) {
     if (currentView === 'trash') {
       const actions=element('div','trash-actions');
       const restore=button('Taasta', () => organize(file, 'restore'));actions.append(restore,button('Taasta mujale…',()=>restoreElsewhere(file)));
-      if(file.owner===account.principal) {
+      if(canManage(file,account.principal)) {
         const remove=button('Kustuta jäädavalt',()=>confirmPurge(file),'button button-danger');actions.append(remove);
       }
       row.append(actions);
@@ -516,8 +529,8 @@ function createFileRow(file) {
       if (file.capabilities.edit) { action('Nimeta ümber', () => rename(file)); if (!file.folder && !file.shortcut) action('Laadi uus versioon', () => { replaceFile = file; $('replace-input').click(); }); }
       if (file.capabilities.edit && file.capabilities.delete) {action('Liiguta', () => move(file));action('Lõika',()=>rememberClipboard([file],true));}
       if(!file.folder && !file.shortcut && file.capabilities.read)action('Kopeeri',()=>rememberClipboard([file],false));
-      if (file.owner === account.principal) action('Jaga', () => share(file));
-      else {action('Eemalda enda vaatest',()=>people.hideItem(file));action('Blokeeri omanik',()=>people.block(file.owner));action('Raporteeri jagamist',()=>people.report(file));}
+      if (canManage(file,account.principal)) action('Jaga', () => share(file));
+      else {action('Eemalda enda vaatest',()=>people.hideItem(file));if(!file.spaceAccess?.teamName)action('Blokeeri omanik',()=>people.block(file.owner));action('Raporteeri jagamist',()=>people.report(file));}
       if(!file.shortcut)action('Lisa otsetee',()=>move(file,{shortcut:true}));
       if(file.folder)action('Kausta värv',()=>folderColor(file));
       action('Faili teave',()=>details.show(file));
@@ -566,6 +579,7 @@ function suggestionReason(file) {
   return t(source)+(file.reasonMs?' · '+new Date(file.reasonMs).toLocaleDateString(window.SubnetI18n.locale,{dateStyle:'medium'}):'');
 }
 async function readBrowsePage(query,cursor) {
+  if(query.scope==='content')return call('contentQuery',{text:query.text,parent:query.parent,cursor});
   return query.scope==='suggested' ? call('suggestions') : call('query',{...query,cursor});
 }
 // Only the foreground consumer acknowledges a successful open. Failure to save
@@ -598,6 +612,7 @@ function renderHomeFolders(files) {
 }
 async function route(initialPage=null) {
   normalizeRoute();
+  publicLinks.hide();
   cancelInlineRename();
   const epoch=++generation;++readSequence;refreshing=false;moreLoading=false;resetDrop();displayedRoute=null;pickerSelection=null;
   const retained=selectionRoute===currentRoute();
@@ -607,7 +622,11 @@ async function route(initialPage=null) {
   const insight=new RegExp(`^#(tegevused|salvestusruum)(?:/(${OBJECT_UUID}))?$`,'i').exec(hash);if(insight&&!picker)currentView=insight[1]==='tegevused'?'activity':'storage';else insights.hide();
   const peopleView=!picker && (hash==='#teavitused'?'inbox':hash==='#kontaktid'?'contacts':hash==='#peidetud'?'safety':null);if(peopleView)currentView=peopleView;else people.hide();
   if(!retained && currentView!=='search')for(const id of ['search-text','search-type','search-owner','search-after','search-before','search-location'])$(id).value='';
+  if(hash==='#tiimid')currentView='teams';else teams.hide();
   folder=null;trail=[];text($('view-status'),'');
+  if(currentView==='teams'){loading=false;clearFiles('');heading();updateAccount();details.close(false);await teams.show();return;}
+  const linked=/^#(?:file|folder)\/([^/]+)$/.exec(hash);
+  if(linked && !picker && cloud && !account?.authenticated){currentView='public';loading=false;clearFiles('');heading();updateAccount();await publicLinks.show(linked[1]);return;}
   if(!account?.authenticated || !cloud){loading=false;clearFiles('Logi sisse, et näha oma salvestatud faile.');heading();updateAccount();return;}
   if(peopleView){loading=false;clearFiles('');heading();updateAccount();details.close(false);await people.show(peopleView);return;}
   if(insight&&!picker){loading=false;clearFiles('');heading();updateAccount();details.close(false);await insights.show(currentView,insight[2]);return;}
@@ -629,7 +648,7 @@ async function route(initialPage=null) {
     if(lastVisitedRoute!==hash && hash.startsWith('#folder/') && page.folder)acknowledge(page.folder);
     lastVisitedRoute=hash;
   } catch(error) {
-    if(epoch===generation){clearCache();folder=null;trail=[];clearFiles('Kaust ei ole kättesaadav. Värskenda või ava Minu failid.');message(errorMessage(error),true);heading();const unavailable=/^#(?:file|folder)\/([^/]+)$/.exec(hash);if(unavailable&&!picker)$('file-status').append(button('Küsi ligipääsu',()=>people.requestAccess(unavailable[1])));}
+    if(epoch===generation){if(linked&&!picker){currentView='public';loading=false;clearFiles('');heading();updateAccount();await publicLinks.show(linked[1]);return;}clearCache();folder=null;trail=[];clearFiles('Kaust ei ole kättesaadav. Värskenda või ava Minu failid.');message(errorMessage(error),true);heading();const unavailable=/^#(?:file|folder)\/([^/]+)$/.exec(hash);if(unavailable&&!picker)$('file-status').append(button('Küsi ligipääsu',()=>people.requestAccess(unavailable[1])));}
   } finally {if(epoch===generation){loading=false;text($('view-status'),'');updateAccount();}}
 }
 function applyPage(page,append) {
@@ -637,7 +656,7 @@ function applyPage(page,append) {
   folder=page.folder||null;trail=page.breadcrumbs||[];
   if(picker?.initialParent && folder?.id===picker.initialParent && folder.spaceId!==picker.initialSpace)throw new Error(t('Sihtkaust ei ole kättesaadav.'));
 
-  if(folder && activeQuery.scope==='folder')currentView=folder.owner===account.principal?'files':'shared';
+  if(folder && activeQuery.scope==='folder')currentView=folder.spaceAccess?.teamName || folder.owner===account.principal?'files':'shared';
   entries=append?[...entries,...page.entries]:page.entries;cursor=page.cursor;
   if(currentView==='home' && Object.hasOwn(page,'quickFolders'))renderHomeFolders(page.quickFolders);
   heading();renderFiles();
@@ -660,7 +679,7 @@ async function refresh(full = false, force = false) {
   if($('preview-dialog').open) return;
   if (!cloud || restoring || busy || $('drive-dialog').open) return;
   if(!full && account?.authenticated && !cloud.needs_refresh()) {
-    if(loading || dragDepth || fileMenus.some(menu=>menu.open) || pickerSelection || ['apps','ai','activity','storage','inbox','contacts','safety'].includes(currentView)) return;
+    if(loading || dragDepth || fileMenus.some(menu=>menu.open) || pickerSelection || ['apps','ai','activity','storage','inbox','contacts','safety','teams','public'].includes(currentView)) return;
     if(displayedRoute === currentRoute()) await refreshFiles({force}); else await route();
     return;
   }
@@ -678,6 +697,8 @@ async function refresh(full = false, force = false) {
 // Revalidate only visible metadata. Keep the current rows (and loaded pages)
 // until the response is ready; unchanged results do not replace focused DOM.
 async function refreshFiles({force=false} = {}) {
+  if(currentView==='public')return;
+  if(currentView==='teams'){if(force)await teams.show();return;}
   if(['activity','storage'].includes(currentView)){await insights.refresh();return;}
   if(['inbox','contacts','safety'].includes(currentView)){await people.refresh();return;}
   if((refreshing && !force) || loading || displayedRoute!==currentRoute() || ['apps','ai'].includes(currentView))return;
@@ -741,6 +762,9 @@ const accountEmail=createAccountEmail({
   accepted:async id=>{const session=signedSession(),epoch=dialogGeneration;const file=await call('get',{id});if(!currentSession(session)||epoch!==dialogGeneration)return;closeDialog();location.hash=`#${file.folder?'folder':'file'}/${id}`;},
 });
 $('account-email').addEventListener('click',()=>{$('account-menu').open=false;accountEmail.open();});
+const publicLinks=createPublicLinks({canRequest:()=>!!account?.authenticated,requestAccess:id=>people.requestAccess(id),host:$('public-view'),body:$('public-body'),read:(op,p)=>cloud.public_read(op,JSON.stringify(p)),download:id=>cloud.public_download(id),call,element,button,text:t,bind,error:errorMessage,dialog:showDialog,dialogBody:()=>$('dialog-body'),submit:$('dialog-submit'),field,requestId,mutate,size,href:file=>driveHref(`#${file.folder?'folder':'file'}/${file.id}`),preview:file=>openFile(file,{preview:true,publicRead:true}),dialogCurrent:()=>{const epoch=dialogGeneration,session=signedSession();return ()=>$('drive-dialog').open&&epoch===dialogGeneration&&currentSession(session);}});
+const teams=createTeamSpaces({host:$('teams-view'),body:$('teams-body'),call,element,button,text:t,bind,session:signedSession,current:currentSession,size,error:errorMessage,dialog:showDialog,dialogBody:()=>$('dialog-body'),field,requestId,mutate,navigate:id=>{location.hash=`#folder/${id}`;},changed:clearCache,dialogCurrent:()=>{const epoch=dialogGeneration;return ()=>$('drive-dialog').open&&epoch===dialogGeneration;}});
+$('manage-space').addEventListener('click',()=>teams.manage(folder.spaceId));
 const folderTree=createFolderTree({host:$('folder-tree'),toggle:$('folder-tree-toggle'),call,element,button,text:t,session:signedSession,current:currentSession,
   navigate:id=>{location.hash=`#folder/${id}`;},active:()=>folder?.id,error:errorMessage});
 const details=createFileDetails({host:$('file-details'),body:$('details-body'),closeButton:$('details-close'),title:$('details-title'),call,element,button,text:t,bind,role:entry=>({viewer:'Vaataja',editor:'Muutja',advanced:'Kohandatud ligipääs'})[sharingRole(entry.capabilities,entry.folder)],
@@ -776,7 +800,7 @@ function appendAccessImpact(body,impact){
   if(!impact?.affectedSubjects)return;
   const panel=element('div','move-impact'),summary=element('p');
   text(summary,'Toiming muudab {objects} üksuse ligipääsu. Mõjutatud kontosid: {people}.',{objects:impact.affectedObjects,people:impact.affectedSubjects});panel.append(summary);
-  for(const change of impact.changes){const line=element('p');line.textContent=change.subject+' · '+t(change.gains && change.loses?'Õigused või nende kestus muutuvad':change.gains?'Ligipääs laieneb või pikeneb':'Ligipääs väheneb või lüheneb');panel.append(line);}
+  for(const change of impact.changes){const line=element('p');line.textContent=(change.subject==='2vxsx-fae'?t('Kõik lingiga'):change.subject)+' · '+t(change.gains && change.loses?'Õigused või nende kestus muutuvad':change.gains?'Ligipääs laieneb või pikeneb':'Ligipääs väheneb või lüheneb');panel.append(line);}
   body.append(panel);
 }
 async function undoLastAction(){
@@ -899,7 +923,7 @@ function trash(file) {
   selectionNames(files);$('dialog-body').append(element('p','muted','Faili või kausta saab hiljem prügikastist taastada.'));
 }
 async function confirmPurge(file = null) {
-  if(busy || loading || restoring || picker || !account?.authenticated || cloud.needs_refresh() || (file && file.owner!==account.principal))return;
+  if(busy || loading || restoring || picker || !account?.authenticated || cloud.needs_refresh() || (file && !canManage(file,account.principal)))return;
   const principal=account.principal, token=requestId();let items=null;
   showDialog(file ? 'Kustuta jäädavalt' : 'Tühjenda prügikast',file ? 'Kustuta jäädavalt' : 'Tühjenda prügikast',()=>{
     if(!items?.length || account?.principal!==principal || cloud.needs_refresh())return;
@@ -917,7 +941,7 @@ async function confirmPurge(file = null) {
       do {
         const page=await call('trash',{cursor:next});
         if(dialogEpoch!==dialogGeneration || !$('drive-dialog').open || account?.principal!==principal || cloud.needs_refresh())return;
-        all.push(...page.entries.filter(entry=>entry.owner===principal));next=page.cursor;
+        all.push(...page.entries.filter(entry=>canManage(entry,principal)));next=page.cursor;
       } while(next);
       items=all.map(entry=>({id:entry.id,version:entry.version}));body.replaceChildren();
       if(!items.length) {body.append(element('p','','Sinu prügikastis pole kustutatavaid faile ega kaustu.'));$('dialog-submit').hidden=true;return;}
@@ -982,23 +1006,23 @@ function previewNotice(source, error=false) {
   notice.setAttribute('role',error?'alert':'status');$('preview-content').replaceChildren(notice);
   $('preview-content').setAttribute('aria-busy','false');
 }
-async function openFile(file,{preview=false}={}) {
-  if(busy || working(file.id) || !account?.authenticated || cloud.needs_refresh())return;
+async function openFile(file,{preview=false,publicRead=false}={}) {
+  if(!publicRead && (busy || working(file.id) || !account?.authenticated || cloud.needs_refresh()))return;
   cancelInlineRename();closeFileMenus();
   if(file.shortcut){const session=signedSession(),epoch=generation;try{const target=await call('shortcutTarget',{id:file.id});if(currentSession(session)&&epoch===generation){if(picker&&!target.folder&&!pickerSupports(target)){message('See fail ei sobi valitud redaktorile.',true);return;}return openFile(target,{preview});}}catch(error){if(currentSession(session))message(errorMessage(error),true);}return;}
   if(picker && !file.folder) {selectPickerFile(file);return;}
   if(file.folder) {location.hash=`#folder/${file.id}`;return;}
   const session=signedSession(),epoch=generation;
-  try {file=await call('get',{id:file.id});if(!currentSession(session)||epoch!==generation)return;clearCache();}
+  try {if(!publicRead)file=await call('get',{id:file.id});if((!publicRead&&!currentSession(session))||epoch!==generation)return;clearCache();}
   catch(error){if(currentSession(session))message(errorMessage(error),true);return;}
-  const href=editorHref(file);if(href && !preview) {location.href=href;return;}
+  const href=publicRead?null:editorHref(file);if(href && !preview) {location.href=href;return;}
   // Keep the dialog open while switching files: a queued close event must not clear the next preview.
   releasePreview();
-  const state={file,principal:account.principal,zoom:1};previewState=state;
-  const current=()=>previewState===state && account?.principal===state.principal && !cloud.needs_refresh();
+  const state={file,principal:account?.principal,zoom:1,publicRead};previewState=state;
+  const current=()=>previewState===state && (publicRead || account?.principal===state.principal && !cloud.needs_refresh());
   $('preview-name').textContent=file.name;$('preview-meta').textContent=size(file.bytes||0);
   if(!$('preview-dialog').open)$('preview-dialog').showModal();
-  const format=previewFormat(file),siblings=entries.filter(item=>!item.folder&&!item.shortcut),index=siblings.findIndex(item=>item.id===file.id);
+  const format=previewFormat(file),siblings=publicRead?[]:entries.filter(item=>!item.folder&&!item.shortcut),index=siblings.findIndex(item=>item.id===file.id);
   $('preview-previous').disabled=index<=0;$('preview-next').disabled=index<0||index>=siblings.length-1;
   state.neighbors=[siblings[index-1],siblings[index+1]];
   $('preview-zoom-in').hidden=$('preview-zoom-out').hidden=$('preview-fit').hidden=format?.kind!=='image';
@@ -1013,14 +1037,14 @@ async function openFile(file,{preview=false}={}) {
   previewQueue=previewQueue.then(async()=>{
     if(!current()) return;
     try {
-      const bytes=await cloud.download(file.id,file.revision);
+      const bytes=await (publicRead?cloud.public_download(file.id):cloud.download(file.id,file.revision));
       if(!current())return;
-      if(format.kind==='office') {const office=await renderOfficePreview(bytes,format.extension,{element,text:t});if(current()){$('preview-content').replaceChildren(office);$('preview-content').setAttribute('aria-busy','false');acknowledge(file);}return;}
+      if(format.kind==='office') {const office=await renderOfficePreview(bytes,format.extension,{element,text:t});if(current()){$('preview-content').replaceChildren(office);$('preview-content').setAttribute('aria-busy','false');(!publicRead&&acknowledge(file));}return;}
       if(format.kind==='pdf') {
         if(new TextDecoder().decode(bytes.slice(0,5))!=='%PDF-')throw new Error(t('See fail ei ole loetav PDF.'));
         const {createPdfPreview}=await import('./drive-pdf.js');if(!current())return;
         state.pdf=createPdfPreview({host:$('preview-content'),element,button,text:t,current,
-          ready:()=>acknowledge(file),error:()=>previewNotice('PDF-i eelvaadet ei saa kuvada. Ava fail redaktoris või laadi alla.',true)});
+          ready:()=>(!publicRead&&acknowledge(file)),error:()=>previewNotice('PDF-i eelvaadet ei saa kuvada. Ava fail redaktoris või laadi alla.',true)});
         await state.pdf.open(bytes);return;
       }
       if(format.kind==='text') {
@@ -1028,11 +1052,11 @@ async function openFile(file,{preview=false}={}) {
         const encoding=bytes[0]===255 && bytes[1]===254 ? 'utf-16le' : bytes[0]===254 && bytes[1]===255 ? 'utf-16be' : 'utf-8';
         let value;try {value=new TextDecoder(encoding,{fatal:true}).decode(bytes);} catch {throw new Error(t('Selle teksti kodeeringut ei saa eelvaates lugeda. Laadi fail alla.'));}
         const pre=element('pre','preview-text');pre.textContent=value || t('Fail on tühi.');pre.tabIndex=0;
-        $('preview-content').replaceChildren(pre);$('preview-content').setAttribute('aria-busy','false');acknowledge(file);return;
+        $('preview-content').replaceChildren(pre);$('preview-content').setAttribute('aria-busy','false');(!publicRead&&acknowledge(file));return;
       }
       state.url=URL.createObjectURL(new Blob([bytes],{type:format.mime}));
       const viewer=element(format.kind==='image'?'img':format.kind,`preview-${format.kind}`);if(format.kind==='image')state.image=viewer;
-      const ready=()=>{if(current()){acknowledge(file);$('preview-content').setAttribute('aria-busy','false');$('preview-content').querySelector('.preview-notice')?.remove();}};
+      const ready=()=>{if(current()){(!publicRead&&acknowledge(file));$('preview-content').setAttribute('aria-busy','false');$('preview-content').querySelector('.preview-notice')?.remove();}};
       viewer.addEventListener('error',()=>{if(current())previewNotice('Brauser ei saa seda faili kuvada või esitada. Laadi fail alla.',true);});
       if(format.kind==='image') {viewer.alt=file.name;viewer.addEventListener('load',ready);}
       else {state.media=viewer;viewer.controls=true;viewer.preload='metadata';viewer.playsInline=true;viewer.setAttribute('aria-label',file.name);viewer.addEventListener('loadedmetadata',ready);}
@@ -1147,6 +1171,7 @@ function connectInternalDrag(row,file) {
 const moveImpactKey=impactKey;
 function destinationOwner(destination) {
   const node=element('p','muted');
+  if(destination.spaceAccess?.teamName){text(node,'Sihtkoht: {name}',{name:destination.spaceAccess.teamName});return node;}
   text(node,destination.owner===account?.principal?'Sihtkausta omanik: mina':'Sihtkausta omanik: {owner}',{owner:destination.owner});return node;
 }
 function folderColor(file) {
@@ -1222,7 +1247,7 @@ async function move(file,{copy=false,shortcut=false,destination:initialDestinati
             const summary=element('p');panel.append(summary);
             text(summary,'Liigutamine muudab {objects} üksuse ligipääsu. Mõjutatud kontosid: {people}.',{objects:impact.affectedObjects,people:impact.affectedSubjects});
             for(const change of impact.changes) {
-              const line=element('p');line.textContent=change.subject+' · '+t(change.gains && change.loses?'Õigused või nende kestus muutuvad':change.gains?'Ligipääs laieneb või pikeneb':'Ligipääs väheneb või lüheneb');panel.append(line);
+              const line=element('p');line.textContent=(change.subject==='2vxsx-fae'?t('Kõik lingiga'):change.subject)+' · '+t(change.gains && change.loses?'Õigused või nende kestus muutuvad':change.gains?'Ligipääs laieneb või pikeneb':'Ligipääs väheneb või lüheneb');panel.append(line);
             }
             body.append(panel);
           }
@@ -1287,7 +1312,7 @@ async function share(file) {
   expiry.addEventListener('change',()=>text(expirySummary,expiry.value?'Ligipääs kuni':'Lisa lõppkuupäev'));
   $('dialog-body').append(element('p','muted','E-postiga jagamiseks kinnita esmalt enda e-post konto menüüs. Uus saaja saab kutse ja kinnitab oma aadressi Subnetis.'));
   if(files.length===1)$('dialog-body').append(button('Kopeeri link',()=>copyLink(files[0])));
-  $('dialog-body').append(element('p','muted','Piiratud ligipääs. Link ise õigusi ei anna.'));
+  if(files.length===1)$('dialog-body').append(button('Üldine ligipääs',()=>publicLinks.settings(files[0])));
   const roster = element('div','share-roster'); $('dialog-body').append(roster);
   if(files.length>1)return;
   file=files[0];
@@ -1392,10 +1417,12 @@ function search() {
   for(const [key,id] of [['q','search-text'],['type','search-type'],['owner','search-owner'],['after','search-after'],['before','search-before']]) {
     const value=($(id).value||'').trim();if(value)params.set(key,value);
   }
-  if($('search-location').value==='current' && folder)params.set('in',folder.id);
-  const hash='#search?'+params.toString();if(currentRoute()===hash)route();else location.hash=hash;
+  if($('search-location').value==='current' && (folder||activeQuery?.parent))params.set('in',folder?.id||activeQuery.parent);
+  const content=$('search-mode').value==='content';if(content){for(const key of ['type','owner','after','before'])params.delete(key);}
+  const hash=(content?'#content?':'#search?')+params.toString();if(currentRoute()===hash)route();else location.hash=hash;
 }
 $('drive-search').addEventListener('submit',event=>{event.preventDefault();search();});
+$('search-mode').addEventListener('change',()=>{if($('search-text').value.trim())search();else syncBrowseControls();});
 for(const id of ['search-type','search-owner','search-location'])$(id).addEventListener('change',search);
 $('search-clear').addEventListener('click',()=>{for(const id of ['search-text','search-type','search-owner','search-location','search-after','search-before'])$(id).value='';location.hash=folder?`#folder/${folder.id}`:'#failid';});
 function openSelectionMenu(event) {
@@ -1491,7 +1518,7 @@ window.addEventListener('resize',()=>closeFileMenus());
 document.addEventListener('keydown',event=>{if(event.key==='Escape'){cancelInlineRename();resetDrop();closeFileMenus();$('new-menu').open=false;$('date-filter').open=false;if(picker && !$('drive-dialog').open)postSelection({action:'cancel'});}});
 $('preview-dialog').addEventListener('close',()=>{if(!$('preview-dialog').open)releasePreview();updateAccount();});
 $('preview-dialog').addEventListener('cancel',event=>{event.preventDefault();closePreview();});
-$('preview-download').addEventListener('click',()=>{if(previewState)download(previewState.file);});
+$('preview-download').addEventListener('click',()=>{if(previewState)(previewState.publicRead?publicLinks.save(previewState.file):download(previewState.file));});
 window.addEventListener('hashchange',()=>{closePreview();route();});
 window.addEventListener('popstate',()=>{closePreview();route();});
 document.addEventListener('click',event=>{

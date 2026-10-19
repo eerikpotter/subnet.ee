@@ -51,6 +51,7 @@ pub(super) struct GraphChanges {
     acl: Vec<(ObjectId, u64)>,
     discovery: Vec<(Principal, u64)>,
     counts: Vec<(Principal, (u64, u64))>,
+    team_counts: Vec<(ObjectId, (u64, u64))>,
     roots: Vec<((Principal, ObjectId), u64)>,
 }
 fn changes(graph: &AccessGraph) -> DriveResult<GraphChanges> {
@@ -76,13 +77,14 @@ fn changes(graph: &AccessGraph) -> DriveResult<GraphChanges> {
         acl: Vec::new(),
         discovery: Vec::new(),
         counts: Vec::new(),
+        team_counts: Vec::new(),
         roots: Vec::new(),
     })
 }
 impl<M: Memory> Store<M> {
     pub(super) fn graph_for_owner(&self, owner: Principal) -> DriveResult<AccessGraph> {
         let mut graph = self.read_graph();
-        graph.owner_scope = Some(owner);
+
         if let Some(account) = self.accounts.get(&owner) {
             let account: Account = decoded(&account)?;
             graph.tree_version = self.space_versions.get(&account.personal_space).unwrap_or(0);
@@ -101,7 +103,7 @@ impl<M: Memory> Store<M> {
     pub(super) fn graph_for_object(&self, id: ObjectId) -> DriveResult<AccessGraph> {
         let object: DriveObject = decoded(&self.read_objects.get(&id).ok_or(DriveError::Inaccessible)?)?;
         let mut graph = self.indexed_graph(id)?;
-        graph.owner_scope = Some(object.owner);
+
         graph.tree_version = self.space_versions.get(&object.space).unwrap_or(0);
         Ok(graph)
     }
@@ -109,10 +111,6 @@ impl<M: Memory> Store<M> {
         self.prepare_graph_size(graph, None)
     }
     pub(super) fn prepare_graph_size(&self, graph: &AccessGraph, size: Option<(ObjectId, u64)>) -> DriveResult<GraphChanges> {
-        let owner = graph.owner_scope.ok_or(DriveError::Internal)?;
-        if graph.objects.values().any(|o| o.owner != owner) {
-            return Err(DriveError::Internal);
-        }
         let mut changes = changes(graph)?;
         for old in &changes.removed_objects {
             changes.removed_keys.extend(super::catalog_index::keys(old, self.catalog_size(old.id)?));
@@ -129,6 +127,7 @@ impl<M: Memory> Store<M> {
         let mut acl = BTreeSet::new();
         let mut discovery = BTreeSet::new();
         let mut counts = std::collections::BTreeMap::new();
+        let mut team_counts = std::collections::BTreeMap::new();
         let mut roots = std::collections::BTreeMap::new();
         for (object, adding) in changes.removed_objects.iter().map(|o| (o, false)).chain(changes.objects.iter().map(|(o, _)| (o, true))) {
             spaces.insert(object.space);
@@ -139,7 +138,11 @@ impl<M: Memory> Store<M> {
             if object.kind == ObjectKind::Folder {
                 folders.insert(object.id);
             }
-            let count = counts.entry(object.owner).or_insert_with(|| self.catalog_counts.get(&object.owner).unwrap_or((0u64, 0u64)));
+            let count = if graph.teams.contains_key(&object.space) {
+                team_counts.entry(object.space).or_insert_with(|| self.spaces.counts.get(&object.space).unwrap_or((0u64, 0u64)))
+            } else {
+                counts.entry(object.owner).or_insert_with(|| self.catalog_counts.get(&object.owner).unwrap_or((0u64, 0u64)))
+            };
             count.0 = if adding { count.0.checked_add(1) } else { count.0.checked_sub(1) }.ok_or(DriveError::Internal)?;
             if matches!(object.kind, ObjectKind::File(_)) {
                 count.1 = if adding { count.1.checked_add(1) } else { count.1.checked_sub(1) }.ok_or(DriveError::Internal)?;
@@ -172,6 +175,7 @@ impl<M: Memory> Store<M> {
         changes.acl = acl.into_iter().map(|id| Ok((id, next(self.acl_versions.get(&id).unwrap_or(0))?))).collect::<DriveResult<_>>()?;
         changes.discovery = discovery.into_iter().map(|p| Ok((p, next(self.discovery_versions.get(&p).unwrap_or(0))?))).collect::<DriveResult<_>>()?;
         changes.counts = counts.into_iter().collect();
+        changes.team_counts = team_counts.into_iter().collect();
         changes.roots = roots.into_iter().collect();
         Ok(changes)
     }
@@ -194,7 +198,9 @@ impl<M: Memory> Store<M> {
         }
         for (object, value) in changes.objects {
             self.read_objects.insert(object.id, value);
-            self.read_owners.insert((object.owner, object.id), 0);
+            if !self.spaces.is_team(object.space) {
+                self.read_owners.insert((object.owner, object.id), 0);
+            }
             if let Some(parent) = object.parent {
                 self.read_children.insert((parent, object.id), 0);
                 if object.trashed_at.is_none() {
@@ -229,6 +235,9 @@ impl<M: Memory> Store<M> {
         for (p, counts) in changes.counts {
             self.catalog_counts.insert(p, counts);
         }
+        for (space, counts) in changes.team_counts {
+            self.spaces.counts.insert(space, counts);
+        }
         for (key, count) in changes.roots {
             if count == 0 {
                 self.shared_roots.remove(&key);
@@ -253,6 +262,10 @@ impl<M: Memory> Store<M> {
                 return Err(DriveError::Inaccessible);
             }
             let object: DriveObject = decoded(&self.read_objects.get(&id).ok_or(DriveError::Inaccessible)?)?;
+            self.spaces.load(graph, object.space)?;
+            if let Some(bytes) = self.public_links.get(&id) {
+                graph.public_links.insert(id, decoded(&bytes)?);
+            }
             for entry in self.read_grants.range((id, 0)..=(id, u64::MAX)) {
                 let grant: AccessGrant = decoded(&entry.value())?;
                 if let Participant::User(p) = grant.subject
@@ -310,9 +323,16 @@ impl<M: Memory> Store<M> {
                 hash.update(id.as_bytes());
                 hash.update(object.version.to_be_bytes());
                 hash.update(self.acl_versions.get(&id).unwrap_or(0).to_be_bytes());
+                if let Some(team) = graph.teams.get(&id) {
+                    hash.update(team.version.to_be_bytes());
+                }
             }
         } else {
             hash.update(self.discovery_versions.get(&actor.sponsor).unwrap_or(0).to_be_bytes());
+            for id in self.spaces.ids(actor.sponsor) {
+                hash.update(id.as_bytes());
+                hash.update(self.spaces.get(id)?.version.to_be_bytes());
+            }
             if let Some(bytes) = self.accounts.get(&actor.sponsor) {
                 let account: Account = decoded(&bytes)?;
                 hash.update(self.space_versions.get(&account.personal_space).unwrap_or(0).to_be_bytes());
@@ -332,6 +352,7 @@ impl<M: Memory> Store<M> {
             let account: Account = decoded(&bytes)?;
             ids.insert(account.id);
         }
+        ids.extend(self.spaces.ids(actor.sponsor));
         for entry in self.shared_roots.range((actor.sponsor, ObjectId::MIN)..=(actor.sponsor, ObjectId::MAX)).take(257) {
             if ids.len() >= 257 {
                 return Err(DriveError::Limit("Choose a folder to narrow this view".into()));

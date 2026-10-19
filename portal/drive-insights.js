@@ -1,4 +1,4 @@
-import { driveHref } from './drive-browser.js';
+import { canManage, driveHref } from './drive-browser.js';
 // Read-only account projections; every request is scoped and revalidated by the service.
 const activityLabels={Created:'Loodi',ContentSaved:'Salvestati sisu',Renamed:'Muudeti nime',Moved:'Liigutati',Trashed:'Viidi prügikasti',Restored:'Taastati',SharingChanged:'Muudeti jagamist',RevisionLabeled:'Muudeti versiooni märgistust',RevisionDeleted:'Kustutati vana versioon'};
 export function createDriveInsights({host,title,body,call,element,button,bind,text,session,current,owner,size,date,error,open,history}) {
@@ -68,7 +68,7 @@ export function createRevisionHistory({body,showDialog,dialogOpen,dialogEpoch,ca
         const author=element('small','account-id');author.textContent=revision.author;info.append(author);row.append(info,picker()?button('Ava',()=>select(file,revision.id)):button('Laadi alla',()=>download(file,revision.id)));
         const token=requestId();
         if(!picker()&&file.capabilities.edit&&revision.id!==file.revision)row.append(button('Taasta versioon',()=>mutate(()=>restore(file,revision,token),{ids:[file.id],label:'Taastan…',quota:true})));
-        if(!picker()&&file.owner===owner()){
+        if(!picker()&&canManage(file,owner())){
           row.append(button('Nimeta / säilita',()=>label(file,revision)));
           if(revision.id!==file.revision){const remove=button('Kustuta versioon',()=>removeRevision(file,revision));remove.disabled=!!revision.keep||!!revision.label;row.append(remove);}
         }

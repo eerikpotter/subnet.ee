@@ -50,7 +50,17 @@ export class DriveSelection {
     return id;
   }
 }
+export const canManage=(file,principal)=>file?.spaceAccess?.manage ?? (file?.owner===principal);
 export const defaultPreferences=()=>({view:'list',sort:'name',descending:false});
+export function contentLocation(location,t) {
+  if(location==='text')return t('Tekst');
+  return location.split('/').map(part=>{
+    const colon=part.indexOf(':');if(colon<0)return '';
+    const kind=part.slice(0,colon),value=part.slice(colon+1);
+    const label={page:'Lehekülg',slide:'Slaid',sheet:'Leht',paragraph:'Lõik',row:'Rida',cell:'Lahter',table:'Tabel'}[kind];
+    return label?`${t(label)} ${value}`:'';
+  }).filter(Boolean).join(' · ');
+}
 // UI affordances only; every operation is still authorized by the canister.
 export function selectionCapabilities(files,principal,trash=false) {
   const all=predicate=>files.length>0 && files.every(predicate);
@@ -61,7 +71,7 @@ export function selectionCapabilities(files,principal,trash=false) {
     rename:!trash && files.length===1 && all(file=>file.capabilities.edit),
     download:!trash && all(file=>!file.shortcut && file.capabilities.read),
     move:!trash && all(file=>file.capabilities.edit && file.capabilities.delete && file.spaceId===files[0].spaceId),
-    share:!trash && all(file=>file.owner===principal),
+    share:!trash && all(file=>canManage(file,principal)),
     trash:!trash && all(file=>file.capabilities.delete),
     restore:trash && all(file=>file.capabilities.delete),
     star:!trash && files.some(file=>!file.starred),
@@ -95,6 +105,7 @@ export function browseRoute(hash,root,principal,preferences) {
   if(!hash || hash==='#kodu') {view='home';query.scope='suggested';}
   else if(hash.startsWith('#file/')) {view='link';query.scope='item';query.id=hash.slice(6);}
   else if(hash.startsWith('#folder/')) {query.scope='folder';query.parent=hash.slice(8);}
+  else if(hash.startsWith('#content?')) {view='search';const p=new URLSearchParams(hash.slice(9));query.scope='content';query.text=p.get('q')||'';query.parent=p.get('in')||null;}
   else if(hash.startsWith('#search?')) {
     view='search';const p=new URLSearchParams(hash.slice(8));
     query.text=p.get('q')||'';query.fileType=p.get('type')||'';query.owner=p.get('owner')==='mine'?principal:null;

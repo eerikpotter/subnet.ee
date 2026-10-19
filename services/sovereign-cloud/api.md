@@ -10,7 +10,7 @@ ICP tokens; storage and operation limits still apply.
 
 ## Object identity and bounded retrieval
 
-Every file, folder, shortcut and personal space has one UUID v4 identity. Candid
+Every file, folder, shortcut, personal space and team space has one UUID v4 identity. Candid
 and JSON carry it as text; stable indexes use the same UUID's sixteen bytes.
 There is no numeric alias or separate public ID. Revisions, uploads, grants and
 activity events have their own numeric sequence IDs and must not be used as file
@@ -37,6 +37,71 @@ views return an explicit request to narrow to a folder. Recursive mutations are
 bounded at 4096 objects, combined purge work at 8192, and account aggregate
 summaries at 8192. These safety bounds are not a claim of production capacity;
 resumable jobs and distributed aggregates remain future extensions.
+
+## Team spaces
+
+`space_list`, `space_get`, `space_create`, `space_members`, `space_change_member`
+and `space_change` use the same signed application principal. Space UUIDs remain
+storage boundaries, not authentication identities. Roles are Manager, Editor and
+Viewer; multiple Managers are allowed, and the last cannot leave or be removed.
+Creation initializes the founder as Manager. Membership changes require an existing
+Subnet account; team email invitations and organization SSO are not implemented.
+Members may leave; Managers administer membership and external-sharing settings.
+Settings/membership writes use optimistic space versions and request receipts.
+Limits: 32 memberships per account, 128 members per team, 50 members per page.
+
+The originating `owner` field is retained as metadata in team objects. It gives
+no special team authority and incurs no personal quota charge. Team quota, uploads
+and file counts are keyed by space, independent of founder membership. Personal
+legacy file APIs reject team files. `DriveEntry.space_access` is optional display
+metadata (`team_name`, `manage`); the service always decides current authority.
+`external_sharing=false` blocks nonmember named recipients and public readers.
+
+## Anonymous read links
+
+`public_link_state` and `public_link_set` require the personal owner or team
+Manager. The latter takes a policy version and request ID. Default is disabled;
+expiry is optional. A live ancestor's public policy grants descendant read access.
+Disabling a direct policy does not override a live ancestor; team external-sharing
+policy overrides both. Shortcuts must share the original target instead.
+
+Anonymous `public_get` and `public_list` are consensus updates. The projection is
+only UUID, name, kind, modification time and current content manifest; no owner,
+private ancestry, recipient list or old revisions. List pages scan at most 128
+children and return at most 50 with an opaque folder-bound cursor. `public_chunk`
+is a query that rechecks live access and exact current revision. The SDK verifies
+all bytes against the consensus manifest, including length and SHA-256. Revocation
+stops subsequent reads; it cannot remove already downloaded copies. Public URLs
+neither create named grants nor add a file to signed discovery/content search.
+
+## Indexed content search
+
+`content_query({text,folder,cursor,limit})` requires a signed account. All 1–8
+Unicode NFKC/lowercase alphanumeric words must occur; this is exact-token AND,
+not stemming, substring, phrase, semantic search or OCR. Folder is optional and
+includes its descendants. Otherwise search covers bounded authorized roots.
+Per-space inverted indexes choose a rare term, seek UUID postings, inspect at
+most 128 candidates and return at most 50 hits. Follow `next` even for empty pages.
+Cursors bind actor, words and roots. Changed revisions, revoked/expired access,
+Trash, hidden shares and blocked relationships are rechecked before returning
+names, locations or snippets. Results do not expose global match counts.
+
+`content_status(file)` reports current revision/extractor/state; `content_rebuild`
+requires Edit and queues pending or failed work, with a failure cooldown. All
+commits enqueue the immutable current revision. A standard timer/self-call consumes
+stable jobs; only the canister may call `content_process_self`. Partial parser
+failure cannot undo the committed file. Index publication is atomic. Old jobs
+cannot overwrite a newer head; post-upgrade startup resumes the stable queue and
+incrementally backfills missing/outdated records in batches of 16.
+
+Extraction supports UTF-8 TXT/Markdown, WordCraft body paragraphs/tables, PDF text,
+DOCX paragraphs, PPTX slide text and XLSX stored cell values. No OCR, formula
+recalculation, comments or arbitrary Craft JSON indexing. Limits: 16 MiB input,
+256 KiB extracted text, 512 sections, 4096 distinct tokens, 128 PDF pages;
+Office XML is limited to 2 MiB per part/8 MiB total, 256 selected parts, DTD off.
+Pending, ready, empty, partial, unsupported, too-large, unreadable and failed states
+are explicit. Unsupported/large files still save normally. These safety bounds
+and tests are not a 100k-user throughput guarantee.
 
 ## Shared folders and files
 
@@ -97,7 +162,7 @@ Owners see sharing with other accounts; recipients see only grants to themselves
 No recipient identities or private ancestor names are exposed. This is display
 metadata, never authority. Older servers/receipts may omit it; trash entries omit it.
 
-Only the owning account can call `drive_set_grant` or `drive_grants`. The recipient
+The personal owner or a team Manager can call `drive_set_grant` or `drive_grants`. The recipient
 must have an account in this application. Grant capabilities are explicit Read,
 Propose, Create, Edit and Delete; every enabled action requires Read. Create applies
 only to folders. Rights from live, unexpired grants on an object and its ancestors

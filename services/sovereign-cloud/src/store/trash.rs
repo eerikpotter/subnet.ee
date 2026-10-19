@@ -26,7 +26,7 @@ impl<M: Memory> Store<M> {
             return Err(DriveError::Limit("Request receipt limit reached".into()));
         }
         let mut graph = self.read_graph();
-        graph.owner_scope = Some(actor.sponsor);
+
         for item in &request.items {
             self.read_path(&mut graph, item.object)?;
             graph.owner(actor, item.object)?;
@@ -38,7 +38,7 @@ impl<M: Memory> Store<M> {
         let mut roots = BTreeSet::new();
         for item in &request.items {
             let object = graph.objects.get(&item.object).ok_or(DriveError::Inaccessible)?;
-            if object.owner != actor.sponsor || object.parent.is_none() {
+            if object.parent.is_none() {
                 return Err(DriveError::Inaccessible);
             }
             if object.trashed_at.is_none() || object.version != item.version || !roots.insert(item.object) {
@@ -59,9 +59,7 @@ impl<M: Memory> Store<M> {
         for id in &ids {
             if let Some(bytes) = self.projects.get(id) {
                 let project: Project = decoded(&bytes)?;
-                if project.owner != actor.sponsor {
-                    return Err(DriveError::Internal);
-                }
+                graph.owner(actor, *id)?;
                 for revision in project.revisions {
                     uploads.insert(revision.id, revision.bytes);
                 }
@@ -75,15 +73,16 @@ impl<M: Memory> Store<M> {
             }
         }
         let mut stages = BTreeMap::new();
-        for entry in self.pending_owners.range((actor.sponsor, 0)..=(actor.sponsor, u64::MAX)) {
-            let id = entry.key().1;
+        let scopes: BTreeSet<_> = ids.iter().filter_map(|id| graph.objects.get(id).map(|o| (o.space, o.owner))).collect();
+        let pending: BTreeSet<_> = scopes.iter().flat_map(|(space, owner)| self.pending_in_space(*space, *owner)).collect();
+        for id in pending {
             let stage: Stage = decoded(&self.drive_uploads.get(&id).ok_or(DriveError::Internal)?)?;
             let target = match stage.request.target {
                 UploadTarget::New { parent, .. } => parent,
                 UploadTarget::Replace { file, .. } => file,
             };
             if ids.contains(&target) {
-                if stage.owner != actor.sponsor || stage.upload.committed.is_some() {
+                if !self.manages_space(actor, stage.space, stage.owner) || stage.upload.committed.is_some() {
                     return Err(DriveError::Internal);
                 }
                 uploads.insert(id, stage.request.bytes);
@@ -93,14 +92,29 @@ impl<M: Memory> Store<M> {
         for id in uploads.keys() {
             if let Some(bytes) = self.drive_uploads.get(id) {
                 let stage: Stage = decoded(&bytes)?;
-                if stage.owner != actor.sponsor {
+                if !self.manages_space(actor, stage.space, stage.owner) {
                     return Err(DriveError::Internal);
                 }
                 stages.insert(*id, stage);
             }
         }
         let freed_bytes = uploads.values().try_fold(0u64, |sum, bytes| sum.checked_add(*bytes).ok_or(DriveError::Internal))?;
-        let used = self.usage.get(&actor.sponsor).unwrap_or(0).checked_sub(freed_bytes).ok_or(DriveError::Internal)?;
+        let mut released: BTreeMap<(ObjectId, Principal), u64> = BTreeMap::new();
+        for (id, bytes) in &uploads {
+            let scope = if let Some(stage) = stages.get(id) {
+                (stage.space, stage.owner)
+            } else {
+                let upload: Upload = decoded(&self.uploads.get(id).ok_or(DriveError::Internal)?)?;
+                let object = graph.objects.get(&upload.request.project_id).ok_or(DriveError::Internal)?;
+                (object.space, object.owner)
+            };
+            let value = released.entry(scope).or_default();
+            *value = value.checked_add(*bytes).ok_or(DriveError::Internal)?;
+        }
+        let usage = released
+            .into_iter()
+            .map(|((space, owner), freed)| Ok((space, owner, self.space_usage(space, owner).checked_sub(freed).ok_or(DriveError::Internal)?)))
+            .collect::<DriveResult<Vec<_>>>()?;
         let total = self.total.get().checked_sub(freed_bytes).ok_or(DriveError::Internal)?;
         let removed: Vec<_> = ids.iter().map(|id| graph.objects.remove(id).ok_or(DriveError::Internal)).collect::<DriveResult<_>>()?;
         graph.grants.retain(|_, grant| !ids.contains(&grant.root));
@@ -119,7 +133,7 @@ impl<M: Memory> Store<M> {
             self.drive_uploads.remove(&id);
             self.attributions.remove(&id);
             if let Some(stage) = stages.get(&id) {
-                self.pending_owners.remove(&(stage.owner, id));
+                self.remove_pending_space(stage.space, stage.owner, id);
                 self.pending_uploaders.remove(&(stage.uploader, id));
             }
         }
@@ -130,9 +144,13 @@ impl<M: Memory> Store<M> {
             self.project_owners.remove(&(object.owner, object.id));
             self.account_files.remove(&(object.space, object.id));
             self.file_kinds.remove(&object.id);
+            self.public_links.remove(&object.id);
+            self.search.forget(object.id);
         }
         self.apply_graph(changes);
-        self.usage.insert(actor.sponsor, used);
+        for (space, owner, used) in usage {
+            self.set_space_usage(space, owner, used);
+        }
         self.total.set(total);
         // Keep prior retry tombstones so a delayed create cannot recreate a
         // purged file. Purge retries return the same receipt after an upgrade.

@@ -406,7 +406,7 @@ ensure all registered app links exist. Script isolation regressions run offline 
 Cloud contract tests live in the canonical service, SDK and shared UI. Set
 `POCKET_IC_BIN` to a compatible official `pocket-ic` executable and
 `PHOTOCRAFT_CLOUD_WASM` to the current release service Wasm. `adapter_contract`,
-`persistence`, `browse`, `recovery`, `workflows`, `trash` and `email` create isolated
+`persistence`, `browse`, `recovery`, `workflows`, `trash`, `spaces`, `content_search` and `email` create isolated
 disposable canisters with the UUID schema, then upgrade the populated canister.
 Use the PocketIC binary bundled with the official local launcher
 `v16.0.0-2026-10-08-03-33` or newer for HTTP v2 email tests. The generic 16.0.0
@@ -415,7 +415,10 @@ contract tests but produced no HTTP request in the email harness. Tests use mock
 provider replies, never the configured real mail credential. Large storage tests
 advance empty replica rounds before upgrades to replenish the heap-delta budget;
 this is an accounting/persistence check, not a sustained-throughput benchmark.
-No previous-backend binary or numeric-ID compatibility fixture is required.
+No numeric-ID compatibility fixture is required. For a release rehearsal,
+`workflows` optionally accepts `PHOTOCRAFT_CLOUD_BASELINE_WASM` containing the
+previously released UUID-schema backend; it populates that version, then upgrades
+to `PHOTOCRAFT_CLOUD_WASM`. Ordinary runs use the current artifact for both sides.
 `adapter_contract` also exercises shared-file retries after a lost commit response.
 Run `node --test scripts/*.test.mjs` for portal flows including canonical UUID URLs
 and empty bounded search continuations. Test editor-native behavior only when its
@@ -461,3 +464,26 @@ issuance requires a separate interactive check.
 For protocol and storage details, see the [SDK](../packages/sovereign-cloud/README.md),
 [shared UI](../packages/sovereign-cloud-ui/README.md) and
 [backend](../services/sovereign-cloud/README.md) documentation.
+
+
+### Team/public/search package checks
+
+The canonical portal/backend can evolve without rewriting or rebuilding the eight
+editor engines. The shared picker exposes team destinations; optional entry display
+metadata is backwards-compatible with pinned clients. Standalone snapshots remain
+at their independently tested versions until explicitly adopted.
+
+```sh
+cargo +1.95.0 test --offline --manifest-path packages/sovereign-cloud-text/Cargo.toml
+cargo +1.95.0 test --offline --manifest-path services/sovereign-cloud/Cargo.toml --lib
+cargo +1.95.0 test --offline --manifest-path packages/sovereign-cloud/Cargo.toml --test transfer
+python3 -m unittest discover -s scripts -p test_pdf_dependency.py
+node --test scripts/*.test.mjs
+```
+
+Use the PocketIC environment above with `--test spaces --test content_search` for
+actual Wasm and populated upgrades. Regenerate `cloud.did` with the existing
+`export_candid` example after interface changes, then build with `icp build`.
+The service’s `.cargo/config.toml` deliberately disables the unused PDF encryption
+RNG on Wasm; never copy that backend-only setting into browser workspaces.
+See the text package’s vendor README for the single bounded PDF lookup patch.

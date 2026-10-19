@@ -55,11 +55,21 @@ host mounts does not provide that protection. The updater intentionally does not
 that a normal local Cargo build is sandboxed. `--locked` prevents dependency resolution
 drift; it does not prevent build scripts or procedural macros from executing.
 
-After review, validate the changed app: its build, relevant adapter tests and one browser
-cloud save/open check. Follow any applicable repository requirements for that app's commit.
-Do not routinely repeat unrelated editor suites or root SDK/backend tests. Expand checks
-only if their code or shared protocol actually changes. Upstream CI remains responsible
-for general editor behavior; do not fix unrelated upstream failures in these forks.
+After review, validate the changed app: its browser build with the cloud feature,
+relevant adapter/menu tests and one actual cloud save/open check. **Do not run the
+editor's full `xtask ci` by default**, including when its inherited AGENTS.md says
+"full CI before every commit". The user's scoped policy in the root AGENTS.md applies
+to these integration forks. Observe available CI evidence for the exact upstream
+commit and record missing evidence; this does not silently trigger a full local run.
+Upstream CI owns general editor behavior. Our checks own the integration delta.
+
+Run shared SDK/backend tests once in their canonical packages when those packages
+change, not through every editor's vendored copy. An editor-internal compatibility
+repair needs its relevant regression/module test; expand further only for a concrete
+unresolved concern or explicit user request. A successful browser release build
+already checks that Wasm compiles; do not repeat an equivalent cargo check without
+another purpose. Stop after these checks pass and record limitations. Do not fix
+unrelated upstream failures in these forks.
 Then commit the resolved merge **inside the printed review directory**:
 
 ```sh

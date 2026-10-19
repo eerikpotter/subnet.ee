@@ -114,21 +114,36 @@ pub fn login(session: &BrowserSession, success: impl Fn() + Send + 'static, erro
 pub struct CanisterTransport {
     agent: Agent,
     canister: candid::Principal,
-    session: BrowserSession,
+    session: Option<BrowserSession>,
 }
 impl Transport for CanisterTransport {
     async fn update(&self, method: &str, args: Vec<u8>) -> CloudResult<Vec<u8>> {
-        self.session.principal()?;
+        if let Some(session) = &self.session {
+            session.principal()?;
+        } else if !matches!(method, "public_get" | "public_list" | "public_chunk") {
+            return Err("Public reader cannot call authenticated methods".into());
+        }
         self.agent.update(&self.canister, method).with_arg(args).call_and_wait().await.map_err(|e| e.to_string())
     }
     async fn query(&self, method: &str, args: Vec<u8>) -> CloudResult<Vec<u8>> {
-        self.session.principal()?;
+        if let Some(session) = &self.session {
+            session.principal()?;
+        } else if !matches!(method, "public_get" | "public_list" | "public_chunk") {
+            return Err("Public reader cannot call authenticated methods".into());
+        }
         self.agent.query(&self.canister, method).with_arg(args).call().await.map_err(|e| e.to_string())
     }
 }
 
 pub type BrowserClient = FileClient<CanisterTransport>;
 impl BrowserClient {
+    /// Explicit anonymous identity on the same configured service, restricted to public reads.
+    pub fn public_reader() -> CloudResult<Self> {
+        let endpoint = endpoint()?;
+        let agent = Agent::builder().with_url(endpoint.gateway).build().map_err(|e| e.to_string())?;
+        agent.set_root_key(endpoint.root_key);
+        Ok(Self::with_transport(CanisterTransport { agent, canister: endpoint.canister, session: None }))
+    }
     pub fn new(auth: &BrowserSession) -> CloudResult<Self> {
         Self::at_endpoint(auth, endpoint()?)
     }
@@ -139,6 +154,6 @@ impl BrowserClient {
         }
         let agent = Agent::builder().with_url(endpoint.gateway).with_arc_identity(auth.auth.identity()).build().map_err(|e| e.to_string())?;
         agent.set_root_key(endpoint.root_key);
-        Ok(Self::with_transport(CanisterTransport { agent, canister: endpoint.canister, session: auth.clone() }))
+        Ok(Self::with_transport(CanisterTransport { agent, canister: endpoint.canister, session: Some(auth.clone()) }))
     }
 }

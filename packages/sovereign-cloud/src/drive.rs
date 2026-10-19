@@ -128,6 +128,8 @@ pub struct DriveEntry {
     pub attribution: Option<Attribution>,
     #[serde(default)]
     pub sharing: Option<SharingStatus>,
+    #[serde(default)]
+    pub space_access: Option<crate::spaces::SpaceAccess>,
 }
 
 /// Caller-visible references only; inaccessible ancestors never supply names.

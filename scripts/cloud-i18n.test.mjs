@@ -28,6 +28,8 @@ function fixture(options={}) {
     navigator:{clipboard:{writeText:async value=>{if(options.copy)return options.copy(value);}}},
     async fetch(){if(options.unavailable)throw new Error('Unavailable');return {ok:true,json:async()=>({apps:[{id:'gridcraft',name:'GridCraft',cloud:true,cloudExtension:'scjson',openFormats:[{id:'grid',version:1}]}]})};},
     CloudPortal:class {
+      async public_read(method,payload){calls.push(['public:'+method,JSON.parse(payload)]);if(options.publicRead)return options.publicRead(method,JSON.parse(payload));throw new Error('Not found or access unavailable');}
+      async public_download(id){calls.push(['publicDownload',id]);return new TextEncoder().encode('Public text');}
       async sign_in(){calls.push(['sign_in']);options.signIn?.();}
       async restore(){calls.push(['restore']);return {authenticated:true,principal:'alice',spaceId:'1',usedBytes:100,quotaBytes:10000,...options.account,...(options.home ? {home:{folder:root,breadcrumbs:[root],entries:[file('first')],cursor:null,catalog:options.catalog}} : {})};}
       needs_refresh(){return options.stale || false;}
@@ -40,6 +42,7 @@ function fixture(options={}) {
         // of transport. Route the new query contract to those content fixtures.
         const fixtureMethod=method==='query'?(p.scope==='trash'?'trash':p.scope==='folder'||p.scope==='subtree'?'browse':'list'):method==='open'?'get':method;
         if(options.drive){const result=options.drive(fixtureMethod,p);if(result!==undefined)return result;}
+        if(method==='contentStatus')return {state:'Ready'};
         if(method==='emailInvitations')return [];
         if(['preferences','star','acknowledge','dismiss'].includes(method))return null;
         if(method==='open')return file(p.id);
@@ -58,10 +61,55 @@ function fixture(options={}) {
     },
   });
   Object.defineProperty(host.context,'location',{get:()=>host.window.location,configurable:true});
-  host.start();for(const name of ['drive-navigation','drive-recovery','drive-insights','drive-people','drive-preview'])vm.runInContext(readFileSync(new URL('../portal/'+name+'.js',import.meta.url),'utf8').replace(/^export /gm,'').replace(/^import .*;\n/gm,''),host.context);vm.runInContext(readFileSync(new URL('../portal/account-email.js',import.meta.url),'utf8').replace(/^export /gm,'').replace(/^import .*;\n/gm,''),host.context);vm.runInContext(readFileSync(new URL("../portal/drive-transfers.js",import.meta.url),"utf8").replace(/^export /gm,""),host.context);vm.runInContext(browserState,host.context);vm.runInContext(archiveSource,host.context);return {host,document,calls,urls,selections};
+  host.start();for(const name of ['drive-public','drive-teams','drive-navigation','drive-recovery','drive-insights','drive-people','drive-preview'])vm.runInContext(readFileSync(new URL('../portal/'+name+'.js',import.meta.url),'utf8').replace(/^export /gm,'').replace(/^import .*;\n/gm,''),host.context);vm.runInContext(readFileSync(new URL('../portal/account-email.js',import.meta.url),'utf8').replace(/^export /gm,'').replace(/^import .*;\n/gm,''),host.context);vm.runInContext(readFileSync(new URL("../portal/drive-transfers.js",import.meta.url),"utf8").replace(/^export /gm,""),host.context);vm.runInContext(browserState,host.context);vm.runInContext(archiveSource,host.context);return {host,document,calls,urls,selections};
 }
 
 const trashEntry=(id,owner='alice')=>({id,owner,spaceId:'1',name:`File ${id}`,version:'2',folder:false,bytes:50,updatedMs:1700000000000,capabilities:{read:true,delete:true}});
+
+test('team creation retries the same request, preserves errors and opens its shared folder browser',async()=>{
+  let fail=true;const team='12345678-1234-4123-8123-123456789abc';
+  const {host,document,calls}=fixture({search:'#tiimid',drive(method){
+    if(method==='spaces')return [];
+    if(method==='spaceCreate'){if(fail)throw new Error('Temporary error');return {id:team};}
+  }});
+  await vm.runInContext(`(async()=>{${source}})()`,host.context);
+  assert.equal(document.getElementById('teams-view').hidden,false);
+  findButton(document.getElementById('teams-body'),'Uus tiimiruum').dispatchEvent(new Event('click'));
+  document.getElementById('dialog-body').querySelectorAll('input')[0].value='Design team';
+  const form=document.getElementById('dialog-form');form.dispatchEvent(new Event('submit',{cancelable:true}));await tick();
+  assert.equal(document.getElementById('drive-dialog').open,true);
+  assert.equal(document.getElementById('dialog-error').textContent,'Temporary error');
+  fail=false;form.dispatchEvent(new Event('submit',{cancelable:true}));await tick();
+  const writes=calls.filter(([m])=>m==='spaceCreate');assert.equal(writes.length,2);assert.deepEqual(writes[0],writes[1]);
+  assert.equal(host.window.location.hash,`#folder/${team}`);
+});
+
+test('team management uses server versions and last-manager rejection leaves the dialog recoverable',async()=>{
+  const team={id:'team',name:'Design',version:'7',role:'Manager',usedBytes:42,externalSharing:true};
+  const {host,document,calls}=fixture({search:'#tiimid',drive(method){
+    if(method==='spaces')return [team];if(method==='spaceGet')return team;
+    if(method==='spaceMembers')return {space:team,members:[{principal:'alice',role:'Manager'}],next:null};
+    if(method==='spaceMember')throw new Error('Keep at least one team manager');
+  }});
+  await vm.runInContext(`(async()=>{${source}})()`,host.context);
+  findButton(document.getElementById('teams-body'),'Halda tiimi').dispatchEvent(new Event('click'));await tick();
+  findButton(document.getElementById('dialog-body'),'Eemalda').dispatchEvent(new Event('click'));
+  assert.equal(calls.some(([m])=>m==='spaceMember'),false);
+  document.getElementById('dialog-form').dispatchEvent(new Event('submit',{cancelable:true}));await tick();
+  const write=calls.find(([m])=>m==='spaceMember')[1];assert.equal(write.version,'7');assert.equal(write.role,null);assert.equal(write.principal,'alice');
+  assert.equal(document.getElementById('drive-dialog').open,true);
+  assert.equal(document.getElementById('dialog-error').textContent,'Tiimil peab olema vähemalt üks haldaja.');
+});
+
+test('team authority controls file sharing independently of the founding account label',async()=>{
+  for(const [owner,manage] of [['bob',true],['alice',false]]){
+    const {host,document}=fixture({file:{owner,spaceAccess:{teamName:'Design',manage}}});
+    await vm.runInContext(`(async()=>{${source}})()`,host.context);
+    const row=document.getElementById('file-list').children[0];
+    assert.equal(!!findButton(row,'Jaga'),manage);
+    assert.match(row.textContent,/Design/);
+  }
+});
 function findButton(node,label) {
   if(node.tagName==='BUTTON' && node.textContent===label)return node;
   for(const child of node.children) {const found=findButton(child,label);if(found)return found;}
@@ -1457,7 +1505,7 @@ test('folder color is an explicit private mutation and default clears it',async(
 test('inaccessible direct links offer a request without guessing owner or granting access',async()=>{
   const {host,document,calls}=fixture({search:'#file/777',query(){throw new Error('Not found or access unavailable');},drive(method){if(method==='requestAccess')return null;}});
   await vm.runInContext(`(async()=>{${source}})()`,host.context);
-  findButton(document.getElementById('file-status'),'Küsi ligipääsu').dispatchEvent(new Event('click'));
+  findButton(document.getElementById('public-body'),'Küsi ligipääsu').dispatchEvent(new Event('click'));
   document.getElementById('dialog-body').querySelector('input').value='Please share';
   document.getElementById('dialog-form').dispatchEvent(new Event('submit',{cancelable:true}));await tick();
   assert.equal(document.getElementById('dialog-title').textContent,'Taotlus saadetud');
@@ -1556,4 +1604,85 @@ test('preview arrow navigation preserves media controls, text scrolling and modi
   key(dialog,{altKey:true});key(dialog,{metaKey:true});assert.equal(advances,0);
   const event=key(dialog);assert.equal(advances,1);assert.equal(event.defaultPrevented,true);
   next.disabled=true;assert.equal(key(dialog).defaultPrevented,false);assert.equal(advances,1);
+});
+
+test('an anonymous public URL previews verified content without account or history APIs',async()=>{
+  const id='aaaaaaaa-bbbb-4ccc-8ddd-eeeeeeeeeeee';
+  const item={id,name:'Public.txt',folder:false,bytes:11,revision:'9',format:{media_type:'text/plain'}};
+  const {host,document,calls}=fixture({search:'#file/'+id,account:{authenticated:false,principal:null},publicRead:()=>item});
+  await vm.runInContext(`(async()=>{${source}})()`,host.context);await tick();
+  assert.equal(document.getElementById('public-view').hidden,false);
+  assert.match(document.getElementById('preview-content').textContent,/Public text/);
+  assert.ok(calls.some(([m])=>m==='publicDownload'));
+  assert.ok(!calls.some(([m])=>['initialize','get','history','download','acknowledge'].includes(m)));
+  assert.equal(document.getElementById('preview-open-with').hidden,true);
+});
+test('public folder pagination keeps an empty bounded page resumable and ignores a stale route',async()=>{
+  const id='aaaaaaaa-bbbb-4ccc-8ddd-eeeeeeeeeeee';
+  const {host,document,calls}=fixture({search:'#folder/'+id,account:{authenticated:false},publicRead:(op,p)=>op==='get'?{id,name:'Public folder',folder:true}:p.cursor?{entries:[{id,name:'Result.txt',bytes:2}],cursor:null}:{entries:[],cursor:'next'}});
+  await vm.runInContext(`(async()=>{${source}})()`,host.context);
+  const more=findButton(document.getElementById('public-body'),'Näita rohkem');assert.equal(more.hidden,false);
+  more.dispatchEvent(new Event('click'));await tick();assert.match(document.getElementById('public-body').textContent,/Result.txt/);assert.equal(more.hidden,true);
+  assert.equal(calls.filter(([m])=>m==='public:list').at(-1)[1].cursor,'next');
+});
+test('public sharing is explicit and retains the policy version and request on retry',async()=>{
+  let fail=true;const sent=[];
+  const {host,document}=fixture({drive(method,p){if(['grants','contacts'].includes(method))return [];if(method==='publicLink')return {enabled:false,version:'7',allowed:true};if(method==='publicLinkSet'){sent.push(p);if(fail)throw new Error('Temporary error');return {};}}});
+  await vm.runInContext(`(async()=>{${source}})()`,host.context);
+  findButton(document.getElementById('file-list'),'Jaga').dispatchEvent(new Event('click'));await tick();
+  findButton(document.getElementById('dialog-body'),'Üldine ligipääs').dispatchEvent(new Event('click'));await tick();
+  const body=document.getElementById('dialog-body');body.querySelector('select').value='public';
+  assert.equal(sent.length,0);document.getElementById('dialog-form').dispatchEvent(new Event('submit',{cancelable:true}));await tick();
+  assert.equal(document.getElementById('drive-dialog').open,true);fail=false;
+  document.getElementById('dialog-form').dispatchEvent(new Event('submit',{cancelable:true}));await tick();
+  assert.equal(sent.length,2);assert.deepEqual(sent[0],sent[1]);assert.equal(sent[0].version,'7');assert.equal(sent[0].enabled,true);
+});
+
+
+test('content search uses its bounded index route, preserves continuation and renders snippets as text',async()=>{
+  const f={...trashEntry('hit'),name:'Budget.pdf',contentMatch:{location:'page:2',snippet:'<script>needle</script>',partial:true}};
+  const {host,document,calls}=fixture({search:'#content?q=needle&in=2',drive(method,p){if(method==='contentQuery')return p.cursor?{entries:[f],cursor:null}:{entries:[],cursor:'content-next'};}});
+  await vm.runInContext(`(async()=>{${source}})()`,host.context);
+  assert.equal(document.getElementById('search-mode').value,'content');
+  assert.equal(document.getElementById('date-filter').hidden,true);
+  assert.equal(document.getElementById('sort-control').hidden,true);
+  assert.equal(document.getElementById('column-name').getAttribute('data-direction'),'');
+  assert.equal(document.getElementById('content-search-help').hidden,false);
+  assert.equal(document.getElementById('more-files').hidden,false);
+  document.getElementById('more-files').dispatchEvent(new Event('click'));await tick();
+  assert.deepEqual(calls.filter(([m])=>m==='contentQuery').map(([,p])=>p),[{text:'needle',parent:'2',cursor:null},{text:'needle',parent:'2',cursor:'content-next'}]);
+  const row=document.getElementById('file-list').children[0];assert.equal(row.querySelector('.content-snippet').textContent,'<script>needle</script>');assert.equal(row.querySelector('script'),null);
+  assert.match(row.textContent,/Lehekülg 2/);assert.match(row.textContent,/osaliselt/);
+  document.getElementById('search-mode').value='name';document.getElementById('search-mode').dispatchEvent(new Event('change'));assert.match(host.window.location.hash,/^#search\?/);
+});
+
+test('switching to content search drops metadata-only filters and retains the chosen folder',async()=>{
+  const {host,document}=fixture();await vm.runInContext(`(async()=>{${source}})()`,host.context);
+  for(const [id,value] of [['search-text','needle'],['search-type','pdf'],['search-owner','mine'],['search-after','2026-01-01'],['search-mode','content'],['search-location','current']])document.getElementById(id).value=value;
+  document.getElementById('drive-search').dispatchEvent(new Event('submit',{cancelable:true}));
+  assert.equal(host.window.location.hash,'#content?q=needle&in=1');
+});
+
+test('details retries failed indexing and discards a late status after closing',async()=>{
+  const f={...trashEntry('file'),capabilities:{read:true,edit:true}};let finish;
+  const {host,document,calls}=fixture({query:()=>({entries:[f],cursor:null}),drive(method){
+    if(method==='details')return {entry:f,locations:[],access:[],versions:1};
+    if(method==='contentStatus')return {state:'Failed'};
+    if(method==='contentRebuild')return new Promise(resolve=>{finish=resolve;});
+  }});await vm.runInContext(`(async()=>{${source}})()`,host.context);
+  findButton(document.getElementById('file-list'),'Faili teave').dispatchEvent(new Event('click'));await tick();
+  const body=document.getElementById('details-body');assert.match(body.textContent,/indekseerimine ebaõnnestus/);
+  findButton(body,'Proovi uuesti').dispatchEvent(new Event('click'));await tick();assert.ok(calls.some(([m])=>m==='contentRebuild'));
+  document.getElementById('details-close').dispatchEvent(new Event('click'));finish({state:'Ready'});await tick();assert.equal(body.textContent,'');
+});
+
+test('ordinary selection and clearing never fade rows as cut files',async()=>{
+  const {host,document}=fixture();await vm.runInContext(`(async()=>{${source}})()`,host.context);
+  const rows=document.getElementById('file-list').children;
+  for(let i=0;i<3;i++) {
+    assert.ok(rows.every(row=>!row.classList.contains('is-cut')));
+    const event=new Event('click');Object.defineProperty(event,'target',{value:rows[0]});rows[0].dispatchEvent(event);
+    document.getElementById('selection-clear').dispatchEvent(new Event('click'));
+  }
+  assert.ok(rows.every(row=>!row.classList.contains('is-cut')));
 });

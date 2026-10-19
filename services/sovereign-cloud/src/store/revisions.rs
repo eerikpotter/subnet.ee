@@ -85,9 +85,9 @@ impl<M: Memory> Store<M> {
         let mut project: Project = decoded(&self.projects.get(&request.object).ok_or(DriveError::Inaccessible)?)?;
         let revision = project.revisions.iter().find(|r| r.id == request.revision).ok_or(DriveError::Inaccessible)?.clone();
         if project.pending_upload.is_some()
-            || self.pending_owners.range((project.owner, 0)..=(project.owner, u64::MAX)).any(|e| {
+            || self.pending_in_space(object.space, project.owner).into_iter().any(|id| {
                 self.drive_uploads
-                    .get(&e.key().1)
+                    .get(&id)
                     .and_then(|b| decoded::<super::drive_transfer::Stage>(&b).ok())
                     .is_some_and(|s| matches!(s.request.target,UploadTarget::Replace{file,..} if file==request.object))
             })
@@ -104,7 +104,8 @@ impl<M: Memory> Store<M> {
         if props.keep || !props.label.is_empty() {
             return Err(DriveError::InvalidInput("Remove the version name and keep setting before deleting".into()));
         }
-        let used = self.usage.get(&project.owner).unwrap_or(0).checked_sub(revision.bytes).ok_or(DriveError::Internal)?;
+        let space = object.space;
+        let used = self.space_usage(space, project.owner).checked_sub(revision.bytes).ok_or(DriveError::Internal)?;
         let total = self.total.get().checked_sub(revision.bytes).ok_or(DriveError::Internal)?;
         project.revisions.retain(|r| r.id != revision.id);
         object.version = object.version.checked_add(1).ok_or(DriveError::Internal)?;
@@ -123,7 +124,7 @@ impl<M: Memory> Store<M> {
         self.attributions.remove(&revision.id);
         self.projects.insert(project.id, bytes);
         self.apply_graph(changes);
-        self.usage.insert(project.owner, used);
+        self.set_space_usage(space, project.owner, used);
         self.total.set(total);
         self.drive_retries.insert(key, saved);
         self.activity.apply(event);
@@ -141,7 +142,7 @@ pub(super) struct Retention {
     revision: u64,
 }
 impl<M: Memory> Store<M> {
-    pub(super) fn prepare_retention(&self, project: &mut Project, revision: u64, automatic: bool) -> DriveResult<Retention> {
+    pub(super) fn prepare_retention(&self, project: &mut Project, space: ObjectId, revision: u64, automatic: bool) -> DriveResult<Retention> {
         let mut candidates = Vec::new();
         for item in &project.revisions {
             let props = if item.id == revision {
@@ -155,13 +156,13 @@ impl<M: Memory> Store<M> {
         }
         let removed = candidates.iter().take(candidates.len().saturating_sub(20)).cloned().collect::<Vec<_>>();
         let freed = removed.iter().try_fold(0u64, |total, r| total.checked_add(r.bytes).ok_or(DriveError::Internal))?;
-        let used = self.usage.get(&project.owner).unwrap_or(0).checked_sub(freed).ok_or(DriveError::Internal)?;
+        let used = self.space_usage(space, project.owner).checked_sub(freed).ok_or(DriveError::Internal)?;
         let total = self.total.get().checked_sub(freed).ok_or(DriveError::Internal)?;
         project.revisions.retain(|r| !removed.iter().any(|old| old.id == r.id));
         let properties = if automatic { Some(encoded(&RevisionProperties { automatic: true, ..RevisionProperties::default() })?) } else { None };
         Ok(Retention { removed, used, total, properties, revision })
     }
-    pub(super) fn apply_retention(&mut self, project: &Project, retention: Retention) {
+    pub(super) fn apply_retention(&mut self, project: &Project, space: ObjectId, retention: Retention) {
         for revision in retention.removed {
             for index in 0..revision.chunk_count {
                 self.chunks.remove(&(revision.id, index));
@@ -172,7 +173,7 @@ impl<M: Memory> Store<M> {
         if let Some(bytes) = retention.properties {
             self.revisions.properties.insert((project.id, retention.revision), bytes);
         }
-        self.usage.insert(project.owner, retention.used);
+        self.set_space_usage(space, project.owner, retention.used);
         self.total.set(retention.total);
     }
 }

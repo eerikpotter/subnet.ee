@@ -26,7 +26,27 @@ fn envelope(graph: &AccessGraph, id: ObjectId, now: u64) -> DriveResult<BTreeMap
     if object.kind != ObjectKind::Folder {
         owner[2] = 0;
     }
-    result.insert(Participant::User(object.owner), owner);
+    if graph.teams.contains_key(&object.space) {
+        for ((space, principal), role) in &graph.members {
+            if *space != object.space {
+                continue;
+            }
+            let rights = role.capabilities();
+            let bits = [rights.read, rights.propose, rights.create && object.kind == ObjectKind::Folder, rights.edit, rights.delete];
+            let entry = result.entry(Participant::User(*principal)).or_insert([0; 5]);
+            for (value, bit) in entry.iter_mut().zip(bits) {
+                if bit {
+                    *value = u128::MAX;
+                }
+            }
+        }
+    } else {
+        result.insert(Participant::User(object.owner), owner);
+    }
+    let public = graph.public_deadline(id, now, true)?;
+    if public > 0 {
+        result.insert(Participant::User(Principal::anonymous()), [public, 0, 0, 0, 0]);
+    }
     let humans = result.clone();
     for (subject, rights) in &mut result {
         if let Participant::Agent(id) = subject {

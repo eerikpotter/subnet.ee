@@ -12,21 +12,101 @@ use sovereign_cloud::drive::*;
 use sovereign_cloud::email::*;
 use sovereign_cloud::people::*;
 use sovereign_cloud::protocol::*;
+use sovereign_cloud::search::*;
+use sovereign_cloud::spaces::*;
 use std::cell::RefCell;
 
 thread_local! { static STORE: RefCell<store::Store<DefaultMemoryImpl>> = RefCell::new(store::Store::new(DefaultMemoryImpl::default())); }
 #[ic_cdk::init]
 fn init() {
     STORE.with(|_| {});
+    start_content_worker();
 }
 #[ic_cdk::post_upgrade]
 fn post_upgrade() {
     STORE.with(|_| {});
+    start_content_worker();
+}
+
+// Standard durable queue + self-call: parser traps cannot undo a file commit.
+fn start_content_worker() {
+    ic_cdk_timers::set_timer_interval(std::time::Duration::from_secs(2), || async {
+        let job = STORE.with(|s| {
+            let mut s = s.borrow_mut();
+            let _ = s.content_backfill();
+            s.content_claim(time())
+        });
+        let Some((file, revision)) = job else {
+            return;
+        };
+        let result = ic_cdk::call::Call::bounded_wait(ic_cdk::api::canister_self(), "content_process_self").with_args(&(file, revision)).await;
+        let ok = result.is_ok_and(|r| r.candid::<DriveResult<()>>().is_ok_and(|r| r.is_ok()));
+        if !ok {
+            STORE.with(|s| {
+                let _ = s.borrow_mut().content_failed(file, revision);
+            });
+        }
+    });
+}
+#[ic_cdk::update]
+fn content_process_self(file: ObjectId, revision: u64) -> DriveResult<()> {
+    if msg_caller() != ic_cdk::api::canister_self() {
+        return Err(DriveError::Inaccessible);
+    }
+    STORE.with(|s| s.borrow_mut().content_process(file, revision))
+}
+#[ic_cdk::update]
+fn content_query(request: ContentQuery) -> DriveResult<ContentPage> {
+    let actor = Actor::user(msg_caller())?;
+    STORE.with(|s| s.borrow().content_query(&actor, request, time()))
+}
+#[ic_cdk::update]
+fn content_status(file: ObjectId) -> DriveResult<ContentStatus> {
+    let actor = Actor::user(msg_caller())?;
+    STORE.with(|s| s.borrow().content_status(&actor, file, time()))
+}
+#[ic_cdk::update]
+fn content_rebuild(file: ObjectId) -> DriveResult<ContentStatus> {
+    let actor = Actor::user(msg_caller())?;
+    STORE.with(|s| s.borrow_mut().content_rebuild(&actor, file, time()))
 }
 
 #[ic_cdk::query]
 fn get_api_doc() -> String {
     include_str!("../api.md").to_string()
+}
+
+#[ic_cdk::update]
+fn space_list() -> DriveResult<Vec<SpaceView>> {
+    let actor = Actor::user(msg_caller())?;
+    STORE.with(|s| s.borrow().space_list(&actor))
+}
+#[ic_cdk::update]
+fn space_get(id: ObjectId) -> DriveResult<SpaceView> {
+    let actor = Actor::user(msg_caller())?;
+    STORE.with(|s| s.borrow().space_get(&actor, id))
+}
+#[ic_cdk::update]
+async fn space_create(request: CreateSpace) -> DriveResult<SpaceView> {
+    let caller = msg_caller();
+    prepare_object_ids(caller).await.map_err(|_| DriveError::Internal)?;
+    let actor = Actor::user(caller)?;
+    STORE.with(|s| s.borrow_mut().space_create(&actor, request, time()))
+}
+#[ic_cdk::update]
+fn space_members(id: ObjectId, after: Option<candid::Principal>, limit: u32) -> DriveResult<SpaceMembers> {
+    let actor = Actor::user(msg_caller())?;
+    STORE.with(|s| s.borrow().space_members(&actor, id, after, limit))
+}
+#[ic_cdk::update]
+fn space_change_member(request: ChangeMember) -> DriveResult<TeamSpace> {
+    let actor = Actor::user(msg_caller())?;
+    STORE.with(|s| s.borrow_mut().space_change_member(&actor, request))
+}
+#[ic_cdk::update]
+fn space_change(request: ChangeSpace) -> DriveResult<TeamSpace> {
+    let actor = Actor::user(msg_caller())?;
+    STORE.with(|s| s.borrow_mut().space_change(&actor, request, time()))
 }
 
 // Fresh entropy after install/upgrade; allocation and authorization then execute
@@ -416,10 +496,34 @@ fn delete_project(id: ObjectId) -> CloudResult<()> {
     STORE.with(|s| s.borrow_mut().delete_project(msg_caller(), id))
 }
 
+// Anonymous reads are explicit and never pass through account administration.
+#[ic_cdk::update]
+fn public_get(id: ObjectId) -> DriveResult<sovereign_cloud::public_link::PublicItem> {
+    STORE.with(|s| s.borrow().public_get(id, time()))
+}
+#[ic_cdk::update]
+fn public_list(parent: ObjectId, cursor: Option<PageCursor>, limit: u32) -> DriveResult<sovereign_cloud::public_link::PublicPage> {
+    STORE.with(|s| s.borrow().public_list(parent, cursor, limit, time()))
+}
+#[ic_cdk::query]
+fn public_chunk(id: ObjectId, revision: u64, index: u64) -> DriveResult<Vec<u8>> {
+    STORE.with(|s| s.borrow().public_chunk(id, revision, index, time()))
+}
+#[ic_cdk::update]
+fn public_link_state(id: ObjectId) -> DriveResult<sovereign_cloud::public_link::PublicLinkState> {
+    let actor = Actor::user(msg_caller())?;
+    STORE.with(|s| s.borrow().public_link_state(&actor, id, time()))
+}
+#[ic_cdk::update]
+fn public_link_set(request: sovereign_cloud::public_link::SetPublicLink) -> DriveResult<sovereign_cloud::public_link::PublicLinkState> {
+    let actor = Actor::user(msg_caller())?;
+    STORE.with(|s| s.borrow_mut().public_link_set(&actor, request, time()))
+}
+
 #[ic_cdk::inspect_message]
 fn inspect_message() {
     // An optimization only: every Store method independently enforces authorization.
-    if msg_caller() != candid::Principal::anonymous() {
+    if msg_caller() != candid::Principal::anonymous() || matches!(ic_cdk::api::msg_method_name().as_str(), "public_get" | "public_list") {
         ic_cdk::api::accept_message();
     }
 }

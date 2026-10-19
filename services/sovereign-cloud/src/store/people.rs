@@ -123,7 +123,7 @@ impl<M: Memory> Store<M> {
         let duplicate = existing.is_some_and(|r| (!r.resolved && now.saturating_sub(r.at) < 30 * DAY) || now.saturating_sub(r.at) < 7 * DAY);
         let prepared = if let Some(item) = candidate.filter(|item| !duplicate && !self.safety.blocked(actor.sponsor, item.owner)) {
             let request = encoded(&Request { at: now, message: message.into(), resolved: false })?;
-            Some((request, self.people.prepare(item.owner, object, actor.sponsor, NoticeKind::AccessRequested, now)?))
+            Some((request, self.people.prepare(self.space_request_manager(item.space, item.owner)?, object, actor.sponsor, NoticeKind::AccessRequested, now)?))
         } else {
             None
         };
@@ -148,7 +148,7 @@ impl<M: Memory> Store<M> {
             } else {
                 None
             };
-            let owner = current.as_ref().is_some_and(|e| e.object.owner == actor.sponsor);
+            let owner = current.as_ref().is_some_and(|e| e.space_access.as_ref().is_some_and(|s| s.manage));
             if notice.kind == NoticeKind::AccessRequested && !owner {
                 continue;
             }
@@ -184,7 +184,7 @@ impl<M: Memory> Store<M> {
     pub(crate) fn drive_decide_access(&mut self, actor: &Actor, decision: AccessDecision, now: u64) -> DriveResult<()> {
         self.person(actor)?;
         let entry = self.drive_get(actor, decision.object, now)?;
-        if entry.object.owner != actor.sponsor {
+        if !entry.space_access.as_ref().is_some_and(|s| s.manage) {
             return Err(DriveError::Inaccessible);
         }
         let (key, digest) = retry(actor, "access-decision", &decision.request_id, &decision)?;

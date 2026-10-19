@@ -12,7 +12,7 @@ pub(super) struct Stage {
     pub(super) request: DriveUploadRequest,
     pub(super) uploader: Principal,
     pub(super) owner: Principal,
-    space: ObjectId,
+    pub(super) space: ObjectId,
     created_at: u64,
 }
 impl<M: Memory> Store<M> {
@@ -49,7 +49,7 @@ impl<M: Memory> Store<M> {
                 if graph.ancestry(*parent, false)?.len() >= crate::permissions::MAX_DEPTH
                     || self.read_objects.len() >= 10_000
                     || self.drive_space_count(graph, object.owner)? >= 200
-                    || self.owned_project_count(object.owner).map_err(|_| DriveError::Internal)? >= MAX_USER_PROJECTS
+                    || self.space_file_count(object.space, object.owner)? >= MAX_USER_PROJECTS
                     || self.projects.len() >= MAX_PROJECTS
                 {
                     return Err(DriveError::Limit("Cloud file or folder limit reached".into()));
@@ -96,11 +96,11 @@ impl<M: Memory> Store<M> {
         if self.drive_uploads.len() >= 20_000
             || self.drive_retries.len() >= 20_000
             || self.pending_owners.len() >= 1_000
-            || self.pending_owners.range((object.owner, 0)..=(object.owner, u64::MAX)).count() >= 20
+            || self.pending_in_space(object.space, object.owner).len() >= 20
         {
             return Err(DriveError::Limit("Upload limit reached; discard unfinished uploads".into()));
         }
-        let used = self.usage.get(&object.owner).unwrap_or(0).checked_add(request.bytes).ok_or(DriveError::Internal)?;
+        let used = self.space_usage(object.space, object.owner).checked_add(request.bytes).ok_or(DriveError::Internal)?;
         let total = self.total.get().checked_add(request.bytes).ok_or(DriveError::Internal)?;
         if used > USER_QUOTA_BYTES || total > TOTAL_QUOTA_BYTES {
             return Err(DriveError::Limit("Cloud storage quota reached".into()));
@@ -114,10 +114,10 @@ impl<M: Memory> Store<M> {
         let stage = Stage { upload: upload.clone(), request, uploader: actor.sponsor, owner: object.owner, space: object.space, created_at: now };
         let (bytes, receipt) = (encoded(&stage)?, encoded(&(hash, id))?);
         self.drive_uploads.insert(id, bytes);
-        self.pending_owners.insert((object.owner, id), 0);
+        self.add_pending_space(object.space, object.owner, id);
         self.pending_uploaders.insert((actor.sponsor, id), 0);
         self.drive_retries.insert(key, receipt);
-        self.usage.insert(object.owner, used);
+        self.set_space_usage(object.space, object.owner, used);
         self.total.set(total);
         self.next.set(next);
         Ok(upload)
@@ -203,7 +203,7 @@ impl<M: Memory> Store<M> {
             }
         };
         project.revisions.push(revision.clone());
-        let retention = self.prepare_retention(&mut project, revision.id, stage.request.automatic == Some(true))?;
+        let retention = self.prepare_retention(&mut project, stage.space, revision.id, stage.request.automatic == Some(true))?;
         stage.upload.committed = Some(revision.clone());
         let upload = Upload {
             id,
@@ -233,20 +233,21 @@ impl<M: Memory> Store<M> {
         );
         let event_kind = if kind.is_some() { ActivityKind::Created } else { ActivityKind::ContentSaved };
         let event = self.activity.prepare(project.owner, project.id, actor, event_kind, now)?;
-        self.apply_retention(&project, retention);
+        self.apply_retention(&project, stage.space, retention);
         self.apply_graph(gb);
         self.activity.apply(event);
         self.projects.insert(project.id, pb);
-        self.project_owners.insert((project.owner, project.id), 0);
+        self.personal_project_index(project.owner, stage.space, project.id);
         self.uploads.insert(id, ub);
         self.drive_uploads.insert(id, sb);
-        self.pending_owners.remove(&(stage.owner, id));
+        self.remove_pending_space(stage.space, stage.owner, id);
         self.pending_uploaders.remove(&(stage.uploader, id));
         self.attributions.insert(id, ab);
         if let Some(bytes) = kb {
             self.file_kinds.insert(project.id, bytes);
         }
         self.account_files.insert((stage.space, project.id), 0);
+        self.search.enqueue(project.id, id);
         Ok(stage.upload)
     }
     /// Cleanup is allowed to the uploader/space owner even after sharing is revoked or expires.
@@ -255,35 +256,40 @@ impl<M: Memory> Store<M> {
             return Ok(());
         };
         let stage: Stage = decoded(&bytes)?;
-        if actor.sponsor != stage.uploader && actor.sponsor != stage.owner {
+        if actor.sponsor != stage.uploader && !self.manages_space(actor, stage.space, stage.owner) {
             return Err(DriveError::Inaccessible);
         }
         if stage.upload.committed.is_some() {
             return Err(DriveError::Conflict);
         }
-        let used = self.usage.get(&stage.owner).unwrap_or(0).checked_sub(stage.request.bytes).ok_or(DriveError::Internal)?;
+        let used = self.space_usage(stage.space, stage.owner).checked_sub(stage.request.bytes).ok_or(DriveError::Internal)?;
         let total = self.total.get().checked_sub(stage.request.bytes).ok_or(DriveError::Internal)?;
         for i in 0..stage.request.bytes.div_ceil(CHUNK_BYTES as u64) {
             self.chunks.remove(&(id, i));
         }
         self.drive_uploads.remove(&id);
-        self.pending_owners.remove(&(stage.owner, id));
+        self.remove_pending_space(stage.space, stage.owner, id);
         self.pending_uploaders.remove(&(stage.uploader, id));
-        self.usage.insert(stage.owner, used);
+        self.set_space_usage(stage.space, stage.owner, used);
         self.total.set(total);
         Ok(())
     }
     pub(crate) fn drive_pending(&self, actor: &Actor) -> DriveResult<Vec<DriveUpload>> {
-        let ids: std::collections::BTreeSet<_> = self
+        let mut ids: std::collections::BTreeSet<_> = self
             .pending_owners
             .range((actor.sponsor, 0)..=(actor.sponsor, u64::MAX))
             .chain(self.pending_uploaders.range((actor.sponsor, 0)..=(actor.sponsor, u64::MAX)))
             .map(|e| e.key().1)
             .collect();
+        for space in self.spaces.ids(actor.sponsor) {
+            if self.spaces.role(space, actor.sponsor)? == Some(sovereign_cloud::spaces::SpaceRole::Manager) {
+                ids.extend(self.pending_in_space(space, actor.sponsor));
+            }
+        }
         ids.into_iter()
             .map(|id| {
                 let stage: Stage = decoded(&self.drive_uploads.get(&id).ok_or(DriveError::Internal)?)?;
-                if stage.upload.committed.is_some() || (stage.owner != actor.sponsor && stage.uploader != actor.sponsor) {
+                if stage.upload.committed.is_some() || (!self.manages_space(actor, stage.space, stage.owner) && stage.uploader != actor.sponsor) {
                     return Err(DriveError::Internal);
                 }
                 Ok(stage.upload)

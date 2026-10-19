@@ -1,58 +1,60 @@
 # Sovereign Cloud file service
 
-Canonical backend for subnet.ee. Deploy upgrades to the existing `cloud` canister
-using the root `icp.yaml`; never reinstall it to update code. PhotoCraft's standalone
-backend snapshot remains independent (`scripts/sync-service.py`).
+Canonical Rust backend for subnet.ee. All current data stays in one canister.
+Use code-only upgrades of the existing `cloud` canister; never reinstall to update
+code. PhotoCraft’s separately pinned backend snapshot remains independent.
+See [API reference](api.md), [development](../../docs/development.md) and
+[architecture evidence](../../docs/collaboration-spec.md).
 
-The signed application principal is the authority. A space/file ID or app label is
-not a credential. Browser and hosted ICP MCP calls currently have the same account
-rights; separate agent credentials and proposal workflows are deferred. See
-[API reference](api.md) and [collaboration specification](../../docs/collaboration-spec.md).
+## Boundaries
 
-## Storage and access
+Principals identify callers and personal viewer state. Space UUIDs identify file
+collections: a personal owner or explicit team membership supplies authority.
+Teams have Manager/Editor/Viewer roles, separate quota and pending-upload indexes;
+founder departure preserves their files. A UUID is an address, never a credential.
+Public links are separate read policies with minimal anonymous projections.
+All named, public, transfer and search paths recheck current authority.
 
-Files retain their owner and space when moved or shared. Principals index owned
-objects/projects and received grants; parent IDs index folder children. File IDs
-resolve directly. `drive_home` returns the account and initial view in one
-consensus update. Folder navigation returns the folder, readable breadcrumbs,
-one page and, on its first page, a bounded metadata catalog of up to 200 entries
-in that subtree (including its root). The catalog explicitly identifies completely
-listed folders; partial folders are never represented as complete. File contents
-and revision history are not prefetched. Shared callers never receive private ancestors
-or siblings. Every operation checks current grants, expiry and the live hierarchy.
-Chunk queries are verified against consensus-backed manifests by the SDK.
+The browser/ICP MCP authenticate the same account principal; restricted agent
+credentials are still deferred. Editor engines do not implement cloud policy.
+One shared SDK handles sessions, transport, immutable manifests and verified bytes.
 
-Stable memory IDs are permanent:
+Normal reads seek scoped stable B-trees and load only the necessary path/page.
+Writes update affected objects and indexes synchronously. Scoped versions and
+idempotent receipts protect retries and concurrent changes. File data lives in
+stable memory. No user-owned canister provisioning or routing service is added;
+space boundaries leave placement as a later extension.
 
-- 0–8: original counters, projects, uploads, immutable chunks, usage, accounts,
-  account/file catalog and native format metadata. Original encodings are retained.
-- 9: retired serialized access graph, used only for the one-time migration.
-- 10: reserved for a withdrawn prototype; never reused.
-- 11–13: attribution, mutation receipts and drive upload staging.
-- 14–20: authoritative objects, parent index, grants by root, grants by recipient,
-  objects by owner, tree version and migration marker.
-- 21–23: projects by owner, pending uploads by owner and by uploader.
+## Derived content
 
-Upgrade initializes these indexes once from the bounded previous alpha state.
-Normal reads fetch the requested path/page; mutations load only the affected
-owner's bounded working set and persist changed records. They do not deserialize
-other accounts' files. No user files are kept solely in heap memory. Related
-records and indexes change synchronously in the same canister message.
+`packages/sovereign-cloud-text` extracts canonical committed text without identity,
+networking or editor dependencies. A stable queue and standard timer/self-call
+separate parsing from file commits. Revision-bound sections, postings and source
+provenance are rebuildable; query execution never reads file bytes. Current
+revision/ACL/expiry/Trash/visibility checks precede snippet publication.
+See the API for exact file/format/work limits, partial states and retry behavior.
+The PDF crate has one documented lookup-table patch, verified against all upstream
+mappings; all other upstream source hashes are checked.
 
-After migration, **do not downgrade to a pre-index binary**: memory 9 is frozen.
-Use a compatible forward fix. A snapshot restore requires reviewing every write
-since the snapshot because it rewinds user data as well as code.
+## Stable memory
 
-## Compatibility and checks
+Existing region IDs remain permanent. New regions for this package:
 
-Legacy Craft methods remain owner-only, reject trashed ancestors, and retain
-native bytes, IDs and history. New drive methods support folder organization,
-sharing, soft deletion/recovery, inline files and chunked create/replace. The
-current alpha storage, file count and revision limits remain in force. No
-per-user canister provisioning or end-to-end encryption is added here.
+- 62–67: team records, memberships, memberships by user, usage, file counts and
+  pending uploads by space.
+- 68: public policies by object.
+- 69–76: extraction records, sections, postings, reverse terms, term counts,
+  durable jobs, pending revisions and incremental backfill state.
 
-Unit tests cover ACLs, scope isolation, moves, trash, retries and index persistence.
-SDK/PocketIC tests cover original V1 upgrades, all eight native formats and an
-upgrade from the pre-index shared-drive Wasm, including grants, lost commit
-responses and immutable bytes. Browser QA separately checks actual navigation,
-upload feedback, session changes and language switching.
+The full layout is defined in the store modules. UUID-schema upgrades preserve
+accounts, files, permissions and receipts. Numeric-ID development schemas have no
+compatibility layer. Do not downgrade across schema changes; use a forward fix.
+
+## Checks
+
+Canonical unit tests cover live authority, retries, quota, indexes, parser bounds
+and failure recovery. PocketIC tests install actual Wasm, exercise all six search
+formats and team ownership boundaries, and upgrade populated state. Portal tests
+cover anonymous previews, management, selection, search and stale response handling.
+Actual local browser journeys complement the fixtures. Neither these tests nor
+bounded single-canister work establish 100k-user production throughput.

@@ -637,3 +637,19 @@ body:not(.cloud-picker) .file-size { width:78px; min-width:78px; text-align:left
 .format-support {width:100%;border-collapse:collapse;font-size:.85rem;}
 .format-support th,.format-support td {text-align:left;vertical-align:top;padding:.6rem;border-bottom:1px solid #dce2ea;overflow-wrap:anywhere;}
 @media(max-width:600px){.inbox-row>div {min-width:0;flex-basis:100%;}.share-row {flex-wrap:wrap;}.share-row .account-id {width:100%;}.preview-toolbar .button {min-height:44px;} .shortcut-help {grid-template-columns:1fr;} .shortcut-help dd {margin-bottom:.5rem;}}
+
+/* Team spaces share the file browser, with a small membership/settings surface. */
+.team-list { display:grid; grid-template-columns:repeat(auto-fill,minmax(240px,1fr)); gap:16px; margin-block:24px; }
+.team-card { padding:20px; border:1px solid var(--border, #dfe5eb); border-radius:16px; background:var(--surface, #fff); }
+.team-card h2 { font-size:1.15rem; margin:0 0 8px; overflow-wrap:anywhere; }
+.team-card .button + .button { margin-inline-start:8px; }
+.team-members { margin-block:16px; }
+.team-members .share-row { flex-wrap:wrap; }
+
+#public-view {padding:24px; background:var(--surface,#fff); border-radius:20px; min-height:300px;}
+.public-file-row{display:flex;align-items:center;gap:16px;border-bottom:1px solid var(--border,#ddd);padding:16px 0;}
+.public-file-row>a{flex:1;}
+
+.file-detail p.content-snippet {display:block!important;white-space:normal;color:var(--text);line-height:1.5;margin:8px 0 4px;max-width:70ch;}
+.content-location {display:block;color:var(--muted);font-size:11px;margin-bottom:4px;}
+#content-search-help {font-size:12px;margin:8px 0;}

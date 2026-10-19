@@ -5,14 +5,17 @@ use futures::channel::oneshot;
 use sovereign_cloud::browser::{self, BrowserClient, BrowserSession};
 use sovereign_cloud::email::*;
 use sovereign_cloud::people::*;
+use sovereign_cloud::public_link::*;
+use sovereign_cloud::search::*;
+use sovereign_cloud::spaces::*;
 use sovereign_cloud::{ObjectId, args, drive::*};
+use sovereign_cloud_web::requests;
 use std::{
     cell::{Cell, RefCell},
     rc::Rc,
     sync::{Arc, Mutex},
 };
 use wasm_bindgen::prelude::*;
-use sovereign_cloud_web::requests;
 
 fn main() {}
 fn js_error(error: impl ToString) -> JsValue {
@@ -120,6 +123,45 @@ impl CloudPortal {
         self.signed_in.set(false);
         Ok(())
     }
+    pub async fn public_read(
+        &self,
+        operation: String,
+        payload: String,
+    ) -> Result<JsValue, JsValue> {
+        let p: serde_json::Value = serde_json::from_str(&payload).map_err(js_error)?;
+        let id = object_id(p["id"].as_str().ok_or_else(|| js_error("Missing item"))?)?;
+        let client = BrowserClient::public_reader().map_err(js_error)?;
+        let value = match operation.as_str() {
+            "get" => {
+                let item: PublicItem = client
+                    .drive_call("public_get", args((id,)).map_err(js_error)?)
+                    .await
+                    .map_err(js_error)?;
+                public_item_json(item)
+            }
+            "list" => {
+                let cursor: Option<PageCursor> = p["cursor"]
+                    .as_str()
+                    .map(serde_json::from_str)
+                    .transpose()
+                    .map_err(js_error)?;
+                let page: PublicPage = client
+                    .drive_call("public_list", args((id, cursor, 50u32)).map_err(js_error)?)
+                    .await
+                    .map_err(js_error)?;
+                serde_json::json!({"entries":page.entries.into_iter().map(public_item_json).collect::<Vec<_>>(),"cursor":page.next.map(|c|serde_json::to_string(&c)).transpose().map_err(js_error)?})
+            }
+            _ => return Err(js_error("Unknown public read")),
+        };
+        json(value)
+    }
+    pub async fn public_download(&self, file: String) -> Result<Vec<u8>, JsValue> {
+        BrowserClient::public_reader()
+            .map_err(js_error)?
+            .public_download(object_id(&file)?)
+            .await
+            .map_err(js_error)
+    }
     /// The facade translates UI data only. Authorization stays in the canister.
     pub async fn drive(&self, operation: String, payload: String) -> Result<JsValue, JsValue> {
         let session = self
@@ -138,6 +180,151 @@ impl CloudPortal {
         let number = |key: &str| -> Result<u64, JsValue> { sequence(&string(key)?) };
         let object = |key: &str| -> Result<ObjectId, JsValue> { object_id(&string(key)?) };
         let value = match operation.as_str() {
+            "contentQuery" => {
+                let request = ContentQuery {
+                    text: string("text")?,
+                    folder: p["parent"].as_str().map(object_id).transpose()?,
+                    cursor: p["cursor"]
+                        .as_str()
+                        .map(serde_json::from_str)
+                        .transpose()
+                        .map_err(js_error)?,
+                    limit: 50,
+                };
+                let page: ContentPage = client
+                    .drive_call("content_query", args((request,)).map_err(js_error)?)
+                    .await
+                    .map_err(js_error)?;
+                let entries=page.hits.into_iter().map(|hit|{let mut entry=entry_json(hit.entry);entry["contentMatch"]=serde_json::json!({"revision":hit.revision.to_string(),"location":hit.location,"snippet":hit.snippet,"partial":hit.partial});entry}).collect::<Vec<_>>();
+                serde_json::json!({"entries":entries,"cursor":page.next.map(|c|serde_json::to_string(&c)).transpose().map_err(js_error)?})
+            }
+            "contentStatus" | "contentRebuild" => {
+                let status: ContentStatus = client
+                    .drive_call(
+                        if operation == "contentStatus" {
+                            "content_status"
+                        } else {
+                            "content_rebuild"
+                        },
+                        args((object("id")?,)).map_err(js_error)?,
+                    )
+                    .await
+                    .map_err(js_error)?;
+                serde_json::json!({"state":status.state,"revision":status.revision.to_string(),"extractorVersion":status.extractor_version,"sections":status.sections})
+            }
+            "publicLink" | "publicLinkSet" => {
+                let state: PublicLinkState = if operation == "publicLink" {
+                    client
+                        .drive_call(
+                            "public_link_state",
+                            args((object("id")?,)).map_err(js_error)?,
+                        )
+                        .await
+                } else {
+                    client
+                        .drive_call(
+                            "public_link_set",
+                            args((SetPublicLink {
+                                object: object("id")?,
+                                enabled: p["enabled"].as_bool().unwrap_or(false),
+                                expires_at: p["expiresAt"].as_str().map(sequence).transpose()?,
+                                expected_version: number("version")?,
+                                request_id: string("requestId")?,
+                            },))
+                            .map_err(js_error)?,
+                        )
+                        .await
+                }
+                .map_err(js_error)?;
+                serde_json::json!({"enabled":state.direct.enabled,"version":state.direct.version.to_string(),"expiresAt":state.direct.expires_at.map(|v|v.to_string()),"inherited":state.inherited,"effective":state.effective,"allowed":state.allowed})
+            }
+            "spaces" => {
+                let spaces: Vec<SpaceView> = client
+                    .drive_call("space_list", args(()).map_err(js_error)?)
+                    .await
+                    .map_err(js_error)?;
+                serde_json::Value::Array(spaces.into_iter().map(space_view_json).collect())
+            }
+            "spaceGet" | "spaceCreate" => {
+                let space: SpaceView = if operation == "spaceGet" {
+                    client
+                        .drive_call("space_get", args((object("id")?,)).map_err(js_error)?)
+                        .await
+                } else {
+                    client
+                        .drive_call(
+                            "space_create",
+                            args((CreateSpace {
+                                name: string("name")?,
+                                request_id: string("requestId")?,
+                            },))
+                            .map_err(js_error)?,
+                        )
+                        .await
+                }
+                .map_err(js_error)?;
+                space_view_json(space)
+            }
+            "spaceMembers" => {
+                let after = p["after"]
+                    .as_str()
+                    .map(candid::Principal::from_text)
+                    .transpose()
+                    .map_err(js_error)?;
+                let page: SpaceMembers = client
+                    .drive_call(
+                        "space_members",
+                        args((object("id")?, after, 50u32)).map_err(js_error)?,
+                    )
+                    .await
+                    .map_err(js_error)?;
+                serde_json::json!({"space":team_json(page.space), "members":page.members.into_iter().map(|m|serde_json::json!({"principal":m.principal.to_text(),"role":m.role})).collect::<Vec<_>>(), "next":page.next.map(|p|p.to_text())})
+            }
+            "spaceMember" | "spaceSettings" => {
+                let space: TeamSpace = if operation == "spaceMember" {
+                    let role = p["role"]
+                        .as_str()
+                        .map(|r| match r {
+                            "Manager" => Ok(SpaceRole::Manager),
+                            "Editor" => Ok(SpaceRole::Editor),
+                            "Viewer" => Ok(SpaceRole::Viewer),
+                            _ => Err(js_error("Invalid team role")),
+                        })
+                        .transpose()?;
+                    client
+                        .drive_call(
+                            "space_change_member",
+                            args((ChangeMember {
+                                space: object("id")?,
+                                principal: candid::Principal::from_text(string("principal")?)
+                                    .map_err(js_error)?,
+                                role,
+                                expected_version: number("version")?,
+                                request_id: string("requestId")?,
+                            },))
+                            .map_err(js_error)?,
+                        )
+                        .await
+                } else {
+                    client
+                        .drive_call(
+                            "space_change",
+                            args((ChangeSpace {
+                                space: object("id")?,
+                                name: string("name")?,
+                                external_sharing: p["externalSharing"]
+                                    .as_bool()
+                                    .ok_or_else(|| js_error("Missing sharing policy"))?,
+                                expected_version: number("version")?,
+                                request_id: string("requestId")?,
+                            },))
+                            .map_err(js_error)?,
+                        )
+                        .await
+                }
+                .map_err(js_error)?;
+                team_json(space)
+            }
             "emailProfile" | "emailRequest" => {
                 let profile: EmailProfile = if operation == "emailProfile" {
                     client
@@ -178,7 +365,8 @@ impl CloudPortal {
                 serde_json::json!(result)
             }
             "emailRemove" | "emailRetry" | "emailRevoke" => {
-                let (method, arguments) = requests::email_action(&operation, &p).map_err(js_error)?;
+                let (method, arguments) =
+                    requests::email_action(&operation, &p).map_err(js_error)?;
                 client
                     .update::<()>(method, arguments)
                     .await
@@ -239,8 +427,11 @@ impl CloudPortal {
                 client
                     .drive_call::<()>(
                         "drive_acknowledge_open",
-                        args((object("id")?, p["revision"].as_str().map(sequence).transpose()?))
-                            .map_err(js_error)?,
+                        args((
+                            object("id")?,
+                            p["revision"].as_str().map(sequence).transpose()?,
+                        ))
+                        .map_err(js_error)?,
                     )
                     .await
                     .map_err(js_error)?;
@@ -388,10 +579,7 @@ impl CloudPortal {
             }
             "list" => {
                 let page: DrivePage = client
-                    .drive_call(
-                        "drive_list",
-                        requests::list(&p).map_err(js_error)?,
-                    )
+                    .drive_call("drive_list", requests::list(&p).map_err(js_error)?)
                     .await
                     .map_err(js_error)?;
                 serde_json::json!({"entries":page.entries.into_iter().map(entry_json).collect::<Vec<_>>(), "cursor":page.next.map(|c| serde_json::to_string(&c)).transpose().map_err(js_error)?})
@@ -418,9 +606,11 @@ impl CloudPortal {
                             object: object_id(
                                 item["id"].as_str().ok_or_else(|| js_error("Missing ID"))?,
                             )?,
-                            version: sequence(item["version"]
-                                .as_str()
-                                .ok_or_else(|| js_error("Missing version"))?)?,
+                            version: sequence(
+                                item["version"]
+                                    .as_str()
+                                    .ok_or_else(|| js_error("Missing version"))?,
+                            )?,
                         })
                     })
                     .collect::<Result<Vec<_>, JsValue>>()?;
@@ -878,6 +1068,14 @@ impl Default for CloudPortal {
     }
 }
 
+fn public_item_json(item: PublicItem) -> serde_json::Value {
+    let format = match item.kind.clone() {
+        ObjectKind::File(f) => Some(f),
+        _ => None,
+    };
+    serde_json::json!({"id":item.id.to_string(),"name":item.name,"folder":item.kind==ObjectKind::Folder,"format":format,"updatedMs":item.updated_at/1_000_000,"bytes":item.latest.as_ref().map(|r|r.bytes),"revision":item.latest.map(|r|r.id.to_string())})
+}
+
 fn entry_json(entry: DriveEntry) -> serde_json::Value {
     let object = entry.object;
     let folder = object.kind == ObjectKind::Folder;
@@ -894,7 +1092,19 @@ fn entry_json(entry: DriveEntry) -> serde_json::Value {
         "parent":object.parent.map(|id|id.to_string()),"name":object.name,"folder":folder,"shortcut":shortcut,"format":format,
         "version":object.version.to_string(),"createdMs":object.created_at/1_000_000,"updatedMs":object.updated_at/1_000_000,
         "bytes":entry.latest.as_ref().map(|r|r.bytes),"revision":entry.latest.map(|r|r.id.to_string()),
-        "trashed":object.trashed_at.is_some(),"capabilities":entry.capabilities,"sharing":entry.sharing})
+        "trashed":object.trashed_at.is_some(),"capabilities":entry.capabilities,"sharing":entry.sharing,
+        "spaceAccess":entry.space_access.map(|s|serde_json::json!({"teamName":s.team_name,"manage":s.manage}))})
+}
+
+fn team_json(space: TeamSpace) -> serde_json::Value {
+    serde_json::json!({"id":space.id.to_string(),"name":space.name,"version":space.version.to_string(),"externalSharing":space.external_sharing})
+}
+fn space_view_json(view: SpaceView) -> serde_json::Value {
+    let mut value = team_json(view.space);
+    value["role"] = serde_json::json!(view.role);
+    value["usedBytes"] = view.used_bytes.into();
+    value["quotaBytes"] = view.quota_bytes.into();
+    value
 }
 
 fn sort_field(value: &str) -> Result<SortField, JsValue> {

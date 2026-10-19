@@ -76,7 +76,7 @@ def main():
     image_assets = json.loads((ROOT / "dist/image-assets.json").read_text())
     checks.extend((url, ROOT / "dist" / url.lstrip('/')) for url in image_assets)
     shared_modules = ["cloud.js", "account-email.js", "drive-browser.js", "drive-transfers.js", "download-archive.js",
-                      "drive-navigation.js", "drive-recovery.js", "drive-insights.js", "drive-people.js", "drive-preview.js", "drive-pdf.js"]
+                      "drive-public.js", "drive-teams.js", "drive-navigation.js", "drive-recovery.js", "drive-insights.js", "drive-people.js", "drive-preview.js", "drive-pdf.js"]
     checks.extend(("/" + name, ROOT / "dist" / name) for name in shared_modules + ["workspace.js", "assets/brand/craft-icons.svg"])
     # PDF rendering uses local code, fonts, character maps and codecs. Check the
     # actual deployed payloads/MIME so a passing unit test cannot hide a missing worker.

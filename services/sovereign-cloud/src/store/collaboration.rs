@@ -31,7 +31,10 @@ impl<M: Memory> Store<M> {
         self.apply_graph(changes);
         Ok(())
     }
-    pub(super) fn drive_space_count(&self, _graph: &AccessGraph, owner: Principal) -> DriveResult<usize> {
+    pub(super) fn drive_space_count(&self, graph: &AccessGraph, owner: Principal) -> DriveResult<usize> {
+        if let Some(space) = graph.teams.keys().next() {
+            return Ok(self.spaces.counts.get(space).unwrap_or_default().0 as usize);
+        }
         Ok(self.catalog_counts.get(&owner).unwrap_or((0, 0)).0 as usize)
     }
     pub(crate) fn drive_initialize(&mut self, caller: Principal, now: u64) -> DriveResult<DriveEntry> {
@@ -41,7 +44,7 @@ impl<M: Memory> Store<M> {
             return self.drive_get(&actor, account.id, now);
         }
         let mut graph = self.read_graph();
-        graph.owner_scope = Some(caller);
+
         graph.objects.insert(
             account.id,
             DriveObject {
@@ -72,7 +75,14 @@ impl<M: Memory> Store<M> {
             }
         };
         let attribution = latest.as_ref().and_then(|r| self.attributions.get(&r.id)).map(|bytes| decoded(&bytes)).transpose()?;
-        Ok(DriveEntry { capabilities: graph.effective(actor, id, now, false)?, sharing: Some(graph.sharing(actor, id, now)?), object, latest, attribution })
+        Ok(DriveEntry {
+            capabilities: graph.effective(actor, id, now, false)?,
+            sharing: Some(graph.sharing(actor, id, now)?),
+            space_access: graph.space_access(actor, id),
+            object,
+            latest,
+            attribution,
+        })
     }
     pub(crate) fn drive_get(&self, actor: &Actor, id: ObjectId, now: u64) -> DriveResult<DriveEntry> {
         self.entry(&self.indexed_graph(id)?, actor, id, now)
@@ -187,6 +197,13 @@ impl<M: Memory> Store<M> {
         match request.subject {
             Participant::User(principal) => {
                 graph.owner(actor, request.root)?;
+                let object = graph.objects.get(&request.root).ok_or(DriveError::Inaccessible)?;
+                if request.active
+                    && graph.teams.get(&object.space).is_some_and(|s| !s.external_sharing)
+                    && !graph.members.contains_key(&(object.space, principal))
+                {
+                    return Err(DriveError::InvalidInput("External sharing is disabled for this team".into()));
+                }
                 if self.accounts.get(&principal).is_none() || (request.active && self.safety.blocked(actor.sponsor, principal)) {
                     return Err(DriveError::Inaccessible);
                 }
@@ -260,11 +277,11 @@ impl<M: Memory> Store<M> {
         if self.read_objects.len() >= 10_000 || self.drive_space_count(&graph, parent.owner)? >= 200 {
             return Err(DriveError::Limit("Drive object limit reached".into()));
         }
-        let project_count = self.owned_project_count(parent.owner).map_err(|_| DriveError::Internal)?;
+        let project_count = self.space_file_count(parent.space, parent.owner)?;
         if project_count >= MAX_USER_PROJECTS || self.projects.len() >= MAX_PROJECTS || self.drive_retries.len() >= 20_000 {
             return Err(DriveError::Limit("Cloud file or retry limit reached".into()));
         }
-        let used = self.usage.get(&parent.owner).unwrap_or(0).checked_add(request.bytes.len() as u64).ok_or(DriveError::Internal)?;
+        let used = self.space_usage(parent.space, parent.owner).checked_add(request.bytes.len() as u64).ok_or(DriveError::Internal)?;
         let total = self.total.get().checked_add(request.bytes.len() as u64).ok_or(DriveError::Internal)?;
         if used > USER_QUOTA_BYTES || total > TOTAL_QUOTA_BYTES {
             return Err(DriveError::Limit("Cloud storage quota reached".into()));
@@ -318,6 +335,7 @@ impl<M: Memory> Store<M> {
         graph.tree_version = graph.tree_version.checked_add(1).ok_or(DriveError::Internal)?;
         let capabilities = graph.effective(actor, id, now, false)?;
         let entry = DriveEntry {
+            space_access: graph.space_access(actor, id),
             object: graph.objects.get(&id).ok_or(DriveError::Internal)?.clone(),
             capabilities,
             sharing: Some(graph.sharing(actor, id, now)?),
@@ -335,7 +353,7 @@ impl<M: Memory> Store<M> {
         let event = self.activity.prepare(parent.owner, id, actor, ActivityKind::Created, now)?;
         // Everything fallible is complete. Publish content, metadata, quota and retry together.
         self.projects.insert(id, pb);
-        self.project_owners.insert((parent.owner, id), 0);
+        self.personal_project_index(parent.owner, parent.space, id);
         self.uploads.insert(revision_id, ub);
         if !request.bytes.is_empty() {
             self.chunks.insert((revision_id, 0), request.bytes);
@@ -343,12 +361,13 @@ impl<M: Memory> Store<M> {
         self.attributions.insert(revision_id, ab);
         self.file_kinds.insert(id, kb);
         self.account_files.insert((parent.space, id), 0);
-        self.usage.insert(parent.owner, used);
+        self.set_space_usage(parent.space, parent.owner, used);
         self.total.set(total);
         self.apply_graph(gb);
         self.activity.apply(event);
         self.drive_retries.insert(retry_key, rb);
         self.next.set(next);
+        self.search.enqueue(id, revision_id);
         Ok(entry)
     }
     pub(crate) fn drive_current_chunk(&self, actor: &Actor, file: ObjectId, revision: u64, index: u64, now: u64) -> DriveResult<Vec<u8>> {

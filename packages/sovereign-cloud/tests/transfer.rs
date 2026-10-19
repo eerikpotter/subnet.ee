@@ -218,6 +218,7 @@ fn drive_upload_is_bounded_reports_completed_chunks_and_drains_errors_before_ret
 fn craft_entry() -> sovereign_cloud::drive::DriveEntry {
     use sovereign_cloud::drive::*;
     DriveEntry {
+        space_access: None,
         object: DriveObject {
             id: object(21),
             space: object(9),
@@ -289,4 +290,35 @@ fn cancellation_drains_inflight_chunks_and_aborts_without_publishing() {
     assert_eq!(s.active, 0);
     assert_eq!(s.started.len(), 4);
     assert_eq!(s.started.len(), s.finished.len());
+}
+
+#[test]
+fn public_download_uses_consensus_manifest_checks_hash_and_stops_on_revocation() {
+    use sovereign_cloud::{drive::*, public_link::*};
+    let bytes = b"public content".to_vec();
+    let item = PublicItem {
+        id: object(1),
+        name: "public.txt".into(),
+        kind: ObjectKind::File(FileFormat { media_type: "text/plain".into(), craft: None }),
+        updated_at: 1,
+        latest: Some(revision(&bytes).into()),
+    };
+    let client = FileClient::with_transport(Mock {
+        steps: RefCell::new(VecDeque::from([("public_get", false, drive_reply(item.clone())), ("public_chunk", true, drive_reply(bytes.clone()))])),
+    });
+    assert_eq!(block_on(client.public_download(object(1))).unwrap(), bytes);
+    let client = FileClient::with_transport(Mock {
+        steps: RefCell::new(VecDeque::from([
+            ("public_get", false, drive_reply(item.clone())),
+            ("public_chunk", true, drive_reply(b"wrong contents".to_vec())),
+        ])),
+    });
+    assert!(block_on(client.public_download(object(1))).unwrap_err().contains("integrity"));
+    let client = FileClient::with_transport(Mock {
+        steps: RefCell::new(VecDeque::from([
+            ("public_get", false, drive_reply(item)),
+            ("public_chunk", true, Ok(encode_one(Err::<Vec<u8>, _>(DriveError::Inaccessible)).unwrap())),
+        ])),
+    });
+    assert!(block_on(client.public_download(object(1))).is_err());
 }

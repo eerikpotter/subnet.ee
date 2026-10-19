@@ -1,0 +1,4 @@
+# Read-only PDF extraction never generates encryption keys. Do not bind a browser
+# RNG or invent deterministic entropy; fail closed if a dependency requests it.
+[target.wasm32-unknown-unknown]
+rustflags = ['--cfg', 'getrandom_backend="unsupported"']

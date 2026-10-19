@@ -1,6 +1,72 @@
 # Shared cloud drive alpha specification
 
-Active product contract, revised 15 October 2026 following the user's explicit
+## Local milestone — 19 October 2026
+
+Status: implemented and validated locally. This section supersedes the older demo scope
+below. The approved package is team spaces, anonymous read/download links, and
+indexed content search for TXT/Markdown, WordCraft, PDF, DOCX, XLSX and PPTX.
+Comments, OCR, AI/ML, desktop sync and real-time co-editing remain deferred.
+Development and validation are local; production publication is a separate action.
+
+Requirement and supported approach: ordinary signed Candid methods, the existing
+shared SDK and one canister remain sufficient. The session's
+[canister-security](https://skills.internetcomputer.org/.well-known/skills/canister-security/SKILL.md)
+and [stable-memory](https://skills.internetcomputer.org/.well-known/skills/stable-memory/SKILL.md)
+skills were retrieved on 16 October and reviewed on 19 October before implementation.
+They prescribe authorization inside every method, synchronous validated writes,
+bounded inputs/work, independent stable-memory regions and populated upgrade tests.
+No new identity service, transport, proxy, canister or external extraction service
+is required by this design.
+
+Observed gap: personal ownership currently supplies authority and accounting;
+there is no team membership or public-read policy. Metadata queries are bounded
+but file contents have no searchable derived representation. The smallest extension
+is space membership/policy beside the existing personal account domain, one common
+authorization evaluator, and a rebuildable revision-bound text/index module.
+Principals identify actors; space UUIDs identify data boundaries. Team files remain
+in their space after a member or its founder leaves. No synthetic team principal
+or per-file routing table is introduced. Personal account data stays compatible.
+The existing object owner field records the originating account; it must not confer
+team authority, expose team files through personal APIs, or charge personal quota.
+
+Team roles: Manager, Editor, Viewer. Managers administer membership and external
+sharing; Editors create/edit/organize and use recoverable Trash; only Managers
+permanently delete. At least one Manager must remain. Membership, settings, pages
+and mutations use bounded work and optimistic versions. Personal viewer state
+(stars, recents, preferences) remains keyed by principal. Space accounting and
+membership survive upgrades independently of any member's account.
+
+Public links grant only current-content Read to anonymous visitors, including
+folder descendants, with optional expiry and revocation. They do not create an
+account or a named grant. Team external-sharing policy overrides public access.
+Public reads expose minimal content metadata, never recipients or private ancestry,
+history, invitations, contacts or account information. Every chunk rechecks access.
+
+Search extracts canonical committed bytes, stores revision/extractor provenance
+and locations, and publishes a derived inverted index. Candidate work and result
+pages are bounded per request; permission/expiry/trash/current revision are checked
+before returning names or snippets. No query scans file bytes. PDF means existing
+text, not OCR; Office means document/slide text and stored cell values, not formula
+recalculation. Unsupported, empty, partial and pending extraction are explicit.
+Actual Wasm tests validate all six formats and populated upgrades; bounded parser
+and index tests cover representative hostile inputs. Worst-case production load
+still needs separate benchmarking.
+Client text alone is not trusted proof of a canonical file's contents.
+
+Proof plan: membership removal/founder departure/last-manager guard, cross-space
+isolation and quota, pending-upload revocation, public folder inheritance/revoke/
+expiry/chunks/history exclusion, search freshness/ACL leakage/format fixtures/
+bounded continuation, and populated PocketIC upgrades. Exercise shared picker,
+portal management, anonymous link and search flows in the local browser. Challenge
+new components in a separate review; performance fixtures are not a 100k-user
+production throughput claim.
+
+## Archived demo contract (15 October; historical scope only)
+
+The following records the earlier demo boundary, not restrictions on the approved
+19 October package described above.
+
+Product contract, revised 15 October 2026 following the user's explicit
 decision to close the current demo MVP without adding more features.
 [Progress and test evidence](collaboration-progress.md) records the actual state.
 
@@ -302,3 +368,92 @@ preserved in the future-design document rather than treated as finished function
 The current MVP scope is closed for the demo. Known limitations stay visible; fixing
 an actual defect in delivered functionality is appropriate, but additional features
 need a separate work package. Do not advertise deferred restrictions or coverage.
+
+### Extraction experiment — 19 October 2026
+
+The current upstream `lopdf` 0.45 API has bounded document loading and bounded
+page/font text extraction (`LoadOptions::max_decompressed_size`,
+`extract_text_with_limit`). The crate without default clock/thread features builds
+for `wasm32-unknown-unknown`; the optional encryption RNG is explicitly unsupported
+in this read-only use (no browser imports or deterministic fake randomness).
+Primary evidence: https://docs.rs/lopdf/latest/lopdf/struct.Document.html and the
+0.45 source, including its decompression/font-bomb regression tests.
+Office uses upstream `zip` with only deflate and `roxmltree` with DTD disabled and
+an explicit node limit. No editor engine, external server or client-supplied text
+is needed. Limits apply to compressed input, XML expansion, pages/parts and output.
+
+The standard CDK timer and ordinary self-call isolate extraction from file commits.
+A stable queue binds work to the committed revision; a failed or over-budget parser
+cannot roll back the saved file or prevent later jobs. Timers are restored after
+upgrade (https://docs.rs/ic-cdk-timers/latest/ic_cdk_timers/fn.set_timer_interval.html).
+A derived index can be rebuilt through bounded authorized requests; current access
+and current revision remain authoritative at query time. No canister routing or
+separate search infrastructure is introduced. The all-format PocketIC test now installs the real Wasm, resumes pending work
+across upgrade, verifies index persistence and rejects unauthorized search/worker
+calls. Unit tests verify failed-job continuation and stale-job rejection.
+
+
+### Dependency gap and review result
+
+The standard Rust recipe builds lopdf, but its glyph-name match compiles to one
+function of complexity 2,734,911, above the measured IC validation limit. `z`
+optimization also fails at 2,734,695. The smallest verified extension is a pinned
+vendored 0.45 crate with only that lookup replaced by binary search over the same
+4,495 names/aliases. All other source hashes are checked; parsing is unchanged.
+See `packages/sovereign-cloud-text/vendor/README.md`. The modified Wasm installs
+and indexes PDF successfully. This dependency gap is not a platform inability to
+extract PDF or a reason to introduce an external search server.
+
+Separate review retained the three domain modules and shared SDK boundaries.
+It removed no required feature, and added checks for hidden shares, repeated XLSX
+shared-string expansion, delayed UI replies and public policy loading. No editor
+engine changes, synthetic principals, additional canisters, proxy or client-trusted
+text were needed. Canonical packages changed; independently pinned editor/service
+snapshots are adopted deliberately in a separate deployment, not silently rewritten.
+
+
+### Editor author identity — inspection, 19 October 2026
+
+**Requirement:** reuse the signed-in Subnet principal as the editor user's stable
+ID, in addition to each editor's existing author name. No second login, Internet
+Identity profile modification, account registry or replacement profile UI.
+
+**Observed:** all eight browser hosts already use `sovereign-cloud-ui::Cloud` and
+`BrowserSession`. This is the common identity boundary. Craft's shared UI library
+does not provide a shared account/profile model. Word uses `Session.author` and
+`initials`, Grid uses `prefs.user_name`, Deck uses `Session.author`, PDF uses
+`CommentPrefs.author`, and Fig uses `prefs.user_name`. Their comment models are
+separate and primarily store display names. Word now preserves comment durable IDs
+and unknown DOCX parts (including an imported `people.xml`); a comment ID is not
+an author ID, and preserving imported people metadata does not create account binding. Fig's live collaboration client number
+is session-scoped and is not a Subnet account ID. CAD, Photo and Sound do not need
+an artificial comment profile merely to make the APIs look alike.
+
+**Proposed smallest extension:** expose the current principal through the existing
+cloud adapter as an optional opaque user ID. An editor that consumes author identity
+adds a small host hook alongside its existing name/initials. The core editor should
+not depend on IC authentication types. A new comment/reply records the current ID
+and its existing display label; names remain editable labels, not lookup keys. Use
+the active user, never the file owner. No reverse mapping or new backend table is
+needed for this connection. Logout/account changes clear or replace the runtime
+ID before the next authored action. Subnet comments start with this model from the
+first version: there is no existing Subnet comment data to migrate, no name-to-ID
+backfill, and no compatibility layer for an earlier Subnet author model. Imported
+external comments without a Subnet ID remain ordinary display-name authors.
+
+**Scope:** this pass inspects that connection and updates upstream editor code. It
+does not yet add author IDs to native document formats or claim comment identity is
+implemented. Before that change, test each participating format's save/open and
+export/import roundtrip, including replies, undo/redo, identical display names and
+account switching. Word's new browser preference persistence
+remains upstream-owned; it must never restore an authenticated ID from preferences.
+The shared adapter lifecycle can be tested once; format-specific persistence needs
+small tests in the editors that actually use it.
+
+**Platform evidence:** the existing II-issued principal and shared browser session
+already satisfy identity. The Internet Identity, shared-session and canister-security
+skills were consulted on 19 October 2026 before this inspection:
+https://skills.internetcomputer.org/.well-known/skills/internet-identity/SKILL.md and
+https://skills.internetcomputer.org/.well-known/skills/canister-security/SKILL.md.
+No platform gap or new identity mechanism was identified. The remaining gap is only
+the editor author model; further authentication research is not required for it.

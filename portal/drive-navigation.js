@@ -1,4 +1,4 @@
-import { driveHref } from './drive-browser.js';
+import { canManage, driveHref } from './drive-browser.js';
 // Transient, account-scoped views over the canonical browse/details API.
 export function createFolderTree({host,toggle,call,element,button,text,session,current,navigate,active,error}) {
   let root=null,epoch=0,opened=false,focused=null;
@@ -78,7 +78,7 @@ export function createFileDetails({host,body,closeButton,title,call,element,butt
       const list=element('dl','file-properties');
       const add=(name,value)=>{const dd=element('dd');bind(dd,()=>{dd.textContent=String(typeof value==='function'?value():value);});list.append(element('dt','',name),dd);};
       add('Tüüp',()=>entry.folder?text('Kaust'):entry.shortcut?text('Otsetee'):entry.format?.media_type||text('Fail'));
-      add('Omanik',()=>entry.owner===owner()?text('Mina'):entry.owner);
+      add('Omanik',()=>entry.spaceAccess?.teamName||(entry.owner===owner()?text('Mina'):entry.owner));
       if(!entry.folder && !entry.shortcut){add('Suurus',()=>size(entry.bytes||0));add('Versioone',data.versions);}
       add('Loodud',()=>date(entry.createdMs));add('Muudetud',()=>date(entry.updatedMs));body.append(list);
       body.append(element('h3','','Asukoht'));
@@ -86,15 +86,27 @@ export function createFileDetails({host,body,closeButton,title,call,element,butt
       for(const p of data.locations){const link=element('a');if(p.id===entry.spaceId && entry.owner===owner())bind(link,()=>{link.textContent=text('Minu failid');});else link.textContent=p.name;link.href=driveHref(`#folder/${p.id}`);path.append(link);}
       if(!data.locations.length)path.append(element('p','muted','Ülemkausta asukoht pole saadaval.'));body.append(path);
       body.append(element('h3','','Minu ligipääs'));
-      body.append(element('p','',entry.owner===owner()?'Omanik':role(entry)));
-      if(entry.owner===owner())body.append(element('p','muted','Ligipääs tuleneb faili omandist.'));
+      body.append(element('p','',entry.spaceAccess?.teamName?(canManage(entry,owner())?'Haldaja':role(entry)):entry.owner===owner()?'Omanik':role(entry)));
+      if(!entry.spaceAccess?.teamName && entry.owner===owner())body.append(element('p','muted','Ligipääs tuleneb faili omandist.'));
       for(const access of data.access){
         const p=element('p','access-source');p.append(element('span','',access.inherited?'Päritud kaustast':'Jagatud otse'));
         if(access.inherited && access.location){const link=element('a');link.textContent=access.location.name;link.href=driveHref(`#folder/${access.location.id}`);p.append(link);}
         if(access.expiresMs){const expiry=element('span','muted');bind(expiry,()=>{expiry.textContent=text('Kehtib kuni')+' '+date(access.expiresMs);});p.append(expiry);}body.append(p);
       }
       const actions=element('div','details-actions');if(activity)actions.append(button('Tegevused',()=>activity(entry)));if(!entry.folder && !entry.shortcut && entry.capabilities.edit)actions.append(button('Versioonid',()=>history(entry)));
-      if(entry.owner===owner())actions.append(button('Jaga',()=>share(entry)));body.append(actions);
+      if(!entry.folder&&!entry.shortcut) {
+        const indexing=element('section','content-status');indexing.append(element('h3','','Sisuotsing'));body.append(indexing);
+        let polls=0;
+        const showIndex=async(rebuild=false)=>{try {
+          const status=await call(rebuild?'contentRebuild':'contentStatus',{id:entry.id});if(mine!==epoch||!current(who))return;
+          const labels={Pending:'Sisu indekseerimine on ootel.',Ready:'Sisu on otsitav.',Empty:'Failist ei leitud otsitavat teksti.',Partial:'Sisu on osaliselt indekseeritud.',Unsupported:'Selle vormingu sisuotsing pole veel toetatud.',TooLarge:'Fail ületab sisu indekseerimise 16 MB piiri.',Unreadable:'Faili teksti ei õnnestunud lugeda.',Failed:'Sisu indekseerimine ebaõnnestus.'};
+          indexing.replaceChildren(element('h3','','Sisuotsing'),element('p','muted',labels[status.state]||'Sisu indekseerimine on ootel.'));
+          if(status.state==='Failed'&&entry.capabilities.edit)indexing.append(button('Proovi uuesti',()=>showIndex(true)));
+          if(status.state==='Pending'){indexing.append(button('Värskenda olekut',()=>showIndex()));if(polls++<20)setTimeout(()=>{if(mine===epoch&&current(who))showIndex();},3000);}
+        }catch(e){if(mine===epoch&&current(who))indexing.replaceChildren(element('h3','','Sisuotsing'),element('p','muted',error(e)));}};
+        showIndex();
+      }
+      if(canManage(entry,owner()))actions.append(button('Jaga',()=>share(entry)));body.append(actions);
     }catch(e){if(mine===epoch && current(who)){signature=null;body.replaceChildren(element('p','is-error',error(e)));}}
   }
   function close(focus=true){epoch++;selected=null;signature=null;host.hidden=true;body.replaceChildren();if(focus)returnFocus?.focus?.({preventScroll:true});}

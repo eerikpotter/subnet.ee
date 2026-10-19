@@ -45,3 +45,43 @@ it. Skills are authoritative — prefer them over general knowledge.
 Keep shared cloud rules in the canonical backend/SDK/UI packages. Preserve legacy
 data and stable schemas, verify migrations and actual browser flows, and record
 commands and limitations. Local tests do not establish production trust guarantees.
+
+## Craft integration validation scope
+
+User decision, 19 October 2026: for the eight `apps/*craft` integration forks,
+routine upstream merges do **not** require rerunning the editor's full `xtask ci`
+or thousands of unrelated tests. This scoped policy replaces inherited upstream
+"full CI before every commit" instructions for our integration-update workflow.
+
+- Review the pinned upstream delta and any available upstream CI result; record
+  missing CI evidence rather than implying it passed or automatically rerunning it.
+- Build each changed browser package with its pinned SDK and cloud feature; run
+  the affected adapter/menu tests and verify cloud save/open in that browser app.
+- Test shared cloud behavior in the canonical packages once, only when changed.
+  Do not repeat the same shared suite through eight vendored copies.
+- If an editor's internal behavior needs a compatibility repair, add/run the
+  relevant regression and module tests. A concrete failure can justify expanding
+  that scope; it does not automatically justify every editor's entire CI.
+- Run a full editor suite only when explicitly requested or when a specific
+  unresolved concern genuinely requires it. Explain that reason first.
+- After the selected checks pass, stop. Record failures and limits; do not repair
+  unrelated upstream warnings in our forks or repeatedly test unchanged code.
+
+See `scripts/UPDATING.md` for the update procedure. This policy does not waive
+focused authorization, persistence or data-integrity tests for cloud changes.
+
+## Validation time and model-context budget
+
+- Select the smallest relevant checks before running them, with a concrete
+  reason to expand. A UI-copy edit does not trigger backend or editor suites.
+- Keep verbose output in local log files. Return exit status and a short summary;
+  inspect the relevant error excerpt only after a failure. Never dump binaries.
+- Batch deterministic independent checks and let scripts perform repetitions.
+  Avoid frequent progress polling or repeatedly reading unchanged logs/UI trees.
+- Reuse results for unchanged source and artifacts. Before release, verify the
+  deployed artifact and environment; do not rerun an entire successful suite.
+- Use browser interaction for changed user behavior or an unresolved integration
+  risk. Prefer an existing automated contract over repeating equivalent manual
+  journeys; for a fleet upgrade, state explicitly which host hooks changed.
+- Record commands, source/artifact identity and outcomes so later work can reuse
+  evidence. Reserve broader investigation for concrete failures or new risks.

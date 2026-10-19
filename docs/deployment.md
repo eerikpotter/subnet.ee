@@ -29,8 +29,9 @@ hashes, snapshots and validation are recorded in
 [release history](history.md) and [earlier collaboration progress](collaboration-progress.md).
 
 The production owner's Internet Identity principal remains unchanged. Release
-18 October 2026 used the fresh Keychain-backed CLI session
-`codex-subnet-release-20261018`; the older `efti-nns` delegation had expired.
+19 October 2026 uses the fresh Keychain-backed CLI session
+`codex-subnet-release-20261019`, authenticated by the owner for this release.
+The previous release used `codex-subnet-release-20261018`.
 Use a current authenticated session explicitly with `--identity`; these names are
 not credentials. Signing credentials stay outside the repository.
 

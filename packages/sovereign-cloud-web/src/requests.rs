@@ -4,7 +4,9 @@ use serde_json::Value;
 use sovereign_cloud::{ObjectId, args, drive::DriveCursor};
 
 fn text<'a>(payload: &'a Value, key: &str) -> Result<&'a str, String> {
-    payload[key].as_str().ok_or_else(|| format!("Missing or invalid {key}"))
+    payload[key]
+        .as_str()
+        .ok_or_else(|| format!("Missing or invalid {key}"))
 }
 
 pub fn list(payload: &Value) -> Result<Vec<u8>, String> {
@@ -21,14 +23,19 @@ pub fn list(payload: &Value) -> Result<Vec<u8>, String> {
 
 pub fn email_action(operation: &str, payload: &Value) -> Result<(&'static str, Vec<u8>), String> {
     if operation == "emailRemove" {
-        return Ok(("email_remove", args((text(payload, "email")?,)).map_err(|e| e.to_string())?));
+        return Ok((
+            "email_remove",
+            args((text(payload, "email")?,)).map_err(|e| e.to_string())?,
+        ));
     }
     let method = match operation {
         "emailRetry" => "email_retry",
         "emailRevoke" => "email_revoke_invitation",
         _ => return Err("Unknown email action".into()),
     };
-    let id: u64 = text(payload, "id")?.parse().map_err(|_| "Invalid email operation number")?;
+    let id: u64 = text(payload, "id")?
+        .parse()
+        .map_err(|_| "Invalid email operation number")?;
     Ok((method, args((id,)).map_err(|e| e.to_string())?))
 }
 
@@ -56,11 +63,20 @@ mod tests {
 
     #[test]
     fn invitation_retry_and_revocation_send_job_numbers_not_file_ids() {
-        for (operation, method) in [("emailRetry", "email_retry"), ("emailRevoke", "email_revoke_invitation")] {
+        for (operation, method) in [
+            ("emailRetry", "email_retry"),
+            ("emailRevoke", "email_revoke_invitation"),
+        ] {
             let (actual, encoded) = email_action(operation, &json!({"id":"42"})).unwrap();
             assert_eq!(actual, method);
             assert_eq!(candid::decode_args::<(u64,)>(&encoded).unwrap(), (42,));
-            assert!(email_action(operation, &json!({"id":"01234567-89ab-4cde-8fab-0123456789ab"})).is_err());
+            assert!(
+                email_action(
+                    operation,
+                    &json!({"id":"01234567-89ab-4cde-8fab-0123456789ab"})
+                )
+                .is_err()
+            );
         }
     }
 }

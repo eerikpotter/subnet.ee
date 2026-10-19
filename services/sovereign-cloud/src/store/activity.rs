@@ -86,13 +86,13 @@ impl<M: Memory> Store<M> {
             }
             let Some(current) = graph.objects.get(&event.object) else { continue };
             let owner_only = matches!(event.kind, ActivityKind::SharingChanged | ActivityKind::RevisionDeleted | ActivityKind::RevisionLabeled);
-            if owner_only && current.owner != actor.sponsor {
+            if owner_only && graph.owner(actor, current.id).is_err() {
                 continue;
             }
             let trashed = graph.ancestry(current.id, false).is_err();
             // Trash activity is visible only to its owner; shared users revalidate
             // ordinary live Read authority before each page.
-            if trashed && current.owner != actor.sponsor {
+            if trashed && graph.owner(actor, current.id).is_err() {
                 continue;
             }
             if graph.require(actor, current.id, Capabilities::READ, now, trashed).is_err() {

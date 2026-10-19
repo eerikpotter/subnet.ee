@@ -14,16 +14,19 @@ mod bookmarks;
 mod browse;
 mod catalog_index;
 mod collaboration;
+mod content_search;
 mod details;
 mod drive_transfer;
 mod email;
 mod moves;
 mod people;
+mod public_links;
 mod read_index;
 mod revisions;
 mod safety;
 #[cfg(test)]
 mod scaling_tests;
+mod spaces;
 mod storage;
 mod trash;
 #[cfg(test)]
@@ -31,6 +34,9 @@ mod workflow_tests;
 
 type Vm<M> = VirtualMemory<M>;
 pub struct Store<M: Memory> {
+    search: content_search::SearchStore<M>,
+    public_links: StableBTreeMap<ObjectId, Vec<u8>, Vm<M>>,
+    spaces: spaces::SpaceStore<M>,
     random: Option<ChaCha20Rng>,
     bookmark_key: StableCell<Vec<u8>, Vm<M>>,
     email: email::EmailStore<M>,
@@ -93,6 +99,9 @@ impl<M: Memory> Store<M> {
             ic_cdk::trap("This storage schema requires a fresh installation");
         }
         let store = Self {
+            search: content_search::SearchStore::new(&m),
+            public_links: StableBTreeMap::init(m.get(MemoryId::new(68))),
+            spaces: spaces::SpaceStore::new(&m),
             random: None,
             bookmark_key: StableCell::init(m.get(MemoryId::new(60)), Vec::new()),
             email: email::EmailStore::new(&m),
@@ -251,7 +260,10 @@ impl<M: Memory> Store<M> {
     fn project(&self, caller: Principal, id: ObjectId) -> CloudResult<Project> {
         authenticated(caller)?;
         let p: Project = decode(&self.projects.get(&id).ok_or("Project not found or not permitted")?)?;
-        if p.owner != caller || !self.catalog_visible(id)? {
+        if p.owner != caller
+            || !self.catalog_visible(id)?
+            || self.read_objects.get(&id).map(|b| decode::<sovereign_cloud::drive::DriveObject>(&b)).transpose()?.is_some_and(|o| self.spaces.is_team(o.space))
+        {
             return Err("Project not found or not permitted".into());
         }
         Ok(p)
@@ -414,6 +426,7 @@ impl<M: Memory> Store<M> {
         self.uploads.insert(id, ub);
         self.apply_graph(changes);
         self.activity.apply(event);
+        self.search.enqueue(p.id, r.id);
         Ok(r)
     }
     pub fn revision(&self, caller: Principal, project: ObjectId, revision: u64) -> CloudResult<Revision> {

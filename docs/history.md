@@ -4,6 +4,151 @@
 
 
 
+## Craft upstream integration and author-profile inspection — 19 October 2026
+
+Updated all eight fork `main` branches from exact reviewed upstream commits using
+`update-crafts.py check/prepare/promote`. Review worktrees isolated conflicts and
+backup refs retain each previous fork HEAD. The initial update was local; the user
+subsequently authorized GitHub and mainnet publication. Existing
+team/public-link/content-search work was preserved; editor builds use
+their independently pinned SDK snapshots, without silently adopting that new SDK.
+
+Pinned fork / upstream pairs:
+
+- Word: `dcd51979cb05` / `117aea31a8e6`.
+- Grid: `202ab729d5cd` / `66ce6be4743f`.
+- Deck: `ea5c467f4031` / `010941ec60f8`.
+- PDF: `6087df68e236` / `43550c448db3`.
+- CAD: `cd7fa0239795` / `0b32c2e6a14c`.
+- Fig: `87141a7899df` / `a0d1162976fa`.
+- Photo: `55434cae468f` / `d95fdf3181c0`.
+- Sound: `9338597cef16` / `25d52c646aea`.
+
+Manifest, build-script and dependency deltas were reviewed before execution.
+Conflicted lockfiles keep the reviewed parents' external package pins; Cargo
+canonicalized the merged graph without opportunistic upgrades. PDF's authoritative
+asset ledger was merged and its generated attribution was regenerated and checked.
+Cloud menu hooks coexist with the upstream QAT, backstage, host bridge, inbox and
+new-document changes. Word's start screen now reports no document to the cloud
+adapter; a regression checks capture/open/late-save behavior. CAD's menu loop keeps
+the upstream category name needed by the existing cloud hook.
+
+A real browser launch found a separate upstream Deck regression: recovery instance
+initialization called `std::process::id()` in Wasm and trapped before the editor
+opened. The narrow platform guard keeps OS-process/time entropy native-only,
+leaving desktop recovery and document counters unchanged. Five native recovery
+tests passed. This is a startup compatibility repair, not a replacement of the
+editor's local save/export workflow.
+
+All eight updated browser apps completed cloud save/open against the local canister:
+Word retained an autosaved text edit; Grid a cell edit; CAD a line; Fig a rectangle;
+Photo a brush stroke/layer; PDF an existing two-page document copied with Save As;
+Sound a 63.1 MB nine-track session; Deck an eight-slide presentation. Browser cache
+updates were accepted through the shell. Final `verify.py all` passed 344 HTTP
+payload/certification/trust/cache checks. Logs and screenshots are retained in
+`.local/craft-updates/`; no additional editor-wide test reruns followed.
+All eight cloud-feature Wasm checks and release builds were exercised. Focused
+adapter tests passed for Word (1 host + 2 codec), Grid (2), CAD (1), Fig (4) and
+Photo's actual cloud-menu interaction (1). The updater's five offline tests passed.
+Sound's full `xtask ci` passed (1,149 tests; one ignored). Its first attempt lacked
+local socket permission; rerunning with local socket access passed. PDF's initial
+non-UTF-8 filename fixture was similarly blocked by sandbox permissions; the exact
+binary test passed with local filesystem access. The full rerun passed all eight
+PDF CI steps (3,761 tests; 15 ignored).
+
+Full CI was also attempted for Word, Grid, Deck, CAD, Fig and Photo. Their unchanged
+upstream code fails newer Clippy `collapsible_match` / `nonminimal_bool` warnings
+in proof, XLS/XLSX, Matroska, NURBS, several Fig UI modules and Photo app directories,
+respectively. Those unrelated failures were not rewritten in these integration
+forks. Passing cloud tests/builds is not a claim that every upstream CI gate passed.
+The user then explicitly narrowed future update validation: root AGENTS.md and
+`scripts/UPDATING.md` now override inherited full-CI-before-commit defaults for
+these integration forks. Build plus affected adapter/menu tests and browser
+save/open is the routine gate; shared tests run once when changed. Broader editor
+tests require an explicit request or a concrete unresolved concern.
+
+A release-specific `workflows` rehearsal now accepts an optional previous
+UUID-schema artifact. Built the previous source from `a1f1cbb` (backend/SDK sources
+unchanged since the deployed release); its Candid exactly matches live mainnet.
+The populated previous-to-current upgrade preserved content, sharing, manual
+versions, activity, labels and retry receipts. This was a source rebuild, not a
+byte-identical reproduction of the old production module. It adds no numeric
+legacy migration. Verbose logs stay in files and the agent sees bounded summaries.
+
+Profile inspection found existing display names/initials, not a shared Craft
+account. All hosts already share `Cloud`/`BrowserSession`; the proposed connection
+is an optional current-principal author ID through that adapter, alongside existing
+labels. No additional account service, authentication flow or profile UI is needed.
+This update does not yet persist principal IDs in comment formats. The precise
+boundary and required account-switch/format roundtrips are in
+[collaboration-spec.md](collaboration-spec.md#editor-author-identity--inspection-19-october-2026).
+
+## Local team spaces, public links and content search — 19 October 2026
+
+Implemented the approved three-part package in the canonical Rust service, SDK
+and portal. One data canister remains; no editor engines or independently pinned
+fork snapshots changed. No Git push or mainnet deployment was performed.
+
+Team membership uses space UUIDs with Manager/Editor/Viewer roles, multiple
+Managers, last-manager protection, member departure, external-sharing settings
+and space-based quota/pending accounting. Founders have no special authority after
+leaving. Members currently require an existing Subnet account ID; email team
+invitations and enterprise administration remain future additions.
+
+Public UUID URLs now support anonymous current-content preview/download and
+bounded folder listings. Owner/Manager policy has optional expiry, revocation,
+folder inheritance and a team external-sharing override. Public projections omit
+private ancestry, owner, authors, recipients and old revisions. Every chunk checks
+live policy and the SDK verifies the immutable manifest. Public exposure is included
+in reviewed move audience changes; it does not create named access or global search.
+
+Content search extracts canonical committed bytes into a revision-bound derived
+index. TXT/Markdown, WordCraft, PDF text, DOCX, XLSX and PPTX are supported. A stable
+queue, standard CDK timers and isolated self-calls keep parsing out of file commits;
+post-upgrade backfill is incremental. Exact normalized token AND queries use scoped
+postings, bounded candidates and live authorization before returning snippets.
+Current limits and explicit partial/unsupported/failed states are documented in
+`services/sovereign-cloud/api.md`; there is no OCR, ML, semantic search or external
+extraction service. The 100k-user target has not been load-tested.
+
+Actual Wasm validation rejected upstream lopdf’s giant glyph-name match (function
+complexity 2,734,911; the z profile also failed). The pinned dependency has only
+that lookup replaced with a sorted binary-search table. All 4,495 names/aliases
+and the hashes of every unchanged upstream file are checked. The standard Rust
+recipe then installed and indexed PDFs successfully. Browser QA caught PdfCraft’s
+ordinary PDF bytes carrying a Craft association; the extractor handles this and
+version 2 backfills affected files automatically. The real Wasm test now includes
+that exact association. Office fixtures were generated and reopened independently
+with python-docx/openpyxl/python-pptx, then passed through the canister indexer.
+
+Validation:
+
+- 77 canonical service unit tests; 6 extraction tests including XML entities,
+  ZIP/PDF expansion, repeated XLSX values, output and term limits.
+- 12 shared SDK transfer tests, including verified anonymous reads/revocation.
+- 195 portal JavaScript tests, including team creation/admin retries, public link
+  settings, anonymous preview, bounded content pages and stale detail responses.
+  A final selection regression prevents ordinary selection from falsely marking
+  rows as cut (optional boolean needed an explicit false).
+- 6 PocketIC flows: 4 shared adapter contract tests, populated team upgrade,
+  and actual six-format timer/index/authorization/upgrade flow. PDF association
+  and independently generated Office fixtures were retested in final Wasm.
+- Python: 4 localization, 10 scoped-build and 2 dependency-provenance tests.
+  Backend clippy and `git diff --check` clean. Portal build and local verification
+  pass; the eight existing editor packages were reused.
+- Real browser: Manager creates/administers a team; Editor sees it and creates a
+  folder without management controls; anonymous folder/text preview; six uploaded
+  content formats found by words absent from their names; PDF details reports
+  searchable. Evidence: `.local/public-link-proof.png`,
+  `.local/content-search-proof.png`. Browser fixture upload automation was slow;
+  subsequent canister operations and all six uploads completed.
+
+Existing local `cloud` was upgraded code-only using the controller Keychain
+identity, preserving files and private email settings. Frontend synchronized at
+`http://frontend.local.localhost:61304/`; disposable browser fixture pages removed
+before final verification. The 36-item HTML review and its local served copy now
+separate delivered core flows from remaining group/SSO/OCR/sharing-policy features.
+
 ## Mainnet cloud drive release and Git publication — 18 October 2026
 
 Published all nine `main` branches after explicit authorization: root release

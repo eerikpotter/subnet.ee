@@ -3,6 +3,7 @@ use candid::Principal;
 use serde::{Deserialize, Serialize};
 use sovereign_cloud::ObjectId;
 use sovereign_cloud::drive::*;
+use sovereign_cloud::spaces::{SpaceAccess, SpaceRole, TeamSpace};
 use std::collections::{BTreeMap, BTreeSet};
 
 pub const MAX_DEPTH: usize = 64;
@@ -27,9 +28,12 @@ impl Actor {
 #[derive(Clone, Debug, Default, Deserialize, Serialize)]
 #[serde(default)]
 pub(crate) struct AccessGraph {
-    /// Working-set boundary only; never serialized as stored user data.
     #[serde(skip)]
-    pub(crate) owner_scope: Option<Principal>,
+    pub(crate) public_links: BTreeMap<ObjectId, sovereign_cloud::public_link::PublicLink>,
+    #[serde(skip)]
+    pub(crate) teams: BTreeMap<ObjectId, TeamSpace>,
+    #[serde(skip)]
+    pub(crate) members: BTreeMap<(ObjectId, Principal), SpaceRole>,
     #[serde(skip)]
     pub(crate) original_objects: BTreeMap<ObjectId, DriveObject>,
     #[serde(skip)]
@@ -81,10 +85,21 @@ impl AccessGraph {
     pub(crate) fn effective(&self, actor: &Actor, id: ObjectId, now: u64, include_trash: bool) -> DriveResult<Capabilities> {
         let path = self.ancestry(id, include_trash)?;
         let object = self.objects.get(&id).ok_or(DriveError::Inaccessible)?;
-        if object.owner != actor.sponsor && self.blocked.contains(&(object.owner, actor.sponsor)) {
+        let team = self.teams.get(&object.space);
+        let membership = self.members.get(&(object.space, actor.sponsor));
+        if team.is_none() && object.owner != actor.sponsor && self.blocked.contains(&(object.owner, actor.sponsor)) {
             return Err(DriveError::Inaccessible);
         }
-        let human = if object.owner == actor.sponsor { Capabilities::ALL } else { self.granted(&Participant::User(actor.sponsor), &path, now) };
+        let human = match team {
+            Some(team) => {
+                if membership.is_none() && !team.external_sharing {
+                    return Err(DriveError::Inaccessible);
+                }
+                membership.map_or(Capabilities::NONE, |r| r.capabilities()).union(self.granted(&Participant::User(actor.sponsor), &path, now))
+            }
+            None if object.owner == actor.sponsor => Capabilities::ALL,
+            None => self.granted(&Participant::User(actor.sponsor), &path, now),
+        };
         let mut rights = match &actor.subject {
             Participant::User(principal) if *principal == actor.sponsor && actor.credential.is_none() => human,
             Participant::Agent(agent) => {
@@ -117,7 +132,7 @@ impl AccessGraph {
         for grant in self.grants.values() {
             let Participant::User(recipient) = grant.subject else { continue };
             if recipient == object.owner
-                || (actor.sponsor != object.owner && recipient != actor.sponsor)
+                || (self.owner(actor, id).is_err() && recipient != actor.sponsor)
                 || !grant.active
                 || !grant.capabilities.read
                 || grant.expires_at.is_some_and(|expiry| expiry <= now)
@@ -135,10 +150,19 @@ impl AccessGraph {
     }
     pub(crate) fn owner(&self, actor: &Actor, id: ObjectId) -> DriveResult<()> {
         let object = self.objects.get(&id).ok_or(DriveError::Inaccessible)?;
-        if actor.subject != Participant::User(object.owner) || actor.credential.is_some() {
+        let authorized = if self.teams.contains_key(&object.space) {
+            self.members.get(&(object.space, actor.sponsor)) == Some(&SpaceRole::Manager)
+        } else {
+            object.owner == actor.sponsor
+        };
+        if !authorized || actor.subject != Participant::User(actor.sponsor) || actor.credential.is_some() {
             return Err(DriveError::Inaccessible);
         }
         Ok(())
+    }
+    pub(crate) fn space_access(&self, actor: &Actor, id: ObjectId) -> Option<SpaceAccess> {
+        let object = self.objects.get(&id)?;
+        Some(SpaceAccess { team_name: self.teams.get(&object.space).map(|s| s.name.clone()), manage: self.owner(actor, id).is_ok() })
     }
     pub(crate) fn set_grant(&mut self, actor: &Actor, grant: AccessGrant, expected: Option<u64>, now: u64) -> DriveResult<AccessGrant> {
         let object = self.objects.get(&grant.root).ok_or(DriveError::Inaccessible)?;

@@ -11,6 +11,9 @@ pub mod id;
 pub mod launch;
 pub mod people;
 pub mod protocol;
+pub mod public_link;
+pub mod search;
+pub mod spaces;
 pub mod transfer;
 
 pub use id::ObjectId;

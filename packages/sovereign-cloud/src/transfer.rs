@@ -143,12 +143,20 @@ impl<T: Transport> FileClient<T> {
             let history: Vec<Revision> = self.drive_call("drive_history", args((file,))?).await?;
             history.into_iter().find(|r| r.id == revision).ok_or("Revision unavailable")?
         };
+        self.download_manifest(file, manifest.into(), "drive_revision_chunk").await
+    }
+    pub async fn public_download(&self, file: ObjectId) -> CloudResult<Vec<u8>> {
+        let item: crate::public_link::PublicItem = self.drive_call("public_get", args((file,))?).await?;
+        self.download_manifest(file, item.latest.ok_or("File unavailable")?, "public_chunk").await
+    }
+    async fn download_manifest(&self, file: ObjectId, manifest: crate::public_link::ContentManifest, method: &str) -> CloudResult<Vec<u8>> {
+        let revision = manifest.id;
         if manifest.bytes > MAX_DOCUMENT_BYTES || manifest.sha256.len() != 32 || manifest.chunk_count != manifest.bytes.div_ceil(CHUNK_BYTES as u64) {
             return Err("Invalid file manifest".into());
         }
         let mut bytes = Vec::new();
         for index in 0..manifest.chunk_count {
-            let response = self.transport.query("drive_revision_chunk", args((file, revision, index))?).await?;
+            let response = self.transport.query(method, args((file, revision, index))?).await?;
             let chunk = decode_one::<crate::drive::DriveResult<Vec<u8>>>(&response).map_err(|e| e.to_string())?.map_err(|e| e.to_string())?;
             let expected = (manifest.bytes - index * CHUNK_BYTES as u64).min(CHUNK_BYTES as u64) as usize;
             if chunk.len() != expected {
