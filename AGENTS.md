@@ -56,7 +56,10 @@ or thousands of unrelated tests. This scoped policy replaces inherited upstream
 - Review the pinned upstream delta and any available upstream CI result; record
   missing CI evidence rather than implying it passed or automatically rerunning it.
 - Build each changed browser package with its pinned SDK and cloud feature; run
-  the affected adapter/menu tests and verify cloud save/open in that browser app.
+  the affected adapter/menu tests and check browser startup. Require an actual
+  cloud save/open journey when that host's cloud hook, document lifecycle or
+  serialization changed, or a concrete concern remains. Unchanged integration
+  code does not require the same manual journey in all eight apps.
 - Test shared cloud behavior in the canonical packages once, only when changed.
   Do not repeat the same shared suite through eight vendored copies.
 - If an editor's internal behavior needs a compatibility repair, add/run the

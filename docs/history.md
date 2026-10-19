@@ -4,6 +4,43 @@
 
 
 
+## Git publication and mainnet release — 19 October 2026
+
+The user authorized publication of the completed team-space/public-link/search
+package and all eight reviewed Craft updates. Pushed all eight fork `main`
+branches before root `4f1b707` and the fixture/provenance attributes follow-up
+`0d5fd46` to `eerikpotter/subnet.ee`. No standalone Craft canister was changed.
+
+Consulted the official `icp-cli`, `agent-web-identity`, `stable-memory`,
+`cycles-management` and `static-site` skills on 19 October. The supported path is
+the existing pinned Rust recipe and static-site v0.4.0 sync, using a fresh owner
+web delegation in Keychain. No new deployment component was needed. The explicit
+code-only backend command preserves private environment settings; frontend sync
+uses `ICP_CLI_PLUGIN_COMPUTE_LIMIT_SECS=3600` for the eight-app compression work.
+
+The owner authenticated `codex-subnet-release-20261019`; its principal matched the
+existing controller. Mainnet cloud `vbfbj-tyaaa-aaaac-bgegq-cai` upgraded normally,
+including the Candid compatibility gate, from
+`c6104cf1cfb371bdbb18dda4fc25d8e6c5d3606967ef7dd8aefcaca8b6f9b1a3` to
+`c0c16e070a1b80565b6697ff273ad1289c7934f5d0d4ef88428e5ae4ecc2a79d`.
+No reinstall, schema reset or settings update. The deployed module hash and public
+Candid match the release artifact; `email_profile` reports the provider enabled.
+No mail was sent. Existing owner/CycleOps controllers were retained.
+
+Preflight balances were 1.263T cycles for cloud and 3.253T for frontend; this
+release did not convert ICP or purchase additional cycles. The prior-source
+populated upgrade rehearsal and 344 local HTTP checks passed. Frontend sync
+completed with 460 assets and the nonzero final state hash
+`bda7974d1f1f7442cd90eadda412be172e7c89b1b3099e725314bee5e952c359`.
+`verify.py all --environment ic --origin https://www.subnet.ee --timings` passed
+all 344 HTTP payload/certification/runtime-trust/cache checks, including all eight
+updated editor packages. The real production browser rendered signed-out Cloud
+Space with the updated navigation. No production test accounts or files were
+created. Detailed save/open and permission journeys were exercised locally.
+The 36-item feature review and its served local copy now state the actual released
+scope and remaining limitations. Release artifacts and bounded logs are retained
+under `.local/releases/2026-10-19/`.
+
 ## Craft upstream integration and author-profile inspection — 19 October 2026
 
 Updated all eight fork `main` branches from exact reviewed upstream commits using
@@ -63,8 +100,9 @@ respectively. Those unrelated failures were not rewritten in these integration
 forks. Passing cloud tests/builds is not a claim that every upstream CI gate passed.
 The user then explicitly narrowed future update validation: root AGENTS.md and
 `scripts/UPDATING.md` now override inherited full-CI-before-commit defaults for
-these integration forks. Build plus affected adapter/menu tests and browser
-save/open is the routine gate; shared tests run once when changed. Broader editor
+these integration forks. Build, affected adapter/menu tests and browser startup form the routine gate;
+cloud save/open is added for changed hooks, lifecycle or serialization, or a
+concrete unresolved integration risk. Shared tests run once when changed. Broader editor
 tests require an explicit request or a concrete unresolved concern.
 
 A release-specific `workflows` rehearsal now accepts an optional previous

@@ -56,7 +56,10 @@ that a normal local Cargo build is sandboxed. `--locked` prevents dependency res
 drift; it does not prevent build scripts or procedural macros from executing.
 
 After review, validate the changed app: its browser build with the cloud feature,
-relevant adapter/menu tests and one actual cloud save/open check. **Do not run the
+relevant adapter/menu tests and startup. Add an actual cloud save/open journey
+when cloud hooks, document lifecycle or serialization changed, or a specific
+integration risk remains; an unchanged adapter does not require repeating the
+same manual flow across eight apps. **Do not run the
 editor's full `xtask ci` by default**, including when its inherited AGENTS.md says
 "full CI before every commit". The user's scoped policy in the root AGENTS.md applies
 to these integration forks. Observe available CI evidence for the exact upstream
@@ -70,6 +73,10 @@ unresolved concern or explicit user request. A successful browser release build
 already checks that Wasm compiles; do not repeat an equivalent cargo check without
 another purpose. Stop after these checks pass and record limitations. Do not fix
 unrelated upstream failures in these forks.
+Keep verbose logs outside Git and return only a bounded result/error excerpt.
+Record the selected checks and artifact identities, so release work reuses passing
+evidence rather than rerunning it. Prefer scripted checks over repeated manual
+browser steps; inspect UI only for behavior the existing tests cannot establish.
 Then commit the resolved merge **inside the printed review directory**:
 
 ```sh
