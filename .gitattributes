@@ -1,0 +1,4 @@
+# PDF cross-reference offsets depend on the exact bytes.
+*.pdf binary
+# Keep the reviewed third-party snapshot byte-for-byte (see upstream-sha256.json).
+packages/sovereign-cloud-text/vendor/lopdf/** -whitespace
