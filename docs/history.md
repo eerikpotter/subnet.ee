@@ -2,7 +2,7 @@
 
 [Project overview](../README.md) · [Development](development.md) · [Deployment](deployment.md)
 
-## Craft fleet refresh — 24 November 2026 (validated; publication pending)
+## Craft fleet refresh — 24–25 November 2026
 
 Reviewed the eight upstream repositories and merged their pinned 23–24 November
 heads into the existing ICP integration forks. The previous integrated upstream
@@ -24,8 +24,8 @@ Integrated versions and packaged application sizes (raw decimal MB):
 - FigCraft 0.7.0 → 0.18.1: 25.14 → 28.68 MB.
 
 The eight application directories grew from 250,848,816 to 502,069,566 bytes
-(about 100.15%). The complete site grew from 268,998,118 to 520,219,174 bytes:
-+251,221,056 bytes, or 93.39%. These are uncompressed packaged files, not browser
+(about 100.15%). The complete site grew from 268,998,118 to 520,219,956 bytes:
++251,221,838 bytes, or 93.39%. These are uncompressed packaged files, not browser
 transfer sizes, canister memory usage or user-document storage. Wasm files account
 for 490,416,048 bytes of the new site; PdfCraft’s verified OCR model/licence package
 adds 12,254,066 bytes.
@@ -48,20 +48,19 @@ inputs are fetched explicitly and validated before building.
 Both existing production canisters were below their freezing reserves at the
 start. With the user's explicit approval, 3.30595124 ICP including fees was
 converted into 5T cycles, split 2.5T each between frontend and file service.
-The existing site resumed responding. This is a funding operation, not evidence
-that the refreshed applications have been published. No backend module, stable
+The existing site resumed responding. Funding and the separately measured
+publication cost below are distinct operations. No backend module, stable
 schema, canister mapping, identity derivation origin or controller was changed.
 
 All eight release browser builds, affected adapter/menu tests, 15 canonical shared
-UI tests and 12 assembly/input workflow tests passed. Browser checks with a disposable
+UI tests and 13 assembly/input workflow tests passed. Browser checks with a disposable
 local account saved and reopened native documents in all eight editors. WordCraft’s
 rename hook and bundled font selection, SoundCraft’s navigation-versus-content
 revision behavior and PdfCraft’s OCR model/worker startup were checked. These are
 focused integration checks, not a complete upstream editor test suite. Final
 assembled package IDs match the browser-checked artifacts. Logs, source pins,
 package hashes, screenshots and measurements are retained under
-`.local/releases/2026-11-24-craft-update/`. Publication verification follows below
-when complete.
+`.local/releases/2026-11-24-craft-update/`. Production verification is recorded below.
 
 The first production sync ran for 35m52s and stopped on 24 November at
 21:59:06 UTC when the ICP HTTP gateway returned 503 during `upload_chunks`.
@@ -75,9 +74,73 @@ These are failed-attempt measurements, not a successful publication bill.
 The pinned official 0.4.0 sync implementation stages all chunks before applying
 operations; starting a new session discards staged chunks, so this interruption
 cannot be resumed by the normal CLI. A retry must upload the changed assets again.
-With 1.574T frontend balance against a 1.033T reserve, additional funding needs
-owner approval. Proposed retry budget: add 2.5T to frontend using at most 1.70 ICP
-from the existing balance. No additional conversion has been performed.
+With 1.574T frontend balance against a 1.033T reserve, the owner approved
+another 2.5T for frontend with a 1.70 ICP spending cap. The exact top-up was
+verified; ICP spent including fees was 1.68587509, within that cap.
+Combined approved funding was 7.5T cycles, costing 4.99182633 ICP: 5T
+for frontend and 2.5T for the file service. Funding is not the publication bill.
+
+Production asset sync completed at 2026-11-24T22:55:40.669823+00:00, using application
+source commit `a891fcd` and the unchanged browser-checked artifacts. The final
+header/verification correction is `bee471d`. All eight integration forks
+and the root source were pushed. The consensus-backed final frontend state hash is
+`43aec3d4d108e7f908d2bd76d6452edd866ee759feb1e52343daf403b9bce46d`.
+`verify.py all --environment ic --origin https://cloud.subnet.ee --timings`
+passed 359 payload checks, all eight editor packages,
+trust/cache headers and missing-route assertions. The public `www.subnet.ee`
+portal verification also passed. A read-only production browser check confirmed
+the application catalogue loads with all eight editors; the HTTP checks above
+confirmed their published versions. Screenshot: `production-apps.jpg`.
+WordCraft 0.18.1 also rendered its home screen from the published package
+`cc5c535def68af5bb4fd5851da741291da86e8ac04b9cb757b2ae19a33d1c47d`
+without browser errors (`production-wordcraft.jpg`). Upstream command-catalog
+duplicate-definition warnings for common edit actions remain; startup succeeded.
+No additional user sign-in or document mutation was needed for that check.
+
+The successful retry and its small header correction consumed
+1.581089T cycles by the frontend balance difference
+immediately before the retry and after the final sync.
+Across both attempts and the interval between them, the balance difference after
+accounting for the additional 2.5T deposit was 3.139838T cycles.
+These measurements include normal storage and any concurrent activity; they are
+not independently metered deployment invoices.
+The first post-deploy verifier found new numbered wasm-bindgen snippet helpers
+missing an explicit revalidation policy; its old assumption that all editor
+JavaScript was immutable was also too broad. Added `no-cache` to snippet subtrees,
+kept fingerprinted bundles immutable, and added a regression covering both policies.
+All 13 scoped workflow tests passed. The small header sync reused all eight
+browser-checked packages, with no editor rebuild or extra funding.
+Frontend memory changed from 954.39 MB to 1678.30 MB.
+The status-derived 30-day idle estimate changed from 0.757T to
+1.312T for frontend; the file service remains at
+1.483T, for 2.795T combined per 30 days at the
+measured memory sizes. User writes and future updates add costs. Immediately after
+sync, balances were 2.492T frontend and
+2.491T cloud, both above their unchanged 30-day freezing
+reserves. Both modules, canister IDs, controller/visibility settings and environment
+variable names matched the pre-sync status. The operation updated assets only.
+
+The current [ICP memory model](https://docs.internetcomputer.org/concepts/canisters/)
+allows 500 GiB stable memory, separately from the Wasm heap limit. The pinned
+[static-site 0.4.0 storage implementation](https://github.com/dfinity/certified-assets/blob/v0.4.0/crates/canister-core/src/store/chunks.rs)
+stores asset content in stable memory. It reuses freed ranges, but allocated stable
+pages do not shrink automatically. Stored encodings, metadata, heap and allocation
+high-water marks explain why the canister's charged memory differs from the local
+directory size. Editors execute in the browser. Ordinary query calls are currently
+free under the [ICP cycles model](https://docs.internetcomputer.org/concepts/cycles/).
+
+The HTTP verification requested gzip and transferred the following application
+response-body totals (decimal MB, all checked files including optional resources;
+not a browser startup benchmark):
+
+- cadcraft: 13.82 MB across 11 checks.
+- deckcraft: 13.90 MB across 12 checks.
+- figcraft: 10.95 MB across 11 checks.
+- gridcraft: 12.00 MB across 12 checks.
+- pdfcraft: 50.99 MB across 20 checks.
+- photocraft: 28.95 MB across 11 checks.
+- soundcraft: 9.04 MB across 12 checks.
+- wordcraft: 39.12 MB across 12 checks.
 
 Artifacts were built before their reviewed merge commits, then reused unchanged.
 The only later application edits were macOS-only module qualification and test
