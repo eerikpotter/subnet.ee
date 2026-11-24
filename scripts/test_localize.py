@@ -26,7 +26,7 @@ def visible(node):
 class StaticLanguagesTest(unittest.TestCase):
     def test_drive_filter_and_sort_options_translate_without_changing_values(self):
         english = dictionary(ROOT / "portal/translations.js")
-        template = Page((ROOT / "portal/pilveruum/index.html").read_text())
+        template = Page((ROOT / "portal/workspace.html").read_text())
         versions = [list(elements(Page(template.render(english, lang)).root)) for lang in ("et", "en")]
         options = [[node for node in nodes if node.tag == "option"] for nodes in versions]
         self.assertEqual([node.attrs.get("value") for node in options[0]], [node.attrs.get("value") for node in options[1]])
@@ -36,7 +36,7 @@ class StaticLanguagesTest(unittest.TestCase):
 
     def test_real_pages_have_translated_content_metadata_links_and_identical_structure(self):
         english = dictionary(ROOT / "portal/translations.js")
-        for source, path in [("index.html", "/"), ("pilveruum/index.html", "/pilveruum/")]:
+        for source, path in [("index.html", "/"), ("workspace.html", "/")]:
             template = Page((ROOT / "portal" / source).read_text())
             versions = [Page(template.render(english, lang, path, "https://demo.example")) for lang in ("et", "en")]
             et, en = [list(elements(page.root)) for page in versions]
@@ -51,7 +51,7 @@ class StaticLanguagesTest(unittest.TestCase):
                 canonical = next(n for n in nodes if n.attrs.get("rel") == "canonical")
                 self.assertEqual(canonical.attrs['href'], "https://demo.example" + ("/en" if index else "") + path)
                 self.assertEqual({n.attrs['hreflang'] for n in nodes if n.attrs.get("rel") == "alternate"}, {"et", "en"})
-            self.assertIn("Estonia’s first" if path == "/" else "Upload file", visible(versions[1].root))
+            self.assertIn("Estonia’s first" if source == "index.html" else "Upload file", visible(versions[1].root))
             links = [n.attrs for n in en if n.tag == "a"]
             self.assertTrue(any(n.get('data-language') == 'et' and n['href'] == path for n in links))
             self.assertTrue(any(n.get('data-language') == 'en' and n['href'] == '/en' + path for n in links))
@@ -69,7 +69,7 @@ class StaticLanguagesTest(unittest.TestCase):
         self.assertFalse(any(n.tag in ('span', 'tspan') for n in nodes))
 
     def test_static_links_preserve_file_references_and_external_destinations(self):
-        self.assertEqual(localized_link('/pilveruum/?demo=1#failid', 'en'), '/en/pilveruum/?demo=1#failid')
+        self.assertEqual(localized_link('/?demo=1#failid', 'en'), '/en/?demo=1#failid')
         self.assertEqual(localized_link('/apps/photocraft/?cloud_file=a%26b&webgl=#page=3', 'en'), '/apps/photocraft/?cloud_file=a%26b&webgl=&lang=en#page=3')
         for link in ['https://other.example/', '//other.example/', '/apps/photocraft/editor.html', '#tehnoloogia']:
             self.assertEqual(localized_link(link, 'en'), link)

@@ -3,6 +3,20 @@ import assert from 'node:assert/strict';
 import { localeHost } from './i18n-test-helpers.mjs';
 import { domHost, Element } from './i18n-dom-helpers.mjs';
 
+test('deferred localization waits for the hostname-selected workspace before applying a language query', () => {
+  const nodes = [];
+  const document = domHost(nodes);
+  document.readyState = 'interactive';
+  document.documentElement.dataset = { subnetSite: 'cloud' };
+  const host = localeHost({ search: '?lang=en#failid', document });
+  const heading = new Element('h1', { 'data-i18n-text': JSON.stringify([[0, 'Minu failid', 'My files']]) }, [{ nodeType: 3, textContent: 'Minu failid' }]);
+  nodes.push(heading);
+  document.documentElement.dataset.subnetReady = '';
+  host.start();
+  assert.equal(heading.textContent, 'My files');
+  assert.equal(host.window.location.href, 'https://subnet.ee/en/#failid');
+});
+
 test('public paths select their prerendered language; app wrappers remember preferences', () => {
   assert.equal(localeHost().i18n.language, 'et');
   assert.equal(localeHost({ saved: 'en' }).i18n.language, 'et');
@@ -32,8 +46,8 @@ test('language links preserve file identity, renderer flags and fragments', () =
   assert.equal(result.searchParams.has('webgl'), true);
   assert.equal(result.searchParams.get('lang'), 'en');
   assert.equal(result.hash, '#page=3');
-  assert.equal(i18n.href('/en/tooruum/?lang=en#failid', 'et'), '/tooruum/#failid');
-  assert.equal(i18n.href('/tooruum/?demo=1#failid', 'en'), '/en/tooruum/?demo=1#failid');
+  assert.equal(i18n.href('/en/?lang=en#failid', 'et'), '/#failid');
+  assert.equal(i18n.href('/?demo=1#failid', 'en'), '/en/?demo=1#failid');
 });
 
 test('localization never rewrites third-party links or editor assets', () => {
@@ -58,7 +72,7 @@ test('switching changes existing text, SVG labels, metadata and links without re
   const et = new Element('link', { rel: 'alternate', hreflang: 'et', href: 'https://subnet.ee/' });
   const en = new Element('link', { rel: 'alternate', hreflang: 'en', href: 'https://subnet.ee/en/' });
   const switcher = new Element('a', { 'data-language': 'en', href: '/en/' });
-  const workspace = new Element('a', { href: '/tooruum/#failid' });
+  const workspace = new Element('a', { href: '/#failid' });
   const host = localeHost({ search: '?demo=1#tehnoloogia', document: domHost([heading, svg, meta, canonical, et, en, switcher, workspace]) });
   host.start();
   const click = new Event('click', { cancelable: true });
@@ -71,13 +85,13 @@ test('switching changes existing text, SVG labels, metadata and links without re
   assert.equal(svg.textContent, 'Personal control');
   assert.equal(meta.content, 'Description');
   assert.equal(canonical.href, 'https://subnet.ee/en/');
-  assert.equal(workspace.href, '/en/tooruum/#failid');
+  assert.equal(workspace.href, '/en/#failid');
   assert.equal(host.window.location.href, 'https://subnet.ee/en/?demo=1#tehnoloogia');
   assert.equal(host.window.history.state.retained, true);
   host.window.history.back();
   assert.equal(heading.textContent, 'Eesti esimene');
   assert.equal(canonical.href, 'https://subnet.ee/');
-  assert.equal(workspace.href, '/tooruum/#failid');
+  assert.equal(workspace.href, '/#failid');
   assert.equal(host.i18n.locale, 'et-EE');
 });
 
@@ -110,7 +124,14 @@ test('legacy links normalize without adding history; modified clicks keep native
 
 test('canonical UUID paths keep the same object when switching language', () => {
   const id='01234567-89ab-4cde-8fab-0123456789ab';
-  const {i18n}=localeHost({pathname:`/pilveruum/file/${id}`});
-  assert.equal(i18n.href(`/pilveruum/file/${id}`, 'en'),`/en/pilveruum/file/${id}`);
-  assert.equal(i18n.href(`/en/pilveruum/folder/${id}?picker=save`, 'et'),`/pilveruum/folder/${id}?picker=save`);
+  const {i18n}=localeHost({pathname:`/file/${id}`});
+  assert.equal(i18n.href(`/file/${id}`, 'en'),`/en/file/${id}`);
+  assert.equal(i18n.href(`/en/folder/${id}?picker=save`, 'et'),`/folder/${id}?picker=save`);
+});
+test('site links keep their destination origin when switching languages', () => {
+  const { i18n } = localeHost();
+  assert.equal(i18n.href('https://cloud.subnet.ee/?picker=open#failid', 'en'), 'https://cloud.subnet.ee/en/?picker=open#failid');
+  assert.equal(i18n.href('https://cloud.subnet.ee/apps/wordcraft/', 'en'), 'https://cloud.subnet.ee/apps/wordcraft/?lang=en');
+  assert.equal(i18n.href('https://www.subnet.ee/en/', 'et'), 'https://www.subnet.ee/');
+  assert.equal(i18n.href('https://unrelated.example/en/', 'et'), 'https://unrelated.example/en/');
 });

@@ -153,7 +153,7 @@ restart**. Local replica state includes configured canister secrets; keep its st
 and any backups private. The separately retained provisioning copy is in Keychain.
 
 User verification is **account menu → Minu e-postid → Lisa e-post → code**.
-The message links to `/pilveruum/#email`; this route survives sign-in and offers
+The message links to `https://cloud.subnet.ee/#email`; this route survives sign-in and offers
 **Jätka e-posti kinnitamist** for the pending challenge. A code
 belongs to the principal/request that asked for it. A delivery test under a test
 identity cannot attach the address to the user's account; no binding was created
@@ -238,7 +238,7 @@ snapshot in the standalone PhotoCraft backend. The root owns service changes and
 the PhotoCraft fork remains independently buildable. Do not edit the snapshots directly.
 
 Use the same hostname consistently during local testing. All app paths share one
-browser origin. On mainnet, `www.subnet.ee` explicitly uses this frontend canister's
+browser origin. On mainnet, `cloud.subnet.ee` explicitly uses this frontend canister's
 origin for Internet Identity, preserving accounts created on its gateway address.
 Accounts belonging to the previously replaced subnet.ee canister are a separate
 identity/data migration. `app_id` is not a credential.
@@ -250,10 +250,14 @@ Use **cloud space** in English product copy and **pilveruum** in Estonian. Use
 in navigation and controls. The editors' existing **Sovereign Cloud** menu label
 remains literal in instructions that refer to it.
 
-The landing page and cloud space are prerendered in Estonian at `/` and `/pilveruum/`,
-and in English at `/en/` and `/en/pilveruum/`. Each URL serves complete, indexable HTML
-with a canonical URL and reciprocal `hreflang` links. Canonical URLs use
-`https://www.subnet.ee` by default; set `SUBNET_PUBLIC_ORIGIN` to override it.
+The landing page lives at `https://www.subnet.ee/`; the cloud space lives at
+`https://cloud.subnet.ee/`. Both use `/en/` for English. Assembly embeds localized
+workspace templates into the certified root document; `site-entry.js` selects the
+cloud body on the cloud hostname before i18n starts. The public landing remains
+prerendered, and the cloud application requires JavaScript. Each active surface
+sets its own canonical URL and reciprocal `hreflang` links. Local `*.localhost`
+and certified canister addresses open the cloud surface. See the
+[domain decision and DNS records](deployment.md#custom-domains-wwwsubnetee-and-cloudsubnetee).
 
 Both translations are embedded in HTML attributes. ET/EN links switch text and labels
 in place without fetching, reloading, or resetting account/file-list state. Browser

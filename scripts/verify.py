@@ -60,18 +60,18 @@ def main():
     if [app['id'] for app in manifest['apps']] != [app['id'] for app in registered]:
         raise RuntimeError("Deployed bundle must include every registered app in order")
     portal = (ROOT / "dist/index.html").read_text()
-    workspace = (ROOT / "dist/pilveruum/index.html").read_text()
+    workspace = (ROOT / "dist/index.html").read_text()
     if '__APP_COUNT' in portal + workspace or f"{len(registered)} rakendust" not in workspace:
         raise RuntimeError("Portal application count does not match the registry")
     checks = [("/", ROOT / "dist/index.html"), ("/style.css", ROOT / "dist/style.css"), ("/apps.json", ROOT / "dist/apps.json")]
     checks.extend((route, ROOT / "dist" / path) for route, path in [
-        ("/pilveruum/", "pilveruum/index.html"), ("/en/", "en/index.html"), ("/en/pilveruum/", "en/pilveruum/index.html")])
+        ("/en/", "en/index.html")])
     # Certified SPA rewrites must also work on fresh deep-link loads.
     route_id = "01234567-89ab-4cde-8fab-0123456789ab"
     for locale in ("", "en/"):
         for kind in ("file", "folder"):
-            checks.append((f"/{locale}pilveruum/{kind}/{route_id}", ROOT / "dist" / locale / "pilveruum/index.html"))
-    checks.extend(("/" + name, ROOT / "dist" / name) for name in ["landing.css", "landing.js", "pilveruum/index.html", "assets/brand/subnet.png", "assets/landing/estonian-lakes.png", "assets/landing/cloud-of-estonia.png", "assets/landing/creative-workspace.jpg"])
+            checks.append((f"/{locale}{kind}/{route_id}", ROOT / "dist" / locale / "index.html"))
+    checks.extend(("/" + name, ROOT / "dist" / name) for name in ["landing.css", "landing.js", "site-entry.js", "assets/brand/subnet.png", "assets/landing/estonian-lakes.png", "assets/landing/cloud-of-estonia.png", "assets/landing/creative-workspace.jpg"])
     checks.extend(("/" + name, ROOT / "dist" / name) for name in ["agent-workflow.css", "agent-workflow.js", "assets/landing/sovereign-cloud.png"])
     image_assets = json.loads((ROOT / "dist/image-assets.json").read_text())
     checks.extend((url, ROOT / "dist" / url.lstrip('/')) for url in image_assets)
@@ -97,7 +97,7 @@ def main():
         checks.append((app['path'], folder / "index.html"))
         shell = (folder / "index.html").read_text()
         if ('__APP_NAME__' in shell or 'id="craft-editor"' not in shell or 'data-leave' not in shell
-                or 'href="/pilveruum/"' not in shell or 'href="/pilveruum/#failid"' not in shell):
+                or 'href="/"' not in shell or 'href="/#failid"' not in shell):
             raise RuntimeError(f"Missing shared navigation: {app['id']}")
         checks.append((app['editorPath'], folder / "editor.html"))
         if app['id'] not in selected:
@@ -154,16 +154,16 @@ def main():
         if options.timings:
             seconds, transferred = timings[route]
             print(f"  HTTP {seconds:.3f}s; {transferred:,} transferred bytes; encoding={headers.get('content-encoding', 'identity')}; cache={headers.get('cache-control', 'none')}", flush=True)
-    for route in ["/apps/photocraft/missing.wasm", "/apps/unknown/", "/missing.js", "/browser-session-test.html", "/browser-session-test.js", "/apps/wordcraft/_cached/" + "0" * 64 + "/editor.html"]:
+    for route in ["/cloud", "/cloud/", "/pilveruum/", "/en/pilveruum/", "/tooruum/", "/workspace.html", "/apps/photocraft/missing.wasm", "/apps/unknown/", "/missing.js", "/browser-session-test.html", "/browser-session-test.js", "/apps/wordcraft/_cached/" + "0" * 64 + "/editor.html"]:
         if get(route)[0] != 404: raise RuntimeError(f"Missing file must return 404: {route}")
     status, headers, body = get("/.well-known/ii-app-metadata")
     if status != 200 or json.loads(body)['name'] != "subnet.ee" or headers.get('access-control-allow-origin') != '*':
         raise RuntimeError("II app metadata unavailable")
     status, headers, body = get("/.well-known/ic-domains")
-    if status != 200 or body.decode().splitlines() != ["www.subnet.ee"] or not headers.get("ic-certificate"):
+    if status != 200 or body.decode().splitlines() != ["www.subnet.ee", "cloud.subnet.ee"] or not headers.get("ic-certificate"):
         raise RuntimeError("Custom domain ownership file unavailable")
     status, headers, body = get("/.well-known/ii-alternative-origins")
-    if status != 200 or json.loads(body) != {"alternativeOrigins": ["https://www.subnet.ee"]} or not headers.get("content-type", "").startswith("application/json") or headers.get("access-control-allow-origin") != "*" or not headers.get("ic-certificate"):
+    if status != 200 or json.loads(body) != {"alternativeOrigins": ["https://www.subnet.ee", "https://cloud.subnet.ee"]} or not headers.get("content-type", "").startswith("application/json") or headers.get("access-control-allow-origin") != "*" or not headers.get("ic-certificate"):
         raise RuntimeError("Internet Identity alternative origin is not available with JSON, CORS and certification")
     status, headers, body = get("/.well-known/ic-architecture")
     if (status != 200 or not headers.get("content-type", "").startswith("application/json")

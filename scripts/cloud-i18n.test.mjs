@@ -5,7 +5,7 @@ import vm from 'node:vm';
 import { localeHost } from './i18n-test-helpers.mjs';
 import { domHost, Element } from './i18n-dom-helpers.mjs';
 
-const html = readFileSync(new URL('../portal/pilveruum/index.html', import.meta.url),'utf8');
+const html = readFileSync(new URL('../portal/workspace.html', import.meta.url),'utf8');
 const source = readFileSync(new URL('../portal/cloud.js', import.meta.url),'utf8').replace(/^import .*;\n/gm,'');
 const browserState=readFileSync(new URL('../portal/drive-browser.js',import.meta.url),'utf8').replace(/^export /gm,'');
 const archiveSource=readFileSync(new URL('../portal/download-archive.js',import.meta.url),'utf8').replace(/^export /gm,'');
@@ -20,7 +20,7 @@ function fixture(options={}) {
   const document=domHost(nodes);document.body=new Element('body');document.body.classList.add=()=>{};
   for(const node of nodes) {node.dataset={};node.showModal=()=>{node.open=true;};node.close=()=>{const open=node.open;node.open=false;if(open)node.dispatchEvent(new Event('close'));};node.focus=()=>{document.activeElement=node;};node.select=()=>{};}
   const create=document.createElement; document.createElement=tag=>{const node=create(tag);node.dataset={};node.focus=()=>{document.activeElement=node;};node.select=()=>{};node.setSelectionRange=(start,end)=>{node.selectionStart=start;node.selectionEnd=end;};node.pause=()=>{node.paused=true;};node.load=()=>{};return node;};
-  const host=localeHost({pathname:'/pilveruum/',search:options.search||'#failid',document});const calls=[];const selections=[];host.window.parent={postMessage:(data,origin)=>selections.push({data,origin})};
+  const host=localeHost({pathname:'/',search:options.search||'#failid',document});const calls=[];const selections=[];host.window.parent={postMessage:(data,origin)=>selections.push({data,origin})};
   const root={id:'1',spaceId:'1',owner:'alice',folder:true,name:'My files',capabilities:{read:true,create:true,edit:true,delete:true},...options.root};
   const file=id=>({id,spaceId:'1',owner:'alice',name:'Ideed',folder:false,format:{craft:{format_id:'grid',format_version:1}},bytes:1572864,updatedMs:1700000000000,revision:'44',version:'1',capabilities:{read:true,edit:true,create:true,delete:true},...options.file});
   let requestSequence=0;const urls=[];class PreviewURL extends URL {static createObjectURL(blob){urls.push(['create',blob]);return 'blob:preview';}static revokeObjectURL(url){urls.push(['revoke',url]);}}
@@ -194,7 +194,7 @@ test('drive language switches preserve session, loaded pages, cursor, file names
   assert.equal(JSON.stringify(calls),before);assert.deepEqual(document.getElementById('file-list').children,rows);assert.equal(rows.length,2);
   assert.equal(rows[0].children[1].children[0].textContent,'Ideed');assert.equal(document.getElementById('account-status').textContent,'My account');
   assert.equal(rows[0].querySelector('summary').getAttribute('aria-label'),'File actions');
-  assert.equal(rows[0].querySelector('a').href,'/apps/gridcraft/?cloud_service=cloud&cloud_space=1&cloud_file=first&workspace_return=%2Fpilveruum%2F%23failid&lang=en');
+  assert.equal(rows[0].querySelector('a').href,'/apps/gridcraft/?cloud_service=cloud&cloud_space=1&cloud_file=first&workspace_return=%2F%23failid&lang=en');
   document.getElementById('more-files').dispatchEvent(new Event('click'));await tick();
   assert.equal(calls.at(-1)[1].cursor,'third-page');
 });
@@ -1012,7 +1012,7 @@ test('Home is distinct from Recent and displays service suggestions and truthful
   }});
   await vm.runInContext(`(async()=>{${source}})()`,host.context);
   assert.equal(document.getElementById('files-title').textContent,'Jätka pooleli jäänust');
-  assert.equal(document.getElementById('home-folder-list').children[0].href,'/pilveruum/#folder/folder');
+  assert.equal(document.getElementById('home-folder-list').children[0].href,'/#folder/folder');
   assert.match(document.getElementById('file-list').textContent,/Opened.txt/);
   assert.equal(calls.some(([method])=>method==='suggestions'),true);
   assert.equal(calls.some(([method,p])=>method==='query' && p.scope==='recent'),false);
@@ -1088,9 +1088,9 @@ test('Suggested Home revalidates without reordering surviving rows, and dismissa
   const fileIds=()=>document.getElementById('file-list').children.map(row=>row.dataset.fileId);
   const folderLinks=()=>document.getElementById('home-folder-list').children.map(link=>link.href);
   items=[items[1],items[0]];folders=[folders[1],folders[0]];backgroundRefresh();await tick();
-  assert.deepEqual(fileIds(),['first','second']);assert.deepEqual(folderLinks(),['/pilveruum/#folder/a','/pilveruum/#folder/b']);
+  assert.deepEqual(fileIds(),['first','second']);assert.deepEqual(folderLinks(),['/#folder/a','/#folder/b']);
   document.getElementById('refresh-files').dispatchEvent(new Event('click'));await tick();
-  assert.deepEqual(fileIds(),['second','first']);assert.deepEqual(folderLinks(),['/pilveruum/#folder/b','/pilveruum/#folder/a']);
+  assert.deepEqual(fileIds(),['second','first']);assert.deepEqual(folderLinks(),['/#folder/b','/#folder/a']);
   findButton(document.getElementById('file-list').children[0],'Peida seitsmeks päevaks').dispatchEvent(new Event('click'));await tick();
   assert.equal(document.getElementById('file-list').children.length,1);
   assert.equal(calls.filter(([m])=>m==='dismiss').length,1);
@@ -1128,7 +1128,7 @@ test('restricted file link resolves the item, preserves sign-in destination and 
   assert.equal(calls.filter(([m])=>m==='query').at(-1)[1].scope,'item');
   assert.equal(calls.filter(([m])=>m==='query').at(-1)[1].id,'42');
   findButton(document.getElementById('file-list'),'Kopeeri link').dispatchEvent(new Event('click'));await tick();
-  assert.match(copied[0],/\/pilveruum\/#file\/42$/);assert.equal(calls.some(([m])=>m==='grant'),false);
+  assert.match(copied[0],/\/#file\/42$/);assert.equal(calls.some(([m])=>m==='grant'),false);
 });
 
 test('sharing role changes preserve grant identity/version/expiry and inherited grants stay read-only',async()=>{
@@ -1586,7 +1586,7 @@ test('the shared save picker accepts UUID space and destination without editor-s
   const {host,calls}=fixture({search:`?picker=save&app=gridcraft&channel=aaaaaaaa-aaaa-aaaa-aaaa-aaaaaaaaaaaa&space=${space}&parent=${parent}&name=Draft`});
   await vm.runInContext(`(async()=>{${source}})()`,host.context);
   assert.equal(calls.find(([m])=>m==='query')[1].parent,parent);
-  assert.equal(host.window.location.pathname,`/pilveruum/folder/${parent}`);
+  assert.equal(host.window.location.pathname,`/folder/${parent}`);
 });
 
 
@@ -1689,7 +1689,7 @@ test('ordinary selection and clearing never fade rows as cut files',async()=>{
 
 
 test('returning to a folder restores only still-authorized selections for this account',async()=>{
- const state={'subnet.workspace.return:alice:/pilveruum/#failid':JSON.stringify({ids:['first','revoked'],scroll:240,at:Date.now()})};
+ const state={'subnet.workspace.return:alice:/#failid':JSON.stringify({ids:['first','revoked'],scroll:240,at:Date.now()})};
  const {host,document}=fixture({returnState:state});
  await vm.runInContext(`(async()=>{${source}})()`,host.context);
  assert.equal(document.getElementById('selection-count').textContent,'1 valitud');

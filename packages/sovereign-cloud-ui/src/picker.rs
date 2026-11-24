@@ -57,7 +57,7 @@ impl Picker {
         }
         let current = web_sys::UrlSearchParams::new_with_str(&window.location().search().map_err(error)?).map_err(error)?;
         let language = current.get("lang").unwrap_or_else(|| "en".into());
-        let path = if language == "et" { "/pilveruum/" } else { "/en/pilveruum/" };
+        let path = if language == "et" { "/" } else { "/en/" };
         let dialog = document.create_element("dialog").map_err(error)?.dyn_into::<web_sys::HtmlDialogElement>().map_err(error)?;
         dialog.set_attribute("aria-label", if language == "et" { "Pilveruum" } else { "Cloud space" }).map_err(error)?;
         let background = if dark { "#24272d" } else { "#f4f7fb" };

@@ -29,9 +29,8 @@ class ScopedWorkflowTest(unittest.TestCase):
         self.put("registry/apps.json", json.dumps(self.apps))
         self.put("registry/craft-releases.json", json.dumps({"apps": {}}))
         for name, content in {
-            "index.html": '<a href="/pilveruum/">Ava tööruum</a><!-- LANDING_CARDS -->',
-            "tooruum/index.html": '<a href="/pilveruum/">Pilveruum</a>',
-            "pilveruum/index.html": "<!-- APP_CARDS --> __APP_COUNT__ tööriista __APP_COUNT_PADDED__",
+            "index.html": '<html><head><script src="/translations.js" defer></script></head><body><a href="https://cloud.subnet.ee/">Ava tööruum</a><!-- LANDING_CARDS --></body></html>',
+            "workspace.html": "<html><head></head><body><!-- APP_CARDS --> __APP_COUNT__ tööriista __APP_COUNT_PADDED__</body></html>",
             "craft-shell.html": '<iframe id="craft-editor" data-leave="guard">__APP_NAME__</iframe>',
             "cloud.js": "__CLOUD_BINDINGS__ __CLOUD_WASM__", "tokens.css": "tokens",
             "craft-shell.css": "shell", "craft-shell.js": "shell", "workspace-context.js": "context", "craft-loading.js": "loader", "craft-wasm.js": "wasm-loader", "style.css": "style", "i18n.js": "locale", "translations.js": 'window.SubnetEnglish = {"Ava tööruum":"Open workspace"};' ,
@@ -72,8 +71,8 @@ class ScopedWorkflowTest(unittest.TestCase):
             self.assemble()
         self.assertEqual((self.root / "dist/style.css").read_text(), "new style")
         landing = (self.root / "dist/index.html").read_text()
-        workspace = (self.root / "dist/pilveruum/index.html").read_text()
-        self.assertIn('href="/pilveruum/"', landing)
+        workspace = (self.root / "dist/index.html").read_text()
+        self.assertIn('href="https://cloud.subnet.ee/"', landing)
         self.assertIn('href="/apps/photocraft/"', landing)
         self.assertNotIn('<!-- LANDING_CARDS -->', landing)
         self.assertNotIn('<!-- APP_CARDS -->', workspace)
@@ -93,6 +92,16 @@ class ScopedWorkflowTest(unittest.TestCase):
         headers = (self.root / "dist/_headers").read_text()
         self.assertIn("/.well-known/ic-architecture\n  Content-Type: application/json", headers)
         self.assertIn("/.well-known/ii-derivation-origin\n  Content-Type: text/plain", headers)
+
+    def test_root_contains_inert_localized_cloud_surface_and_no_legacy_entry_files(self):
+        for prefix in ("", "en/"):
+            page = (self.root / "dist" / prefix / "index.html").read_text()
+            self.assertIn('<template id="subnet-cloud-body">', page)
+            self.assertIn('src="/site-entry.js"', page)
+            self.assertIn(f'https://cloud.subnet.ee/{prefix}', page)
+            self.assertLess(page.index('src="/site-entry.js"'), page.index('src="/translations.js"'))
+        for path in ("workspace.html", "pilveruum", "tooruum", "en/pilveruum", "en/tooruum", "legacy-drive.js"):
+            self.assertFalse((self.root / "dist" / path).exists(), path)
 
     def test_one_app_replaces_only_its_artifact_and_keeps_portal_runtime(self):
         old_grid = self.manifest()['apps'][1]

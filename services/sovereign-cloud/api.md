@@ -14,7 +14,7 @@ Every file, folder, shortcut, personal space and team space has one UUID v4 iden
 and JSON carry it as text; stable indexes use the same UUID's sixteen bytes.
 There is no numeric alias or separate public ID. Revisions, uploads, grants and
 activity events have their own numeric sequence IDs and must not be used as file
-IDs. Links use `/pilveruum/file/<uuid>` or `/pilveruum/folder/<uuid>` (with an
+IDs. Links use `/file/<uuid>` or `/folder/<uuid>` (with an
 optional `/en` locale prefix); the UUID is an address, never a permission.
 
 All accounts currently use one configured canister. Ownership remains in the

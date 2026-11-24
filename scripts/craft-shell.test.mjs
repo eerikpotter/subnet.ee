@@ -144,9 +144,9 @@ test("English unsaved-work prompts keep the same cancellation and leave guard", 
 });
 
 test('return context is validated and used by both shell links',()=>{
- const h=host('true','?workspace_return='+encodeURIComponent('/pilveruum/#search?q=plans'));
- h.click('files');h.answer('leave');assert.deepEqual(h.locations,['/pilveruum/#search?q=plans']);
- const external=host('false','?workspace_return=https://evil.test/pilveruum/');assert.equal(external.files.href,'https://subnet.ee/#failid');
+ const h=host('true','?workspace_return='+encodeURIComponent('/#search?q=plans'));
+ h.click('files');h.answer('leave');assert.deepEqual(h.locations,['/#search?q=plans']);
+ const external=host('false','?workspace_return=https://evil.test/');assert.equal(external.files.href,'https://subnet.ee/#failid');
 });
 test('only explicit confirmation suppresses the child unload guard',()=>{
  const h=host('true');let checks=0;

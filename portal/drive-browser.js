@@ -2,11 +2,11 @@
 export const OBJECT_UUID='[0-9a-f]{8}-[0-9a-f]{4}-4[0-9a-f]{3}-[89ab][0-9a-f]{3}-[0-9a-f]{12}';
 export function driveRoute(location) {
   if(location.hash)return location.hash;
-  const match=new RegExp(`^/(?:en/)?pilveruum/(file|folder)/(${OBJECT_UUID})/?$`,'i').exec(location.pathname);
+  const match=new RegExp(`^/(?:en/)?(file|folder)/(${OBJECT_UUID})/?$`,'i').exec(location.pathname);
   return match?`#${match[1]}/${match[2].toLowerCase()}`:'';
 }
-export function driveHref(route,pathname=globalThis.location?.pathname||'/pilveruum/') {
-  const base=pathname.startsWith('/en/')?'/en/pilveruum/':'/pilveruum/';
+export function driveHref(route,pathname=globalThis.location?.pathname||'/') {
+  const base=pathname.startsWith('/en/')?'/en/':'/';
   const match=new RegExp(`^#(file|folder)/(${OBJECT_UUID})$`,'i').exec(route);
   return match?`${base}${match[1]}/${match[2].toLowerCase()}`:base+route;
 }

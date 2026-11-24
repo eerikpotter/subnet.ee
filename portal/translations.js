@@ -770,7 +770,7 @@ window.SubnetEnglish = {
   "Ühenda oma MCP-toega assistent ja tööta pilvefailidega vestluse kaudu.": "Connect your MCP-compatible assistant to work with your cloud files through conversation.",
   "Lisa assistendi seadetes MCP-ühendus selle aadressiga:": "Add an MCP connection in your assistant’s settings using this address:",
   "Logi sisse valitud Internet Identityga. Vali „Questions only“ ainult lugemiseks või „Actions & questions“, et lubada ka toiminguid.": "Sign in with your chosen Internet Identity. Choose “Questions only” for read-only access or “Actions & questions” to allow actions too.",
-  "Anna assistendile aadress https://www.subnet.ee ja kirjelda oma ülesannet.": "Give your assistant https://www.subnet.ee and describe your task.",
+  "Anna assistendile aadress https://cloud.subnet.ee ja kirjelda oma ülesannet.": "Give your assistant https://cloud.subnet.ee and describe your task.",
   "Soovitatav · valitud kaustad": "Recommended · selected folders",
   "Eraldi identiteet agendile": "A separate identity for your agent",
   "Eraldi identiteedi seadistamine": "Set up a separate identity",

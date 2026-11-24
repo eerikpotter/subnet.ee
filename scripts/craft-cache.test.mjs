@@ -109,7 +109,7 @@ test("cleared and partially evicted caches choose latest, never download old ser
 test("cloud/private URLs and unknown cached assets are never served or fetched by the cache", async () => {
   const f = fixture(); const a = f.publish("1.0"); await f.store.install(a);
   f.requests.length = 0;
-  for (const url of ["/api/v3/canister/x/call", "/pilveruum/?pick=open", "/apps/wordcraft/release.json", `/apps/wordcraft/_cached/${a.build}/missing.js`, `/apps/wordcraft/_cached/${a.build}/_complete.json`]) {
+  for (const url of ["/api/v3/canister/x/call", "/?pick=open", "/apps/wordcraft/release.json", `/apps/wordcraft/_cached/${a.build}/missing.js`, `/apps/wordcraft/_cached/${a.build}/_complete.json`]) {
     assert.equal(await f.store.serve(origin + url), null);
   }
   assert.equal(await f.store.serve("https://elsewhere.test" + launchURL(a)), null);

@@ -8,24 +8,24 @@ const file='01234567-89ab-4cde-8fab-0123456789ab';
 const folder='aaaaaaaa-bbbb-4ccc-8ddd-eeeeeeeeeeee';
 test('UUID links retain identity on a fresh load, reload and language change',()=>{
   for(const locale of ['', '/en']) {
-    const url=new URL(`https://subnet.ee${locale}/pilveruum/file/${file}`);
+    const url=new URL(`https://subnet.ee${locale}/file/${file}`);
     assert.equal(driveRoute(url),`#file/${file}`);
     assert.equal(canonicalDriveLocation(url),url.pathname);
     assert.deepEqual(browseRoute(driveRoute(url),folder,'alice',defaultPreferences()).query.id,file);
-    assert.equal(driveHref(`#folder/${folder}`,url.pathname),`${locale}/pilveruum/folder/${folder}`);
+    assert.equal(driveHref(`#folder/${folder}`,url.pathname),`${locale}/folder/${folder}`);
   }
 });
 test('view navigation leaves the file path and preserves picker parameters',()=>{
-  const url=new URL(`https://subnet.ee/pilveruum/file/${file}?picker=open#hiljutised`);
-  assert.equal(canonicalDriveLocation(url),'/pilveruum/?picker=open#hiljutised');
+  const url=new URL(`https://subnet.ee/file/${file}?picker=open#hiljutised`);
+  assert.equal(canonicalDriveLocation(url),'/?picker=open#hiljutised');
   url.hash=`#folder/${folder}`;
-  assert.equal(canonicalDriveLocation(url),`/pilveruum/folder/${folder}?picker=open`);
+  assert.equal(canonicalDriveLocation(url),`/folder/${folder}?picker=open`);
 });
 test('copies and ownership are not encoded into the address',()=>{
-  assert.equal(driveHref(`#file/${file}`,'/pilveruum/'),`/pilveruum/file/${file}`);
+  assert.equal(driveHref(`#file/${file}`,'/'),`/file/${file}`);
   const copied='fedcba98-7654-4321-8abc-fedcba987654';
   assert.notEqual(driveHref(`#file/${file}`),driveHref(`#file/${copied}`));
-  assert.equal(driveRoute(new URL('https://subnet.ee/pilveruum/file/8')),'');
+  assert.equal(driveRoute(new URL('https://subnet.ee/file/8')),'');
 });
 
 

@@ -3,7 +3,7 @@ export function workspaceReturn(value, origin) {
   if (!value || value.length > 4096) return null;
   try {
     const url = new URL(value, origin);
-    if (url.origin !== origin || !/^\/(?:en\/)?pilveruum\/(?:$|(?:file|folder)\/[a-f0-9-]+$)/i.test(url.pathname)) return null;
+    if (url.origin !== origin || !/^\/(?:en\/)?(?:$|(?:file|folder)\/[a-f0-9-]+$)/i.test(url.pathname)) return null;
     if (url.searchParams.has('picker')) return null;
     return url.pathname + url.search + url.hash;
   } catch { return null; }

@@ -335,7 +335,7 @@ impl<M: Memory> Store<M> {
             to: vec![c.email.clone()],
             subject: "Kinnita oma Subneti e-post / Verify your Subnet email".into(),
             text: format!(
-                "Sinu Subneti kinnituskood / Your Subnet verification code: {code}\n\nKood kehtib 10 minutit. Ava allolev link, vali „Jätka e-posti kinnitamist” ja sisesta kood samal Subneti kontol, kus kinnitamist alustasid. See ei muuda sinu Internet Identity kontot.\n\nOpen the link below, choose ‘Continue email verification’ and enter the code on the Subnet account where you requested it. It expires in 10 minutes and does not change your Internet Identity. If you did not request this, ignore this message.\n\n{}/pilveruum/#email",
+                "Sinu Subneti kinnituskood / Your Subnet verification code: {code}\n\nKood kehtib 10 minutit. Ava allolev link, vali „Jätka e-posti kinnitamist” ja sisesta kood samal Subneti kontol, kus kinnitamist alustasid. See ei muuda sinu Internet Identity kontot.\n\nOpen the link below, choose ‘Continue email verification’ and enter the code on the Subnet account where you requested it. It expires in 10 minutes and does not change your Internet Identity. If you did not request this, ignore this message.\n\n{}/#email",
                 config.origin
             ),
         };
@@ -527,7 +527,7 @@ impl<M: Memory> Store<M> {
             to: vec![email],
             subject: "Sinuga jagati Subnetis / Shared with you on Subnet".into(),
             text: format!(
-                "Sinuga jagati Subneti pilveruumis faili või kausta.\nA file or folder was shared with you on Subnet.\n\n{}/pilveruum/{route}\n\nLogi sisse Internet Identityga. Link ise ligipääsu ei anna.\nSign in with Internet Identity. Forwarding this link does not grant access.",
+                "Sinuga jagati Subneti pilveruumis faili või kausta.\nA file or folder was shared with you on Subnet.\n\n{}/{route}\n\nLogi sisse Internet Identityga. Link ise ligipääsu ei anna.\nSign in with Internet Identity. Forwarding this link does not grant access.",
                 config.origin
             ),
         };

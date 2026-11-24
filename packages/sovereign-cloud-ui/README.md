@@ -14,7 +14,7 @@ The ICP mark is attributed in `assets/icp/README.md`; its Apache-2.0 license is 
 beside it. This package's source is MIT OR Apache-2.0.
 
 
-Open and Save As embed the same-origin `/pilveruum/` drive in selection mode.
+Open and Save As embed the same-origin `/` (Estonian) or `/en/` (English) drive in selection mode.
 The frame shows personal/shared folders and the current application's native files,
 with light/dark styling selected by the editor. It returns only an account marker
 and stable file/folder IDs plus the chosen name, through an origin-, frame- and

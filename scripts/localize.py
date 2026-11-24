@@ -35,10 +35,13 @@ def translated(source, english):
 
 def localized_link(value, language):
     url = urlsplit(value)
-    if url.scheme or url.netloc or not value.startswith("/"):
+    external = bool(url.scheme or url.netloc)
+    if external and (url.scheme, url.netloc) not in (("https", "cloud.subnet.ee"), ("https", "www.subnet.ee")):
+        return value
+    if not external and not value.startswith("/"):
         return value
     path = re.sub(r"^/en/", "/", url.path)
-    if path not in ("/", "/tooruum/", "/pilveruum/") and not re.fullmatch(r"/apps/[a-z]+/", path):
+    if path not in ("/",) and not re.fullmatch(r"/apps/[a-z]+/", path):
         return value
     params = [(k, v) for k, v in parse_qsl(url.query, keep_blank_values=True) if k != "lang"]
     if path.startswith("/apps/"):
@@ -46,7 +49,7 @@ def localized_link(value, language):
             params.append(("lang", "en"))
     elif language == "en":
         path = "/en" + path
-    return urlunsplit(("", "", path, urlencode(params), url.fragment))
+    return urlunsplit((url.scheme, url.netloc, path, urlencode(params), url.fragment))
 
 
 class Element:

@@ -70,7 +70,7 @@ def configure(options):
         if not options.canister:
             raise RuntimeError('A remote target requires an explicit backend --canister ID.')
         gateway, root_key, canister = options.network, 'mainnet', options.canister
-        origin = 'https://www.subnet.ee'
+        origin = 'https://cloud.subnet.ee'
         target = ['--network', gateway, '--root-key', root_key]
     else:
         network = json.loads(run(['network', 'status', 'local', '--json'], project))

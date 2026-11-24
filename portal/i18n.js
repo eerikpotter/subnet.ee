@@ -2,7 +2,7 @@
 (() => {
   const key = 'subnet.language';
   const supported = value => value === 'et' || value === 'en';
-  const publicPath = path => /^\/(?:en\/)?(?:(?:tooruum|pilveruum)\/)?$/.test(path) || /^\/(?:en\/)?pilveruum\/(?:file|folder)\/[0-9a-f-]{36}\/?$/i.test(path);
+  const publicPath = path => /^\/(?:en\/)?$/.test(path) || /^\/(?:en\/)?(?:file|folder)\/[0-9a-f-]{36}\/?$/i.test(path);
   const english = window.SubnetEnglish;
   const dynamic = new WeakMap();
   let language;
@@ -40,7 +40,8 @@
   }
   function href(value, targetLanguage = language) {
     const url = new URL(value, window.location.href);
-    if (url.origin !== window.location.origin) return value;
+    const external = url.origin !== window.location.origin;
+    if (external && !['https://cloud.subnet.ee', 'https://www.subnet.ee'].includes(url.origin)) return value;
     const choice = supported(targetLanguage) ? targetLanguage : language;
     if (publicPath(url.pathname)) {
       const base = url.pathname.replace(/^\/en\//, '/');
@@ -49,7 +50,7 @@
     } else if (/^\/apps\/[a-z]+\/$/.test(url.pathname)) {
       url.searchParams.set('lang', choice);
     } else return value; // Never change editor assets or external URLs.
-    return `${url.pathname}${url.search}${url.hash}`;
+    return `${external ? url.origin : ''}${url.pathname}${url.search}${url.hash}`;
   }
   // Dynamic status/formatting stays tied to existing DOM and account state.
   function bind(element, render) {
@@ -128,6 +129,9 @@
   window.addEventListener('hashchange', () => {
     for (const link of document.querySelectorAll('a[data-language]')) link.setAttribute('href', href(window.location.href, link.getAttribute('data-language')));
   });
-  if (document.readyState === 'loading') document.addEventListener('DOMContentLoaded', start, { once: true });
+  // Deferred scripts run while readyState is interactive. The shared root must
+  // select its hostname's body before we translate it or normalize ?lang= links.
+  const pendingSurface = document.documentElement.dataset?.subnetSite && document.documentElement.dataset.subnetReady === undefined;
+  if (document.readyState === 'loading' || pendingSurface) document.addEventListener('DOMContentLoaded', start, { once: true });
   else start();
 })();

@@ -1,4 +1,4 @@
-/pilveruum/file/* /pilveruum/index.html 200
-/pilveruum/folder/* /pilveruum/index.html 200
-/en/pilveruum/file/* /en/pilveruum/index.html 200
-/en/pilveruum/folder/* /en/pilveruum/index.html 200
+/file/* /index.html 200
+/folder/* /index.html 200
+/en/file/* /en/index.html 200
+/en/folder/* /en/index.html 200

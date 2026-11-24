@@ -9,7 +9,9 @@ files across the workspace.
 
 The demo brings together PhotoCraft, PdfCraft, WordCraft, DeckCraft, SoundCraft,
 CADCraft, GridCraft and FigCraft for images, PDFs, documents, slides, audio, drawings,
-spreadsheets and interface design. The portal is available in Estonian and English.
+spreadsheets and interface design. The public site is at [www.subnet.ee](https://www.subnet.ee/); the cloud space
+is configured for [cloud.subnet.ee](https://cloud.subnet.ee/). Both are available
+in Estonian and English. See deployment notes for rollout status.
 
 ## How it works
 

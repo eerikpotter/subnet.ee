@@ -48,7 +48,7 @@ folders.
    shared access, or your own identity for your account's full access.
 3. Choose a session duration and access level: **Questions only** for read-only
    queries, or **Actions & questions** to allow update calls too.
-4. Give the assistant the application URL, `https://www.subnet.ee`, and the task.
+4. Give the assistant the application URL, `https://cloud.subnet.ee`, and the task.
 
 **Current Subnet limitation:** file listings and metadata reads use update calls
 so their results come from network consensus, even when the method only reads
@@ -60,7 +60,7 @@ current API, rather than a general requirement for reading through ICP MCP.
 
 An initial demo prompt:
 
-> Open https://www.subnet.ee and read its API documentation. Show my Subnet principal
+> Open https://cloud.subnet.ee and read its API documentation. Show my Subnet principal
 > so I can compare it with the account ID I shared with. List the folders shared
 > with this account and their permissions.
 

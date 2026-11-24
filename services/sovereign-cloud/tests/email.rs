@@ -17,7 +17,7 @@ fn request_mail(pic: &PocketIc, id: Principal, caller: Principal, email: &str, r
         pic.submit_call(id, caller, "email_request", encode_args((EmailRequest { email: email.into(), request_id: request.into() },)).unwrap()).unwrap();
     let payload = deliver(pic, email);
     let text = payload["text"].as_str().unwrap();
-    assert!(text.contains("https://www.subnet.ee/pilveruum/#email"));
+    assert!(text.contains("https://cloud.subnet.ee/#email"));
     let code = text.split_whitespace().find(|s| s.len() == 8 && s.bytes().all(|b| b.is_ascii_digit())).unwrap().to_string();
     let profile = decode_one::<CloudResult<EmailProfile>>(&pic.await_call(message).unwrap()).unwrap().unwrap();
     assert_eq!(profile.pending.as_ref().unwrap().delivery, DeliveryStatus::Accepted);
@@ -81,7 +81,7 @@ fn upgrade_preserves_files_and_new_email_state_with_actual_outcall_contract() {
             environment_variables: Some(vec![
                 EnvironmentVariable { name: "RESEND_API_KEY".into(), value: format!("re_{}", "test".repeat(8)) },
                 EnvironmentVariable { name: "SUBNET_MAIL_FROM".into(), value: "subnet.ee <info@subnet.ee>".into() },
-                EnvironmentVariable { name: "SUBNET_MAIL_ORIGIN".into(), value: "https://www.subnet.ee".into() },
+                EnvironmentVariable { name: "SUBNET_MAIL_ORIGIN".into(), value: "https://cloud.subnet.ee".into() },
             ]),
             ..Default::default()
         },
@@ -115,7 +115,7 @@ fn only_controller_can_read_rotate_or_remove_canister_mail_settings() {
         vec![
             EnvironmentVariable { name: "RESEND_API_KEY".into(), value: key.into() },
             EnvironmentVariable { name: "SUBNET_MAIL_FROM".into(), value: "subnet.ee <info@subnet.ee>".into() },
-            EnvironmentVariable { name: "SUBNET_MAIL_ORIGIN".into(), value: "https://www.subnet.ee".into() },
+            EnvironmentVariable { name: "SUBNET_MAIL_ORIGIN".into(), value: "https://cloud.subnet.ee".into() },
         ]
     };
     let first = format!("re_{}", "dummy".repeat(6));
@@ -157,7 +157,7 @@ fn email_sharing_acceptance_revocation_and_address_transfer_use_principal_permis
             environment_variables: Some(vec![
                 EnvironmentVariable { name: "RESEND_API_KEY".into(), value: format!("re_{}", "test".repeat(8)) },
                 EnvironmentVariable { name: "SUBNET_MAIL_FROM".into(), value: "subnet.ee <info@subnet.ee>".into() },
-                EnvironmentVariable { name: "SUBNET_MAIL_ORIGIN".into(), value: "https://www.subnet.ee".into() },
+                EnvironmentVariable { name: "SUBNET_MAIL_ORIGIN".into(), value: "https://cloud.subnet.ee".into() },
             ]),
             ..Default::default()
         },
@@ -204,12 +204,12 @@ fn email_sharing_acceptance_revocation_and_address_transfer_use_principal_permis
     };
     let (known, text) = share("reader@example.com", EmailRole::Viewer, "share-known-reader");
     assert!(known.accepted);
-    assert!(text.contains(&format!("/pilveruum/file/{object}")));
+    assert!(text.contains(&format!("/file/{object}")));
     let readable: DriveResult<DriveEntry> = call(&pic, id, reader, "drive_get", (object,));
     assert_eq!(readable.unwrap().capabilities, Capabilities::READ);
     let (pending, text) = share("new@example.com", EmailRole::Editor, "share-new-reader");
     assert!(!pending.accepted);
-    assert!(text.contains(&format!("/pilveruum/#invite/{}", pending.id)));
+    assert!(text.contains(&format!("/#invite/{}", pending.id)));
     for user in [reader, newcomer] {
         let denied: CloudResult<sovereign_cloud::ObjectId> = call(&pic, id, user, "email_accept", (pending.id,));
         assert!(denied.is_err());

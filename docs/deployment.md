@@ -49,6 +49,13 @@ secrets to source. If deployment settings are deliberately reapplied, configure
 mail afterwards through the private controller and verify redacted status. See
 [the credential workflow](development.md#canister-held-email-credentials).
 
+Check upgrade headroom as well as the freezing reserve. A balance that restores
+ordinary requests can still be insufficient for `install_code`: on 27 October,
+the backend's roughly 0.19T above its 1.48T freezing reserve was insufficient,
+and the network requested another 0.13T for the upgrade. The rejected upgrade
+retained the previous module and state. Obtain approval for additional funding
+instead of reducing the freezing threshold, then retry the code-only upgrade.
+
 ### CycleOps monitor and mail secrets
 
 Requirement: configure the backend-held Resend key through its owner while
@@ -95,7 +102,67 @@ Candid and `get_api_doc` describe the same implemented API. This source change h
 been deployed to production on 2026-10-14. See [MCP setup and alpha permissions](mcp.md) and
 [validation status](collaboration-progress.md).
 
-## Custom domain: `www.subnet.ee`
+## Custom domains: `www.subnet.ee` and `cloud.subnet.ee`
+
+Domain split decision (27 October 2026; implemented and published): the
+public site opens at `https://www.subnet.ee/`; the workspace and editors open at
+`https://cloud.subnet.ee/`. The old `/pilveruum/`, `/tooruum/` and `/cloud/`
+entry routes are removed, with no migration or redirect. `/cloud/<fingerprint>`
+remains an internal Wasm/JS asset directory, not an application page.
+
+Requirement: separate browser addresses without changing accounts or storage.
+Skills retrieved on 27 October 2026:
+[custom-domains](https://skills.internetcomputer.org/.well-known/skills/custom-domains/SKILL.md),
+[static-site](https://skills.internetcomputer.org/.well-known/skills/static-site/SKILL.md),
+[internet-identity](https://skills.internetcomputer.org/.well-known/skills/internet-identity/SKILL.md),
+[icp-cli](https://skills.internetcomputer.org/.well-known/skills/icp-cli/SKILL.md),
+its [environment-variable reference](https://skills.internetcomputer.org/.well-known/skills/icp-cli/references/canister-env-vars.md),
+and [canister-security](https://skills.internetcomputer.org/.well-known/skills/canister-security/SKILL.md).
+The standard supported integration maps multiple domains to the existing certified
+static-site canister, pins the existing II derivation origin, and authorizes the
+new alternative origin. The static-site routing contract is path based; DNS maps
+a hostname to a canister, not to a path. The smallest extension is a hostname
+entry script selecting one of two authored, localized surfaces in the certified
+root document. It runs before i18n initialization and starts only that surface's
+scripts. This is presentation selection, never an authorization boundary.
+
+Tradeoff: the cloud UI requires JavaScript (as does its existing Wasm client);
+the public landing remains prerendered. Both hostnames serve the same certified
+root bytes. A second static-site canister would provide independent no-JS root
+documents, but adds deployment, funding and asset duplication without a current
+requirement. No proxy, custom server, auth service or dependency is added.
+The local `*.localhost` and certified canister URLs open the workspace for testing.
+Proof scope: hostname activation, both languages, deep links, editor return paths,
+old-route 404s, unchanged derivation origin and generated email links. Live DNS,
+registration, TLS, both browser surfaces and deployed payload checks passed on
+27 October. The owner also confirmed successful Internet Identity sign-in at
+`cloud.subnet.ee` and that the existing files remain visible. The domain switch
+is fully verified within this scope.
+
+In the `subnet.ee` DNS zone, add (TTL 3600; DNS only if a proxy option exists):
+
+```text
+CNAME  cloud                  cloud.subnet.ee.icp1.io
+TXT    _canister-id.cloud      vigkv-fqaaa-aaaac-bgeha-cai
+CNAME  _acme-challenge.cloud   _acme-challenge.cloud.subnet.ee.icp2.io
+```
+
+Keep the existing `www` records. Publish the frontend after DNS is ready, then
+validate and register the new domain:
+
+```sh
+curl -sS https://icp.net/custom-domains/v1/cloud.subnet.ee/validate
+curl -sS -X POST https://icp.net/custom-domains/v1/cloud.subnet.ee
+curl -sS https://icp.net/custom-domains/v1/cloud.subnet.ee
+```
+
+Wait for `registration_status: registered` and verify TLS, both root surfaces,
+deep links, and sign-in before declaring the switch live. The gateway provisions
+and renews TLS. The frontend includes both domain ownership and II alternative
+origin entries. Also upgrade the backend's email link code and update only its
+`SUBNET_MAIL_ORIGIN` setting to `https://cloud.subnet.ee` using the authenticated
+controller. Preserve the other backend settings, including the provider secret;
+do not use broad `icp deploy` for that upgrade.
 
 The public origin is `https://www.subnet.ee`; Zone provides the apex
 `subnet.ee` → `https://www.subnet.ee/` 301 redirect, including HTTPS.
@@ -111,7 +178,8 @@ Mainnet-only settings in `icp.yaml` expose `PUBLIC_SOVEREIGN_CLOUD_GATEWAY`
 `ic_env` cookie: only `PUBLIC_*` canister settings are exposed by this frontend.
 The derivation origin is sent only from alternative origins; the official
 canister gateway aliases retain their existing identity behavior.
-`portal/.well-known/ii-alternative-origins` authorizes `https://www.subnet.ee`
+`portal/.well-known/ii-alternative-origins` authorizes both `https://www.subnet.ee`
+and `https://cloud.subnet.ee`
 with JSON/CORS response headers, preserving accounts from this frontend's trial.
 Accounts belonging to the old, replaced canister are not migrated by DNS.
 

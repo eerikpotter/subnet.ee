@@ -10,7 +10,7 @@ fn setup() -> Store<VectorMemory> {
     s.email_configure(Some(MailConfig {
         api_key: format!("re_{}", "test".repeat(8)),
         from: "subnet.ee <info@subnet.ee>".into(),
-        origin: "https://www.subnet.ee".into(),
+        origin: "https://cloud.subnet.ee".into(),
     }))
     .unwrap();
     for n in 1..=3 {
@@ -149,7 +149,7 @@ fn stable_reopen_keeps_contacts_challenges_invitations_and_uncertain_delivery() 
     s.email_configure(Some(MailConfig {
         api_key: format!("re_{}", "test".repeat(8)),
         from: "subnet.ee <info@subnet.ee>".into(),
-        origin: "https://www.subnet.ee".into(),
+        origin: "https://cloud.subnet.ee".into(),
     }))
     .unwrap();
     s.drive_initialize(user(1), 1).unwrap();
@@ -161,7 +161,7 @@ fn stable_reopen_keeps_contacts_challenges_invitations_and_uncertain_delivery() 
     s.email_configure(Some(MailConfig {
         api_key: format!("re_{}", "test".repeat(8)),
         from: "subnet.ee <info@subnet.ee>".into(),
-        origin: "https://www.subnet.ee".into(),
+        origin: "https://cloud.subnet.ee".into(),
     }))
     .unwrap();
     assert_eq!(s.email.emails(user(1)).unwrap(), vec!["owner@example.com"]);

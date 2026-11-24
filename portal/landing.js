@@ -1,12 +1,5 @@
 const { t } = window.SubnetI18n;
-/* The public page loads only lightweight navigation; account/Wasm lives in /pilveruum/. */
-const oldWorkspaceHashes = new Set(['#failid', '#rakendused']);
-function followLegacyLink() {
-  if (oldWorkspaceHashes.has(location.hash)) location.replace(window.SubnetI18n.href(`/pilveruum/${location.search}${location.hash}`));
-}
-followLegacyLink();
-window.addEventListener('hashchange', followLegacyLink);
-
+/* Public-site navigation; the cloud runtime only starts on the cloud origin. */
 const menuToggle = document.querySelector('.menu-toggle');
 const navigation = document.getElementById('main-nav');
 function closeMenu() {

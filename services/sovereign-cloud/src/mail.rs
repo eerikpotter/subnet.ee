@@ -33,7 +33,7 @@ impl MailConfig {
         let local = self.origin.strip_prefix("http://").and_then(|s| s.rsplit_once(':')).is_some_and(|(host, port)| {
             host.ends_with(".localhost") && host.bytes().all(|b| b.is_ascii_alphanumeric() || b".-".contains(&b)) && port.parse::<u16>().is_ok_and(|p| p > 0)
         });
-        if self.origin != "https://www.subnet.ee" && !local {
+        if self.origin != "https://cloud.subnet.ee" && !local {
             return Err("Invalid application origin".into());
         }
         Ok(())
@@ -91,6 +91,22 @@ pub fn classify(status: u16, body: &[u8]) -> DeliveryStatus {
 #[cfg(test)]
 mod tests {
     use super::*;
+    #[test]
+    fn mail_links_allow_only_the_cloud_origin_or_local_development() {
+        let mut config =
+            MailConfig { api_key: format!("re_{}", "test".repeat(8)), from: "subnet.ee <info@subnet.ee>".into(), origin: "https://cloud.subnet.ee".into() };
+        assert!(config.validate().is_ok());
+        for origin in [
+            "http://frontend.local.localhost:61304",
+            "https://www.subnet.ee",
+            "https://cloud.subnet.ee.evil.test",
+            "http://cloud.subnet.ee",
+            "https://cloud.subnet.ee/path",
+        ] {
+            config.origin = origin.into();
+            assert_eq!(config.validate().is_ok(), origin.starts_with("http://frontend.local.localhost:"));
+        }
+    }
     #[test]
     fn delivery_outcomes_do_not_confuse_acceptance_with_delivery_or_retry_bad_payloads() {
         assert_eq!(classify(200, br#"{"id":"message"}"#), DeliveryStatus::Accepted);

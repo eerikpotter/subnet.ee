@@ -2,6 +2,101 @@
 
 [Project overview](../README.md) · [Development](development.md) · [Deployment](deployment.md)
 
+## Cloud subdomain and root workspace — 27 October 2026
+
+Implemented `cloud.subnet.ee/` as the workspace entry point and kept the public
+landing at `www.subnet.ee/`, using the existing frontend canister. Removed the old
+`/pilveruum/`, `/tooruum/` and `/cloud/` entry routes without redirects. Both
+languages, file/folder deep links, editor return paths, landing CTAs, picker frames
+and generated mail links use the new location. The II derivation origin is pinned
+unchanged; the alternative-origin and domain-ownership manifests include cloud.
+The requirement, consulted skills, supported approach, tradeoffs and exact DNS
+records are in [the domain decision](deployment.md#custom-domains-wwwsubnetee-and-cloudsubnetee).
+
+The only editor source change is the shared picker root URL. Synchronized just
+`sovereign-cloud-ui` through `sync-sdk.py`'s `sync_package` function into all eight
+forks; retained each fork's existing `sovereign-cloud` SDK snapshot. Editor hooks,
+document serialization and lifecycle did not change. The root source base is
+`0e6504619d6cb397f27006f6a752835b8ffbdd00`; source changes were uncommitted at the
+27 October rollout. They were preserved in separate commits on 24 November before
+the next Craft upstream refresh.
+
+Focused validation passed: 20 hostname/locale/deep-link/return tests, 11 assembly
+workflow tests, four localization tests, eight mail provisioner tests, 15 shared
+UI tests, all eight release browser builds with their pinned SDKs, 13 backend
+mail/email unit tests, and all three Wasm email integration tests. The latter use
+the official October PocketIC launcher with mocked provider
+responses. The generic 16.0.0 test binary did not emit HTTP v2 requests, as already
+documented; using the compatible launcher resolved the harness failures without
+changing the transport. The broader 173-test portal/shell run had two existing F2
+selection-range failures, reproduced on untouched HEAD in an isolated fixture.
+The new deferred-language regression was added afterwards and passes: i18n waits
+until hostname selection inserts the workspace even when deferred scripts execute
+at `readyState=interactive`.
+
+Upgraded the local backend with the code-only install command; redacted status
+confirmed mail settings remain configured. The built module SHA-256 is
+`bc1e7337cb07adb322e9879828da2d9c5261b1081d3968e2b968ab4c84b20121`.
+No real email was sent. Evidence logs are `.local/cloud-domain-*.log`.
+
+Browser checks confirmed both hostname surfaces and languages, the root
+`?lang=en` normalization, and a fresh UUID deep-link load/reload. The rebuilt
+WordCraft opened its same-origin `/en/?picker=open` workspace with a disposable
+local account and a loaded folder listing; its return link opened `/en/#failid`.
+The named local hostname initially reported conflicting environment cookies in
+the picker. On the canister-ID hostname, an old cached WordCraft bundle first
+requested the removed URL; the app's normal Update/Open updated version flow
+selected build `52d0915d` and the new picker then worked. No cookie trust check
+was relaxed. Existing local browser caches are distinct from the new production
+cloud origin, which has no previous app cache. These checks do not prove real II
+issuance at the production subdomain.
+
+All eight rebuilt editors reached their browser first-frame marker; WordCraft
+was checked through its wrapper and the other seven via their served editor
+documents. `python3 scripts/verify.py all` passed the deployed payload hashes,
+trust headers/manifests, deep links and removed-route 404s. Final local frontend
+state hash: `c1ab0bcfb497bee70b7f9a1f2751b0c9e1ebb38548f614313d21393163957cea`.
+The temporary browser fixture was removed from the deployed artifact and both
+test-origin sessions were signed out. No new cloud document was saved.
+
+Production rollout was authorized after the user added the DNS records. The
+gateway validated DNS and initially rejected only the not-yet-published ownership
+manifest. Refreshed the existing owner session through Internet Identity. Also
+consulted the current `cycles-management` and `stable-memory` skills before release.
+The installed backend matched the previous release's `4517275c…581cdb4` module.
+
+Preflight found the backend below its freezing reserve and frontend upload
+headroom too low. With explicit user approval, minted 1.3T cycles and deposited
+0.5T to cloud and 0.8T to frontend. This restored backend operation, but its first
+code upgrade was rejected for another 0.13T of required headroom; the previous
+module remained Running. With a second explicit approval, minted and deposited
+another 1T to cloud. No freezing threshold or controller was changed.
+The code-only retry succeeded and the live backend hash is the tested
+`bc1e7337cb07adb322e9879828da2d9c5261b1081d3968e2b968ab4c84b20121`.
+Updated only `SUBNET_MAIL_ORIGIN` to `https://cloud.subnet.ee`; comparison before
+and after confirmed the provider key and every other setting were preserved.
+Redacted evidence is in `.local/releases/2026-10-27-cloud-domain/`.
+
+Frontend sync completed with 457 assets and the nonzero state hash
+`eeae2fd49466e4659df3de94ff5ae13a35df0782a78a6ab821f59deecd078f32`, confirmed
+again by the consensus-backed `state_hash` call. The registrar validated DNS and
+ownership, accepted registration, and returned `registered`. The first HTTPS
+check still saw the gateway's previous certificate; normal certificate checks
+passed after its configuration propagated. No TLS check was bypassed.
+
+`verify.py all --environment ic --origin https://www.subnet.ee` passed all 343
+published payload checks, all eight editor bundles, trust/cache headers and missing-route
+assertions. Another 27 HTTPS checks on `cloud.subnet.ee` passed root documents in
+both languages, certified metadata, file/folder deep links, all eight editor
+wrappers and old-route 404s. Browser checks confirmed the public ET/EN landing
+stays at `www`, its links target cloud, and cloud opens the workspace in ET/EN
+without console errors. Sign-in reaches the Internet Identity handoff. On
+27 October, the owner confirmed that sign-in at the new origin works and the
+existing files are still visible, completing the domain-switch verification.
+Final status was Running for both canisters: frontend 1.329T cycles against a
+0.757T freezing reserve; cloud 2.443T against a 1.483T reserve. Total approved
+deposits were 0.8T to frontend and 1.5T to cloud.
+
 
 
 ## Git publication and mainnet release — 19 October 2026

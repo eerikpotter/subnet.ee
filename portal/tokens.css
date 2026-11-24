@@ -1,4 +1,5 @@
 /* Shared subnet.ee identity. Fonts and the original mark are served locally. */
+html[data-subnet-site="cloud"]:not([data-subnet-ready]) body { visibility: hidden; }
 @font-face { font-family: Inter; font-style: normal; font-weight: 400; font-display: swap; src: url('/assets/fonts/Inter-Regular.ttf') format('truetype'); }
 @font-face { font-family: Inter; font-style: normal; font-weight: 500; font-display: swap; src: url('/assets/fonts/Inter-Medium.ttf') format('truetype'); }
 @font-face { font-family: Inter; font-style: normal; font-weight: 600; font-display: swap; src: url('/assets/fonts/Inter-SemiBold.ttf') format('truetype'); }
