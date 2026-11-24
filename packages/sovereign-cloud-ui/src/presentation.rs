@@ -241,7 +241,7 @@ pub fn file_row(ui: &mut egui::Ui, id: u64, name: &str, timestamp: &str, add_det
             state.toggle(ui);
             details.mark_changed();
         }
-        details.widget_info(|| egui::WidgetInfo::selected(egui::WidgetType::CollapsingHeader, ui.is_enabled(), state.is_open(), format!("Details for {name}")));
+        details.widget_info(|| egui::WidgetInfo::selected(egui::WidgetType::DisclosureTriangle, ui.is_enabled(), state.is_open(), format!("Details for {name}")));
         let highlighted = state.is_open() || details.has_focus();
         let fill = if details.hovered() {
             t.hover
@@ -297,7 +297,8 @@ mod tests {
             let mut definitions = egui::FontDefinitions::default();
             definitions.families.insert(pending.family.clone(), definitions.families[&egui::FontFamily::Proportional].clone());
             root.ctx().set_fonts(definitions);
-            assert!(!host_fonts_ready(root.ctx()));
+            // egui 0.37 can apply fonts immediately while the atlas is unused.
+            assert!(host_fonts_ready(root.ctx()));
         });
         output.textures_delta.clear();
         let mut output = ctx.run_ui(Default::default(), |root| {
@@ -420,6 +421,9 @@ mod tests {
                     let builder = Harness::builder().with_size(egui::vec2(width, 560.0));
                     let builder = if output.is_some() { builder.wgpu() } else { builder };
                     let mut h = builder.build_ui(|ui| {
+                        egui_extras::install_image_loaders(ui.ctx());
+                        // This standalone layout fixture has no host CJK font provider.
+                        ui.ctx().set_missing_glyph_policy(egui::MissingGlyphPolicy::Tofu);
                         style(ui);
                         header(ui);
                         ui.add_space(8.0);

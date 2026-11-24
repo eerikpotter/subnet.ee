@@ -8,6 +8,7 @@ from pathlib import Path
 import shutil
 import subprocess
 import sys
+from craft_inputs import configure as configure_inputs
 
 ROOT = Path(__file__).resolve().parents[1]
 def build_portal(dev=False):
@@ -43,6 +44,7 @@ def build(app, dev=False):
     env.pop("NO_COLOR", None)
     if not shutil.which("trunk", path=env["PATH"]):
         raise RuntimeError("Install Trunk 0.21.14 or put it in .tools/bin/trunk")
+    configure_inputs(repo, env)
     command = ["trunk", "build", "--locked", "--public-url", "./", "--color", "never"]
     if not dev:
         command.append("--release")
@@ -50,6 +52,11 @@ def build(app, dev=False):
     command.extend(["--features", "icp-cloud"])
     print(f"Building {app}", flush=True)
     subprocess.run(command, cwd=repo / "apps" / f"{app}-web", env=env, check=True)
+    if app == "pdfcraft":
+        # Upstream's web package includes these beside the page. Trunk alone
+        # omits them; the upstream tool verifies model/licence hashes and credits.
+        subprocess.run(["cargo", "run", "--locked", "-p", "xtask", "--", "models", "dist/web/models"],
+                       cwd=repo, env=env, check=True)
 
 if __name__ == "__main__":
     parser = argparse.ArgumentParser(description=__doc__)

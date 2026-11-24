@@ -154,6 +154,25 @@ class ScopedWorkflowTest(unittest.TestCase):
         self.assertFalse((folder / '_cached').exists())
         self.assertEqual((folder / "editor.wasm").read_text(), "replacement")
 
+    def test_worker_package_preserves_worker_urls_and_instruments_only_main_wasm(self):
+        self.put("apps/photocraft/dist/web/ocr-worker.wasm", "worker payload")
+        self.put("apps/photocraft/dist/web/ocr-worker.js", "const url = new URL('./ocr-worker.wasm', import.meta.url);")
+        self.put("apps/photocraft/dist/web/models/text-detection.onnx", "pinned model")
+        with patch.object(assemble.subprocess, "check_output", return_value="with-worker\n"):
+            self.assemble("photocraft")
+        folder = self.root / "dist/apps/photocraft"
+        page = (folder / "editor.html").read_text()
+        self.assertIn('"./editor.wasm"', page)
+        self.assertNotIn("ocr-worker.wasm", page)
+        self.assertEqual((folder / "ocr-worker.wasm").read_text(), "worker payload")
+        self.assertIn("'./ocr-worker.wasm'", (folder / "ocr-worker.js").read_text())
+        release = json.loads((folder / "release.json").read_text())
+        self.assertIn("ocr-worker.wasm", release["assets"])
+        self.assertEqual(release["assets"]["models/text-detection.onnx"]["sha256"], hashlib.sha256(b"pinned model").hexdigest())
+        self.assertIn("/apps/photocraft/models/*\n  Cache-Control: no-cache", (self.root / "dist/_headers").read_text())
+        assemble.instrument_editor(folder)
+        self.assertEqual((folder / "editor.html").read_text(), page)
+
     def test_unknown_bootstrap_fails_without_replacing_the_deployed_bundle(self):
         before = (self.root / "dist/apps.json").read_bytes()
         self.put("apps/photocraft/dist/web/index.html", "<script>unknown_loader()</script>")

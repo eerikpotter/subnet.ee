@@ -52,6 +52,16 @@ Only PhotoCraft is built and its own pinned SDK snapshot checked. Other apps ret
 their existing binaries and source metadata. For a build without deployment, use
 `python3 scripts/build.py photocraft --assemble`; plain `build.py photocraft` only builds.
 After editing the portal Rust facade, use `python3 scripts/dev.py portal --build`.
+Apps with `craft-i18n.rev` require that exact external translation snapshot.
+Setup fetches it once; after advancing app pins, run
+`python3 scripts/prepare-craft-inputs.py all` (or select one app).
+Builds use the cached revision and refuse a missing input rather than silently
+shipping an English-only fallback. An inherited `CRAFT_I18N_DIR` cannot override
+the application's pin. The cache is data under `.local/craft-inputs/`.
+PdfCraft builds also run its upstream `xtask models` packaging step after Trunk.
+This fetches the pinned OCR models and licences, verifies their SHA-256 hashes,
+and includes their attribution in `dist/web/models`; network access is required
+when those files are not already present. The models are served from our origin.
 After focused service checks, upgrade an existing configured backend without
 re-applying environment settings:
 

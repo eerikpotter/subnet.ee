@@ -124,6 +124,10 @@ impl MenuHandle {
     pub fn has_pending(&self) -> bool {
         !self.queue.borrow().is_empty()
     }
+    /// Read by hosts whose menus use a declarative command model.
+    pub fn can_save(&self) -> bool {
+        self.enabled.get()
+    }
     pub fn ui(&self, ui: &mut egui::Ui, has_document: bool) {
         ui.separator();
         presentation::header(ui);
@@ -152,7 +156,10 @@ mod tests {
     #[test]
     fn shared_menu_guards_saves_and_dispatches_all_three_actions() {
         let handle = MenuHandle::new(egui::Context::default());
-        let mut h = Harness::builder().build_ui_state(|ui, has_document| handle.ui(ui, *has_document), false);
+        let mut h = Harness::builder().build_ui_state(|ui, has_document| {
+            egui_extras::install_image_loaders(ui.ctx());
+            handle.ui(ui, *has_document);
+        }, false);
         h.get_by_label("Save").click();
         h.run_steps(3);
         assert!(handle.queue.borrow().is_empty());

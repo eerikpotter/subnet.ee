@@ -3,6 +3,7 @@
 import json
 from pathlib import Path
 import subprocess
+from craft_inputs import prepare
 
 ROOT = Path(__file__).resolve().parents[1]
 if __name__ == "__main__":
@@ -12,4 +13,5 @@ if __name__ == "__main__":
         remotes = subprocess.check_output(["git", "remote"], cwd=repo, text=True).splitlines()
         if "upstream" not in remotes:
             subprocess.run(["git", "remote", "add", "upstream", f"https://github.com/storytold/{app['id']}.git"], cwd=repo, check=True)
+        prepare(repo)
     print("Pinned apps ready. Select/create a branch inside an app before editing it.")

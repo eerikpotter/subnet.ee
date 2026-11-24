@@ -2,6 +2,78 @@
 
 [Project overview](../README.md) · [Development](development.md) · [Deployment](deployment.md)
 
+## Craft fleet refresh — 24 November 2026 (validated; publication pending)
+
+Reviewed the eight upstream repositories and merged their pinned 23–24 November
+heads into the existing ICP integration forks. The previous integrated upstream
+bases date from 18–19 October. Across the eight incoming histories there are
+31,890 commits, 11,630 changed files, 2,296,958 added and 1,343,422 removed text
+lines; these counts include documentation, translations, tests and merge history,
+not just application features. Exact upstream pins and per-repository counts are
+in `.local/releases/2026-11-24-craft-update/upstream-metrics.json`.
+
+Integrated versions and packaged application sizes (raw decimal MB):
+
+- PhotoCraft 0.10.0 → 0.23.1: 28.21 → 77.55 MB.
+- PdfCraft 0.9.0 → 0.22.0: 42.48 → 135.04 MB.
+- WordCraft 0.8.0 → 0.18.1: 48.90 → 124.69 MB.
+- DeckCraft 0.8.0 → 0.19.0: 35.16 → 39.44 MB.
+- SoundCraft 0.9.0 → 0.20.1: 20.22 → 24.89 MB.
+- CADCraft 0.9.0 → 0.21.0: 27.19 → 38.34 MB.
+- GridCraft 0.8.0 → 0.19.1: 23.56 → 33.44 MB.
+- FigCraft 0.7.0 → 0.18.1: 25.14 → 28.68 MB.
+
+The eight application directories grew from 250,848,816 to 502,069,566 bytes
+(about 100.15%). The complete site grew from 268,998,118 to 520,219,174 bytes:
++251,221,056 bytes, or 93.39%. These are uncompressed packaged files, not browser
+transfer sizes, canister memory usage or user-document storage. Wasm files account
+for 490,416,048 bytes of the new site; PdfCraft’s verified OCR model/licence package
+adds 12,254,066 bytes.
+
+Exact-version release notes were obtained where published; DeckCraft and CADCraft
+had no published release at those exact tags. Available upstream CI evidence was
+recorded separately and is incomplete; it is not a claim that every upstream check
+passed.
+
+The [cloud integration assessment](craft-cloud-integration.md) explains why the
+provider-neutral ArtCraft cloud contract is the preferred future boundary while
+this release retains the established ICP adapters. The shared cloud UI now uses
+egui 0.37, preserving each fork's existing transport SDK snapshot. Moved host
+menus, document lifecycles and serialization hooks were adapted. PhotoCraft's
+browser clock, SoundCraft's content revision tracking, WordCraft's browser font
+catalog and PdfCraft's OCR worker/model packaging required focused compatibility
+repairs. Pinned external translation
+inputs are fetched explicitly and validated before building.
+
+Both existing production canisters were below their freezing reserves at the
+start. With the user's explicit approval, 3.30595124 ICP including fees was
+converted into 5T cycles, split 2.5T each between frontend and file service.
+The existing site resumed responding. This is a funding operation, not evidence
+that the refreshed applications have been published. No backend module, stable
+schema, canister mapping, identity derivation origin or controller was changed.
+
+All eight release browser builds, affected adapter/menu tests, 15 canonical shared
+UI tests and 12 assembly/input workflow tests passed. Browser checks with a disposable
+local account saved and reopened native documents in all eight editors. WordCraft’s
+rename hook and bundled font selection, SoundCraft’s navigation-versus-content
+revision behavior and PdfCraft’s OCR model/worker startup were checked. These are
+focused integration checks, not a complete upstream editor test suite. Final
+assembled package IDs match the browser-checked artifacts. Logs, source pins,
+package hashes, screenshots and measurements are retained under
+`.local/releases/2026-11-24-craft-update/`. Publication verification follows below
+when complete.
+
+Artifacts were built before their reviewed merge commits, then reused unchanged.
+The only later application edits were macOS-only module qualification and test
+harness/development-dependency adjustments; no selected browser runtime code changed.
+
+Validation scope remains the changed integration. PdfCraft's focused web tests
+needed a macOS-only module qualification fix. An unrelated upstream integration
+test target still references the removed `crop_drag` field; the affected host
+menu library test was isolated with `--lib` and passed. PhotoCraft's menu harness
+selects an in-window menu platform rather than macOS's external menu bar. These
+test-only and macOS-only adjustments do not change the validated browser code.
+
 ## Cloud subdomain and root workspace — 27 October 2026
 
 Implemented `cloud.subnet.ee/` as the workspace entry point and kept the public

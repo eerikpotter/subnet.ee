@@ -10,8 +10,8 @@ description = "Shared Craft cloud dialogs, account session and save/open control
 
 [dependencies]
 sovereign-cloud = { path = "../sovereign-cloud", features = ["browser"] }
-egui = "0.36"
-egui_extras = { version = "0.36", default-features = false, features = ["svg"] }
+egui = "0.37"
+egui_extras = { version = "0.37", default-features = false, features = ["svg"] }
 
 [target.'cfg(target_arch = "wasm32")'.dependencies]
 candid = "0.10"
@@ -24,4 +24,5 @@ serde_json = "1"
 web-sys = { version = "0.3", features = ["Window", "Storage", "Location", "Document", "Element", "HtmlElement", "HtmlDialogElement", "HtmlIFrameElement", "Node", "Event", "EventTarget", "MessageEvent", "Crypto", "UrlSearchParams", "IdbFactory", "IdbOpenDbRequest", "IdbDatabase", "IdbObjectStore", "IdbTransaction", "IdbTransactionMode", "IdbRequest", "IdbKeyRange", "DomStringList"] }
 
 [dev-dependencies]
-egui_kittest = { version = "0.36", features = ["wgpu", "snapshot"] }
+egui = { version = "0.37", features = ["default_fonts"] }
+egui_kittest = { version = "0.37", features = ["wgpu", "snapshot"] }

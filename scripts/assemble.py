@@ -47,10 +47,19 @@ def instrument_editor(folder):
     source = page.read_text()
     parser = InlineScripts()
     parser.feed(source)
-    wasms = list(folder.glob("*.wasm"))
-    if len(wasms) != 1:
-        raise RuntimeError(f"Expected one Wasm package in {folder}")
-    wasm = wasms[0]
+    previous = re.compile(r'// subnet-wasm-progress:start\n.*?// subnet-wasm-progress:end', re.S)
+    original = re.compile(r"const wasm = await init\(\{\s*module_or_path:\s*(['\"])([^'\"]+\.wasm)\1\s*\}\);")
+    # A package may also contain workers (PdfCraft's OCR). Instrument only the
+    # page's explicit bootstrap; worker glue keeps its own upstream URLs.
+    names = []
+    for script in parser.scripts:
+        if match := previous.search(script):
+            names.extend(re.findall(r'new URL\("\./([^"/]+\.wasm)", window.location.href\)', match.group()))
+        else:
+            names.extend(match.group(2).removeprefix("./") for match in original.finditer(script))
+    if len(names) != 1 or Path(names[0]).name != names[0] or not (folder / names[0]).is_file():
+        raise RuntimeError(f"Unrecognized Trunk bootstrap in {page}; expected one local Wasm init")
+    wasm = folder / names[0]
     data = wasm.read_bytes()
     integrity = "sha384-" + base64.b64encode(hashlib.sha384(data).digest()).decode()
     generated = ('// subnet-wasm-progress:start\n'
@@ -58,8 +67,6 @@ def instrument_editor(folder):
                  'const wasm = await init({ module_or_path: await loadCraftWasm('
                  f'new URL({json.dumps("./" + wasm.name)}, window.location.href), {len(data)}, {json.dumps(integrity)})'
                  ' });\n// subnet-wasm-progress:end')
-    previous = re.compile(r'// subnet-wasm-progress:start\n.*?// subnet-wasm-progress:end', re.S)
-    original = re.compile(r"const wasm = await init\(\{\s*module_or_path:\s*(['\"])([^'\"]+\.wasm)\1\s*\}\);")
     matches = 0
     for script in parser.scripts:
         pattern = previous if previous.search(script) else original
@@ -245,6 +252,8 @@ def assemble(root=ROOT, selected=("portal",)):
         # their existing immutable policy. Avoid overlapping conflicting rules.
         headers = headers.replace("/apps/*.js\n  Cache-Control: public, max-age=31536000, immutable\n", "")
         for app in manifest['apps']:
+            if (stage / "apps" / app['id'] / "models").is_dir():
+                headers += f"\n/apps/{app['id']}/models/*\n  Cache-Control: no-cache\n"
             for filename in app['assets']:
                 if filename.endswith('.js') and filename != 'craft-wasm.js':
                     headers += f"\n/apps/{app['id']}/{filename}\n  Cache-Control: public, max-age=31536000, immutable\n"
