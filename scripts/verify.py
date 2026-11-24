@@ -15,6 +15,20 @@ from assemble import InlineScripts
 
 ROOT = Path(__file__).resolve().parents[1]
 
+def verify_script_cache(route, cache_control):
+    path = Path(route)
+    if path.suffix not in (".js", ".wasm") or not route.startswith(("/apps/", "/cloud/")):
+        return
+    parts = route.strip('/').split('/')
+    mutable = path.name in ("craft-wasm.js", "craft-cache-sw.js") or (
+        len(parts) > 3 and parts[0] == "apps" and parts[2] == "snippets")
+    directives = {value.strip().lower() for value in cache_control.split(",")}
+    if mutable:
+        if "no-cache" not in directives or "immutable" in directives:
+            raise RuntimeError(f"Mutable runtime helper must revalidate: {route}")
+    elif not {"immutable", "max-age=31536000"} <= directives or directives & {"no-cache", "no-store", "max-age=0"}:
+        raise RuntimeError(f"Missing or conflicting versioned cache rule: {route}")
+
 def main():
     parser = argparse.ArgumentParser(description=__doc__)
     registered = json.loads((ROOT / "registry/apps.json").read_text())
@@ -129,10 +143,7 @@ def main():
             directives = {value.strip() for value in headers.get("cache-control", "").split(",")}
             if not {"immutable", "max-age=31536000"} <= directives or directives & {"no-cache", "no-store", "max-age=0"}:
                 raise RuntimeError(f"Wrong image cache policy: {route}")
-        if file.suffix in (".js", ".wasm") and route.startswith(("/apps/", "/cloud/")) and file.name not in ("craft-wasm.js", "craft-cache-sw.js"):
-            directives = {value.strip().lower() for value in headers.get("cache-control", "").split(",")}
-            if not {"immutable", "max-age=31536000"} <= directives or directives & {"no-cache", "no-store", "max-age=0"}:
-                raise RuntimeError(f"Missing or conflicting versioned cache rule: {route}")
+        verify_script_cache(route, headers.get("cache-control", ""))
         if file.name in ("index.html", "editor.html"):
             env_cookie = headers.get("set-cookie", "").split(";", 1)[0]
             if not env_cookie.startswith("ic_env="): raise RuntimeError(f"Missing runtime cookie: {route}")

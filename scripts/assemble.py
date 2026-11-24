@@ -254,6 +254,10 @@ def assemble(root=ROOT, selected=("portal",)):
         for app in manifest['apps']:
             if (stage / "apps" / app['id'] / "models").is_dir():
                 headers += f"\n/apps/{app['id']}/models/*\n  Cache-Control: no-cache\n"
+            # wasm-bindgen's numbered snippet filenames are not content hashes.
+            # Revalidate these helpers while the package cache pins their bytes.
+            if (stage / "apps" / app['id'] / "snippets").is_dir():
+                headers += f"\n/apps/{app['id']}/snippets/*\n  Cache-Control: no-cache\n"
             for filename in app['assets']:
                 if filename.endswith('.js') and filename != 'craft-wasm.js':
                     headers += f"\n/apps/{app['id']}/{filename}\n  Cache-Control: public, max-age=31536000, immutable\n"

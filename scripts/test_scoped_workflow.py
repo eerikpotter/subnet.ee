@@ -13,6 +13,7 @@ from unittest.mock import patch
 import assemble
 import build
 import dev
+import verify
 
 spec = importlib.util.spec_from_file_location("sdk_sync", Path(__file__).with_name("sync-sdk.py"))
 sdk_sync = importlib.util.module_from_spec(spec)
@@ -179,6 +180,24 @@ class ScopedWorkflowTest(unittest.TestCase):
         with patch.object(assemble.subprocess, "check_output", return_value="new\n"), self.assertRaisesRegex(RuntimeError, "Unrecognized Trunk bootstrap"):
             self.assemble("photocraft")
         self.assertEqual((self.root / "dist/apps.json").read_bytes(), before)
+
+    def test_nested_snippets_revalidate_and_versioned_bundles_stay_immutable(self):
+        snippet = 'snippets/eframe-d31a8450ea12dfc1/inline0.js'
+        self.put('apps/photocraft/dist/web/' + snippet, 'export const helper = true;')
+        with patch.object(assemble.subprocess, "check_output", return_value="with-snippet\n"):
+            self.assemble('photocraft')
+        headers = (self.root / 'dist/_headers').read_text()
+        self.assertIn('/apps/photocraft/snippets/*\n  Cache-Control: no-cache', headers)
+        self.assertIn('/apps/photocraft/editor.js\n  Cache-Control: public, max-age=31536000, immutable', headers)
+        helper = '/apps/photocraft/' + snippet
+        immutable = 'public, max-age=31536000, immutable'
+        verify.verify_script_cache(helper, 'no-cache')
+        verify.verify_script_cache('/apps/photocraft/editor-0123456789abcdef.js', immutable)
+        for policy in ('', immutable):
+            with self.assertRaisesRegex(RuntimeError, 'must revalidate'):
+                verify.verify_script_cache(helper, policy)
+        with self.assertRaisesRegex(RuntimeError, 'versioned cache rule'):
+            verify.verify_script_cache('/apps/photocraft/editor-0123456789abcdef.js', 'no-cache')
 
     def test_default_dev_syncs_frontend_only_and_app_build_is_scoped(self):
         self.put(".icp/cache/mappings/local.ids.json", '{"frontend":"front", "cloud":"cloud"}')
