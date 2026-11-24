@@ -63,6 +63,22 @@ package hashes, screenshots and measurements are retained under
 `.local/releases/2026-11-24-craft-update/`. Publication verification follows below
 when complete.
 
+The first production sync ran for 35m52s and stopped on 24 November at
+21:59:06 UTC when the ICP HTTP gateway returned 503 during `upload_chunks`.
+No `execute_operations` stage was reached. Certified HTTPS checks confirmed that
+both root hostnames and `apps.json` still match the previous release byte for byte.
+The frontend balance decreased by 1.558464T cycles over this attempt, including
+ordinary activity. Memory reached 1,313.72 MB; the status-derived 30-day idle
+estimate became 1.033T for frontend and remained 1.483T for the file service.
+These are failed-attempt measurements, not a successful publication bill.
+
+The pinned official 0.4.0 sync implementation stages all chunks before applying
+operations; starting a new session discards staged chunks, so this interruption
+cannot be resumed by the normal CLI. A retry must upload the changed assets again.
+With 1.574T frontend balance against a 1.033T reserve, additional funding needs
+owner approval. Proposed retry budget: add 2.5T to frontend using at most 1.70 ICP
+from the existing balance. No additional conversion has been performed.
+
 Artifacts were built before their reviewed merge commits, then reused unchanged.
 The only later application edits were macOS-only module qualification and test
 harness/development-dependency adjustments; no selected browser runtime code changed.
